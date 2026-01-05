@@ -1,0 +1,1029 @@
+/**
+ * Admin Dashboard
+ * Real-time dashboard with Firebase data integration
+ */
+
+'use client';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useApp } from '@/contexts/AppContext';
+import {
+  useOrders,
+  useBookings,
+  useProducts,
+  useServices,
+  useCustomers,
+  useRealtimeOrders,
+  useRealtimeBookings,
+  useRealtimeProducts,
+  useRealtimeServices,
+  useRealtimeCustomers,
+} from '@/hooks';
+import { Loading } from '@/components/ui';
+import { formatCurrency, formatDate } from '@/lib/utils/formatting';
+import { cn } from '@/lib/utils/cn';
+import { calculateRevenueMetrics, calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
+import {
+  ShoppingCart,
+  DollarSign,
+  Package,
+  TrendingUp,
+  TrendingDown,
+  ArrowRight,
+  Settings,
+  FileText,
+  Calendar,
+  Users,
+  AlertTriangle,
+  HelpCircle,
+} from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { OrderStatus } from '@/types/order';
+import { BookingStatus } from '@/types/booking';
+import { useStoreType } from '@/hooks/useStoreType';
+import { StoreTypeSelector } from '@/components/admin/StoreTypeSelector';
+import { StoreTypeBanner } from '@/components/admin/StoreTypeBanner';
+import { getStoreTypeLabel, getStoreTypeBadgeColor } from '@/lib/store-type/utils';
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+// Revenue-generating statuses (all statuses that represent confirmed payment)
+const ORDER_REVENUE_STATUSES = [
+  OrderStatus.PAID,
+  OrderStatus.PROCESSING,
+  OrderStatus.SHIPPED,
+  OrderStatus.COMPLETED,
+];
+
+const BOOKING_REVENUE_STATUSES = [
+  BookingStatus.PAID,
+  BookingStatus.CONFIRMED,
+  BookingStatus.COMPLETED,
+];
+
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const { currentBusiness } = useApp();
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [showStoreTypeSelector, setShowStoreTypeSelector] = useState(false);
+  const { storeType, isLoading: storeTypeLoading, hasProducts, hasServices } = useStoreType();
+
+  // Fetch data with React Query
+  const { data: orders = [], isLoading: ordersLoading } = useOrders({
+    limit: 100,
+    enabled: !!currentBusiness?.id,
+  });
+  const { data: bookings = [], isLoading: bookingsLoading } = useBookings({
+    limit: 100,
+    enabled: !!currentBusiness?.id,
+  });
+  const { data: products = [], isLoading: productsLoading } = useProducts({
+    businessId: currentBusiness?.id,
+    enabled: !!currentBusiness?.id,
+  });
+  const { data: services = [], isLoading: servicesLoading } = useServices({
+    businessId: currentBusiness?.id,
+    enabled: !!currentBusiness?.id,
+  });
+  const { data: customers = [], isLoading: customersLoading } = useCustomers({
+    enabled: !!currentBusiness?.id,
+  });
+
+  // Real-time updates
+  // Real-time updates for admin dashboard (critical - admin needs immediate updates)
+  useRealtimeOrders({ limit: 100, enabled: !!currentBusiness?.id });
+  useRealtimeBookings({ limit: 100, enabled: !!currentBusiness?.id });
+  useRealtimeProducts({ businessId: currentBusiness?.id, enabled: !!currentBusiness?.id });
+  useRealtimeServices({ businessId: currentBusiness?.id, enabled: !!currentBusiness?.id });
+  useRealtimeCustomers({ enabled: !!currentBusiness?.id });
+
+  // Calculate metrics from data
+  const metrics = useMemo(() => {
+    const now = new Date();
+    const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
+    
+    // Current period revenue
+    const currentPeriodStart = new Date(now);
+    currentPeriodStart.setDate(currentPeriodStart.getDate() - days);
+    
+    // Only count revenue-generating orders/bookings with confirmed payment
+    // Use payment amount and payment date (paidAt) to match ledger calculations
+    // Calculate gross revenue (what customers paid) and transaction fees (costs)
+    const currentGrossRevenue = orders
+      .filter((o) => {
+        if (!ORDER_REVENUE_STATUSES.includes(o.status) || !o.payment) return false;
+        // Use payment date (paidAt) if available, otherwise use createdAt
+        const transactionDate = o.payment.paidAt
+          ? (o.payment.paidAt instanceof Date ? o.payment.paidAt : o.payment.paidAt?.toDate?.() || new Date(o.payment.paidAt as string))
+          : (o.createdAt instanceof Date ? o.createdAt : o.createdAt?.toDate?.() || new Date(0));
+        return transactionDate >= currentPeriodStart;
+      })
+      .reduce((sum, o) => sum + (o.payment?.amount || o.pricing.total || 0), 0) +
+      bookings
+        .filter((b) => {
+          if (!BOOKING_REVENUE_STATUSES.includes(b.status) || !b.payment) return false;
+          // Use payment date (paidAt) if available, otherwise use createdAt
+          const transactionDate = b.payment.paidAt
+            ? (b.payment.paidAt instanceof Date ? b.payment.paidAt : b.payment.paidAt?.toDate?.() || new Date(b.payment.paidAt as string))
+            : (b.createdAt instanceof Date ? b.createdAt : b.createdAt?.toDate?.() || new Date(0));
+          return transactionDate >= currentPeriodStart;
+        })
+        .reduce((sum, b) => sum + (b.payment?.amount || b.pricing.total || 0), 0);
+
+    // Calculate transaction fees as costs (3% of gross revenue by default)
+    const currentTransactionFees = calculateTransactionFeeCost(currentGrossRevenue, DEFAULT_TRANSACTION_FEE_RATE);
+    const currentRevenue = currentGrossRevenue - currentTransactionFees; // Net revenue
+
+    // Previous period revenue
+    const previousPeriodStart = new Date(now);
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - (days * 2));
+    const previousPeriodEnd = new Date(now);
+    previousPeriodEnd.setDate(previousPeriodEnd.getDate() - days);
+    
+    // Only count revenue-generating orders/bookings with confirmed payment
+    // Use payment amount and payment date (paidAt) to match ledger calculations
+    // Calculate gross revenue (what customers paid) and transaction fees (costs)
+    const previousGrossRevenue = orders
+      .filter((o) => {
+        if (!ORDER_REVENUE_STATUSES.includes(o.status) || !o.payment) return false;
+        // Use payment date (paidAt) if available, otherwise use createdAt
+        const transactionDate = o.payment.paidAt
+          ? (o.payment.paidAt instanceof Date ? o.payment.paidAt : o.payment.paidAt?.toDate?.() || new Date(o.payment.paidAt as string))
+          : (o.createdAt instanceof Date ? o.createdAt : o.createdAt?.toDate?.() || new Date(0));
+        return transactionDate >= previousPeriodStart && transactionDate < previousPeriodEnd;
+      })
+      .reduce((sum, o) => sum + (o.payment?.amount || o.pricing.total || 0), 0) +
+      bookings
+        .filter((b) => {
+          if (!BOOKING_REVENUE_STATUSES.includes(b.status) || !b.payment) return false;
+          // Use payment date (paidAt) if available, otherwise use createdAt
+          const transactionDate = b.payment.paidAt
+            ? (b.payment.paidAt instanceof Date ? b.payment.paidAt : b.payment.paidAt?.toDate?.() || new Date(b.payment.paidAt as string))
+            : (b.createdAt instanceof Date ? b.createdAt : b.createdAt?.toDate?.() || new Date(0));
+          return transactionDate >= previousPeriodStart && transactionDate < previousPeriodEnd;
+        })
+        .reduce((sum, b) => sum + (b.payment?.amount || b.pricing.total || 0), 0);
+
+    // Calculate transaction fees as costs (3% of gross revenue by default)
+    const previousTransactionFees = calculateTransactionFeeCost(previousGrossRevenue, DEFAULT_TRANSACTION_FEE_RATE);
+    const previousRevenue = previousGrossRevenue - previousTransactionFees; // Net revenue
+
+    // Calculate revenue growth percentage
+    const revenueGrowth = previousRevenue > 0
+      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
+      : currentRevenue > 0 ? 100 : 0;
+
+    const totalOrders = orders.length;
+    const totalBookings = bookings.length;
+    const totalProducts = products.length;
+    const totalServices = services.length;
+    const totalCustomers = customers.length;
+
+    // Calculate low stock products (assuming stock threshold of 10)
+    const lowStockProducts = products.filter((p) => {
+      if (p.type !== 'product') return false;
+      const stock = (p as any).stock || (p as any).inventory?.quantity || 0;
+      return stock > 0 && stock <= 10;
+    }).length;
+
+    // Calculate today's orders
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayOrders = orders.filter((o) => {
+      const orderDate = o.createdAt instanceof Date ? o.createdAt : o.createdAt?.toDate?.() || new Date(0);
+      return orderDate >= todayStart;
+    }).length;
+
+    // Calculate this month's orders
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthOrders = orders.filter((o) => {
+      const orderDate = o.createdAt instanceof Date ? o.createdAt : o.createdAt?.toDate?.() || new Date(0);
+      return orderDate >= monthStart;
+    }).length;
+
+    // Calculate pending bookings
+    const pendingBookings = bookings.filter((b) => {
+      return b.status === BookingStatus.PENDING || b.status === BookingStatus.CONFIRMED;
+    }).length;
+
+    // Calculate average order/booking values (using net revenue)
+    const revenueOrders = orders.filter((o) => ORDER_REVENUE_STATUSES.includes(o.status) && o.payment);
+    const revenueBookings = bookings.filter((b) => BOOKING_REVENUE_STATUSES.includes(b.status) && b.payment);
+    
+    const totalRevenueOrders = revenueOrders.length;
+    const totalRevenueBookings = revenueBookings.length;
+
+    return {
+      totalRevenue: currentRevenue, // Net revenue (after transaction fees)
+      grossRevenue: currentGrossRevenue, // Gross revenue (what customers paid)
+      transactionFees: currentTransactionFees, // Transaction fees (costs)
+      totalOrders,
+      totalBookings,
+      totalProducts,
+      totalServices,
+      totalCustomers,
+      averageOrderValue: totalRevenueOrders > 0 
+        ? revenueOrders.reduce((sum, o) => {
+            const grossAmount = o.payment?.amount || o.pricing.total || 0;
+            const fees = calculateTransactionFeeCost(grossAmount, DEFAULT_TRANSACTION_FEE_RATE);
+            return sum + (grossAmount - fees);
+          }, 0) / totalRevenueOrders
+        : 0,
+      averageBookingValue: totalRevenueBookings > 0
+        ? revenueBookings.reduce((sum, b) => {
+            const grossAmount = b.payment?.amount || b.pricing.total || 0;
+            const fees = calculateTransactionFeeCost(grossAmount, DEFAULT_TRANSACTION_FEE_RATE);
+            return sum + (grossAmount - fees);
+          }, 0) / totalRevenueBookings
+        : 0,
+      revenueGrowth,
+      lowStockProducts,
+      todayOrders,
+      monthOrders,
+      pendingBookings,
+    };
+  }, [orders, bookings, products, services, customers, dateRange]);
+
+  const loading = ordersLoading || bookingsLoading || productsLoading || servicesLoading || customersLoading;
+
+  // Get recent orders and bookings based on store type
+  type RecentItem = {
+    id: string;
+    type: 'order' | 'booking';
+    number: string;
+    status: string;
+    amount: number;
+    currency: string;
+    date: Date;
+    link: string;
+  };
+
+  const recentItems = useMemo(() => {
+    const items: RecentItem[] = [];
+
+    // Add orders if business has products
+    if (hasProducts) {
+      orders
+        .filter((order) => ORDER_REVENUE_STATUSES.includes(order.status))
+        .forEach((order) => {
+          const date = order.createdAt instanceof Date ? order.createdAt : order.createdAt?.toDate?.() || new Date(0);
+          items.push({
+            id: order.id || '',
+            type: 'order',
+            number: order.orderNumber || order.id?.substring(0, 8) || 'N/A',
+            status: order.status || 'pending',
+            amount: order.pricing.total || 0,
+            currency: order.pricing.currency || 'MWK',
+            date,
+            link: `/admin/orders/${order.id}`,
+          });
+        });
+    }
+
+    // Add bookings if business has services
+    if (hasServices) {
+      bookings
+        .filter((booking) => BOOKING_REVENUE_STATUSES.includes(booking.status))
+        .forEach((booking) => {
+          const date = booking.createdAt instanceof Date ? booking.createdAt : booking.createdAt?.toDate?.() || new Date(0);
+          items.push({
+            id: booking.id || '',
+            type: 'booking',
+            number: booking.bookingNumber || booking.id?.substring(0, 8) || 'N/A',
+            status: booking.status || 'pending',
+            amount: booking.pricing.total || 0,
+            currency: booking.pricing.currency || 'MWK',
+            date,
+            link: `/admin/bookings/${booking.id}`,
+          });
+        });
+    }
+
+    // Sort by date (most recent first) and take top 10
+    return items
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 10);
+  }, [orders, bookings, hasProducts, hasServices]);
+
+  // Calculate chart data for revenue over time
+  const revenueChartData = useMemo(() => {
+    const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
+    const data: { date: string; revenue: number; orders: number; bookings: number }[] = [];
+    const now = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const dateEnd = new Date(dateStart);
+      dateEnd.setDate(dateEnd.getDate() + 1);
+
+      // Only count revenue-generating orders/bookings with confirmed payment
+      // Use payment amount and payment date (paidAt) to match ledger calculations
+      const dayOrders = orders.filter((order) => {
+        if (!ORDER_REVENUE_STATUSES.includes(order.status) || !order.payment) return false;
+        // Use payment date (paidAt) if available, otherwise use createdAt
+        const transactionDate = order.payment.paidAt
+          ? (order.payment.paidAt instanceof Date ? order.payment.paidAt : order.payment.paidAt?.toDate?.() || new Date(order.payment.paidAt as string))
+          : (order.createdAt instanceof Date ? order.createdAt : order.createdAt?.toDate?.() || new Date(0));
+        return transactionDate >= dateStart && transactionDate < dateEnd;
+      });
+
+      const dayBookings = bookings.filter((booking) => {
+        if (!BOOKING_REVENUE_STATUSES.includes(booking.status) || !booking.payment) return false;
+        // Use payment date (paidAt) if available, otherwise use createdAt
+        const transactionDate = booking.payment.paidAt
+          ? (booking.payment.paidAt instanceof Date ? booking.payment.paidAt : booking.payment.paidAt?.toDate?.() || new Date(booking.payment.paidAt as string))
+          : (booking.createdAt instanceof Date ? booking.createdAt : booking.createdAt?.toDate?.() || new Date(0));
+        return transactionDate >= dateStart && transactionDate < dateEnd;
+      });
+
+      const grossRevenue = dayOrders.reduce((sum, o) => sum + (o.payment?.amount || o.pricing.total || 0), 0) +
+        dayBookings.reduce((sum, b) => sum + (b.payment?.amount || b.pricing.total || 0), 0);
+      
+      // Calculate transaction fees and net revenue
+      const transactionFees = calculateTransactionFeeCost(grossRevenue, DEFAULT_TRANSACTION_FEE_RATE);
+      const revenue = grossRevenue - transactionFees; // Net revenue
+
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        revenue, // Net revenue (after transaction fees)
+        orders: dayOrders.length,
+        bookings: dayBookings.length,
+      });
+    }
+
+    return data;
+  }, [orders, bookings, dateRange]);
+
+  // Calculate top products/services
+  const topItemsData = useMemo(() => {
+    const itemSales: Record<string, { name: string; sales: number; revenue: number; type: 'product' | 'service' }> = {};
+
+    // Count sales from orders - only revenue-generating orders
+    orders.forEach((order) => {
+      if (!ORDER_REVENUE_STATUSES.includes(order.status)) return;
+      if (!order.items || !Array.isArray(order.items)) return; // Safety check
+      order.items.forEach((item) => {
+        if (!item.productId) return; // Skip items without productId
+        if (!itemSales[item.productId]) {
+          itemSales[item.productId] = {
+            name: item.productName || 'Unknown Product',
+            sales: 0,
+            revenue: 0,
+            type: 'product',
+          };
+        }
+        itemSales[item.productId].sales += item.quantity || 0;
+        itemSales[item.productId].revenue += item.subtotal || 0;
+      });
+    });
+
+    // Count sales from bookings - only revenue-generating bookings
+    bookings.forEach((booking) => {
+      if (!BOOKING_REVENUE_STATUSES.includes(booking.status) || !booking.serviceId) return;
+      if (!itemSales[booking.serviceId]) {
+        itemSales[booking.serviceId] = {
+          name: booking.serviceName || 'Service',
+          sales: 0,
+          revenue: 0,
+          type: 'service',
+        };
+      }
+      itemSales[booking.serviceId].sales += 1;
+      itemSales[booking.serviceId].revenue += booking.pricing.total || 0;
+    });
+
+    return Object.values(itemSales)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5)
+      .map((item) => {
+        const name = item.name || 'Unknown';
+        return {
+          name: name.length > 20 ? name.substring(0, 20) + '...' : name,
+          revenue: item.revenue || 0,
+          sales: item.sales || 0,
+        };
+      });
+  }, [orders, bookings]);
+
+  // Calculate earnings over time
+  const earningsChartData = useMemo(() => {
+    const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
+    const data: { date: string; income: number; expenses: number; profit: number }[] = [];
+    const now = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const dateEnd = new Date(dateStart);
+      dateEnd.setDate(dateEnd.getDate() + 1);
+
+      const dayOrders = orders.filter((order) => {
+        if (!order.payment?.paidAt) return false;
+        const orderDate = order.createdAt instanceof Date ? order.createdAt : order.createdAt?.toDate?.() || new Date(0);
+        return orderDate >= dateStart && orderDate < dateEnd;
+      });
+
+      const dayBookings = bookings.filter((booking) => {
+        if (!booking.payment?.paidAt) return false;
+        const bookingDate = booking.createdAt instanceof Date ? booking.createdAt : booking.createdAt?.toDate?.() || new Date(0);
+        return bookingDate >= dateStart && bookingDate < dateEnd;
+      });
+
+      const grossIncome = dayOrders.reduce((sum, o) => sum + (o.payment?.amount || o.pricing.total || 0), 0) +
+        dayBookings.reduce((sum, b) => sum + (b.payment?.amount || b.pricing.total || 0), 0);
+      
+      // Calculate transaction fees as expenses
+      const transactionFees = calculateTransactionFeeCost(grossIncome, DEFAULT_TRANSACTION_FEE_RATE);
+      const income = grossIncome - transactionFees; // Net income (after transaction fees)
+      const expenses = transactionFees; // Transaction fees are the costs
+      const profit = income; // Profit = net income (gross - transaction fees)
+
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        income,
+        expenses,
+        profit,
+      });
+    }
+
+    return data;
+  }, [orders, bookings, dateRange]);
+
+  // Order status distribution
+  const orderStatusData = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    orders.forEach((order) => {
+      const status = order.status || 'unknown';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+  }, [orders]);
+
+  // Show store type selector if not set
+  useEffect(() => {
+    if (!storeTypeLoading && !storeType) {
+      setShowStoreTypeSelector(true);
+    }
+  }, [storeType, storeTypeLoading]);
+
+  if (loading || storeTypeLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loading size="lg" />
+      </div>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'delivered':
+        return 'bg-success/20 text-success';
+      case 'pending':
+        return 'bg-warning/20 text-warning';
+      case 'processing':
+      case 'paid':
+        return 'bg-info/20 text-info';
+      case 'cancelled':
+        return 'bg-destructive/20 text-destructive';
+      default:
+        return 'bg-background-secondary text-text-secondary';
+    }
+  };
+
+  return (
+    <div>
+      {showStoreTypeSelector && (
+        <StoreTypeSelector
+          onComplete={() => setShowStoreTypeSelector(false)}
+        />
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Admin Dashboard</h1>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value as '7d' | '30d' | '90d')}
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Store Type Banner - Shown Conspicuously */}
+      {storeType && <StoreTypeBanner />}
+
+      {/* Metrics Cards */}
+      <div className="overflow-x-auto mb-6 sm:mb-8 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="flex gap-3 sm:gap-4 md:gap-6 min-w-max">
+        {/* Today's Orders */}
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Today's Orders</h3>
+            <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
+            {metrics?.todayOrders || 0}
+          </p>
+          <div className="flex items-center gap-1 min-w-0">
+            {metrics && metrics.todayOrders > 0 ? (
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success flex-shrink-0" />
+            ) : (
+              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-secondary flex-shrink-0" />
+            )}
+            <p className="text-xs sm:text-sm text-text-secondary">
+              {metrics?.monthOrders || 0} this month
+            </p>
+          </div>
+        </div>
+
+        {/* Total Revenue (Net) */}
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[240px]">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Net Revenue</h3>
+            <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
+          </div>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
+            {formatCurrency(metrics?.totalRevenue || 0, 'MWK')}
+          </p>
+          <div className="flex items-center gap-1 min-w-0">
+            {metrics && metrics.revenueGrowth >= 0 ? (
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success flex-shrink-0" />
+            ) : (
+              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-destructive flex-shrink-0" />
+            )}
+            <p className={cn('text-xs sm:text-sm', metrics && metrics.revenueGrowth >= 0 ? 'text-success' : 'text-destructive')}>
+              {metrics && metrics.revenueGrowth >= 0 ? '+' : ''}
+              {(metrics?.revenueGrowth ?? 0).toFixed(1)}%
+            </p>
+          </div>
+          {metrics && metrics.transactionFees !== undefined && (
+            <p className="text-xs text-text-secondary mt-1">
+              After {formatCurrency(metrics.transactionFees, 'MWK')} in fees
+            </p>
+          )}
+        </div>
+
+        {/* Transaction Fees (Costs) */}
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[240px]">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Transaction Fees</h3>
+            <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6 text-destructive flex-shrink-0" />
+          </div>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-destructive mb-1.5 sm:mb-2 whitespace-nowrap">
+            {formatCurrency(metrics?.transactionFees || 0, 'MWK')}
+          </p>
+          {metrics && metrics.grossRevenue !== undefined && metrics.transactionFees !== undefined && (
+            <p className="text-xs text-text-secondary">
+              {((metrics.transactionFees / metrics.grossRevenue) * 100).toFixed(1)}% of gross revenue
+            </p>
+          )}
+        </div>
+
+        {/* Low Stock Items */}
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Low Stock Items</h3>
+            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-warning flex-shrink-0" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
+            {metrics?.lowStockProducts || 0}
+          </p>
+          {metrics && metrics.lowStockProducts > 0 && (
+            <div className="flex items-center gap-1 min-w-0">
+              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warning flex-shrink-0" />
+              <p className="text-xs sm:text-sm text-warning">Action required</p>
+            </div>
+          )}
+        </div>
+
+        {/* Pending Bookings */}
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Pending Bookings</h3>
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-info flex-shrink-0" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
+            {metrics?.pendingBookings || 0}
+          </p>
+          <p className="text-xs sm:text-sm text-text-secondary">
+            {metrics?.totalBookings || 0} total bookings
+          </p>
+        </div>
+        </div>
+      </div>
+
+      {/* Quick Actions & Recent Orders */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-foreground">Quick Actions</h2>
+            <Link
+              href="/admin/guide"
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm text-primary hover:text-primary-hover hover:bg-primary/10 rounded-lg transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Guide</span>
+            </Link>
+          </div>
+          <div className="space-y-2 sm:space-y-3">
+            {hasProducts && (
+              <Link
+                href="/admin/products"
+                className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
+              >
+                <span className="text-sm sm:text-base text-foreground">Manage Products</span>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+              </Link>
+            )}
+            {hasServices && (
+              <Link
+                href="/admin/services"
+                className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
+              >
+                <span className="text-sm sm:text-base text-foreground">Manage Services</span>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+              </Link>
+            )}
+            {hasProducts && (
+              <Link
+                href="/admin/orders"
+                className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
+              >
+                <span className="text-sm sm:text-base text-foreground">View All Orders</span>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+              </Link>
+            )}
+            {hasServices && (
+              <Link
+                href="/admin/bookings"
+                className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
+              >
+                <span className="text-sm sm:text-base text-foreground">View All Bookings</span>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+              </Link>
+            )}
+            <Link
+              href="/admin/settings"
+              className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
+            >
+              <span className="text-sm sm:text-base text-foreground">Configure Settings</span>
+              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+            </Link>
+            <Link
+              href="/admin/ledger"
+              className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
+            >
+              <span className="text-sm sm:text-base text-foreground">Access Ledger</span>
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+            </Link>
+            <Link
+              href="/admin/analytics"
+              className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
+            >
+              <span className="text-sm sm:text-base text-foreground">View Analytics</span>
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Recent Orders & Bookings */}
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-foreground">
+              {hasProducts && hasServices
+                ? 'Recent Orders & Bookings'
+                : hasProducts
+                ? 'Recent Orders'
+                : 'Recent Bookings'}
+            </h2>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              {hasProducts && (
+                <Link href="/admin/orders" className="text-xs sm:text-sm text-primary hover:text-primary-hover">
+                  View all orders
+                </Link>
+              )}
+              {hasServices && (
+                <Link href="/admin/bookings" className="text-xs sm:text-sm text-primary hover:text-primary-hover">
+                  View all bookings
+                </Link>
+              )}
+            </div>
+          </div>
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            {recentItems.length > 0 ? (
+              <table className="w-full min-w-[600px] sm:min-w-0">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-text-secondary">Type</th>
+                    <th className="text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-text-secondary">ID</th>
+                    <th className="text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-text-secondary">Status</th>
+                    <th className="text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-text-secondary">Amount</th>
+                    <th className="text-left py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium text-text-secondary">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentItems.map((item) => (
+                    <tr key={`${item.type}-${item.id}`} className="border-b border-border hover:bg-background-secondary transition-colors">
+                      <td className="py-2 sm:py-3 px-2 sm:px-3">
+                        <span className={cn(
+                          'px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded-full font-medium',
+                          item.type === 'order' ? 'bg-blue-500/20 text-blue-500' : 'bg-purple-500/20 text-purple-500'
+                        )}>
+                          {item.type === 'order' ? 'Order' : 'Booking'}
+                        </span>
+                      </td>
+                      <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-foreground font-medium">
+                        <Link href={item.link} className="hover:text-primary transition-colors">
+                          {item.number}
+                        </Link>
+                      </td>
+                      <td className="py-2 sm:py-3 px-2 sm:px-3">
+                        <span className={cn('px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded-full', getStatusColor(item.status))}>
+                          {item.status || 'Pending'}
+                        </span>
+                      </td>
+                      <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-foreground font-medium">
+                        {formatCurrency(item.amount, item.currency)}
+                      </td>
+                      <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-text-secondary">
+                        {formatDate(item.date.toISOString())}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-center py-6 sm:py-8 text-text-secondary">
+                <ShoppingCart className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm sm:text-base">
+                  {hasProducts && hasServices
+                    ? 'No recent orders or bookings'
+                    : hasProducts
+                    ? 'No recent orders'
+                    : 'No recent bookings'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        {/* Revenue over time */}
+        <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">Net Revenue Over Time</h2>
+          <div className="w-full" style={{ minHeight: '200px', height: '200px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={revenueChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#9ca3af" 
+                  tick={{ fontSize: 10 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  stroke="#9ca3af" 
+                  tick={{ fontSize: 10 }}
+                  width={60}
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+                    return value.toString();
+                  }}
+                />
+              <Tooltip
+                  contentStyle={{ 
+                    backgroundColor: '#1f2937', 
+                    border: '1px solid #374151', 
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    padding: '8px'
+                  }}
+                  labelStyle={{ color: '#f3f4f6', fontSize: '12px' }}
+                  formatter={(value: number) => formatCurrency(value, 'MWK')}
+              />
+                <Legend 
+                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                  iconSize={12}
+                />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="#3b82f6"
+                fillOpacity={1}
+                fill="url(#colorRevenue)"
+                name="Net Revenue (MWK)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Orders & Bookings over time */}
+        <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">Orders & Bookings Over Time</h2>
+          <div className="w-full" style={{ minHeight: '200px', height: '200px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#9ca3af" 
+                  tick={{ fontSize: 10 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  stroke="#9ca3af" 
+                  tick={{ fontSize: 10 }}
+                  width={60}
+                />
+              <Tooltip
+                  contentStyle={{ 
+                    backgroundColor: '#1f2937', 
+                    border: '1px solid #374151', 
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    padding: '8px'
+                  }}
+                  labelStyle={{ color: '#f3f4f6', fontSize: '12px' }}
+              />
+                <Legend 
+                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                  iconSize={12}
+                />
+              <Line type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} name="Orders" />
+              <Line type="monotone" dataKey="bookings" stroke="#f59e0b" strokeWidth={2} name="Bookings" />
+            </LineChart>
+          </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Net Earnings Over Time */}
+        <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">Net Earnings Over Time</h2>
+          <div className="w-full" style={{ minHeight: '200px', height: '200px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={earningsChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#9ca3af" 
+                  tick={{ fontSize: 10 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  stroke="#9ca3af" 
+                  tick={{ fontSize: 10 }}
+                  width={60}
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+                    return value.toString();
+                  }}
+                />
+              <Tooltip
+                  contentStyle={{ 
+                    backgroundColor: '#1f2937', 
+                    border: '1px solid #374151', 
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    padding: '8px'
+                  }}
+                  labelStyle={{ color: '#f3f4f6', fontSize: '12px' }}
+                  formatter={(value: number) => formatCurrency(value, 'MWK')}
+              />
+                <Legend 
+                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                  iconSize={12}
+                />
+              <Area
+                type="monotone"
+                dataKey="income"
+                stroke="#10b981"
+                fillOpacity={1}
+                fill="url(#colorIncome)"
+                name="Net Income (MWK)"
+              />
+              <Area
+                type="monotone"
+                dataKey="expenses"
+                stroke="#ef4444"
+                fillOpacity={1}
+                fill="url(#colorExpenses)"
+                name="Transaction Fees (MWK)"
+              />
+              <Line type="monotone" dataKey="profit" stroke="#3b82f6" strokeWidth={2} name="Profit (MWK)" />
+            </AreaChart>
+          </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Top Products & Services */}
+        <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">Top Products & Services</h2>
+          {topItemsData.length > 0 ? (
+            <div className="w-full" style={{ minHeight: '200px', height: '200px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topItemsData} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    type="number" 
+                    stroke="#9ca3af" 
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                      if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+                      return value.toString();
+                    }}
+                  />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    stroke="#9ca3af" 
+                    tick={{ fontSize: 10 }}
+                    width={80}
+                  />
+                <Tooltip
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151', 
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      padding: '8px'
+                    }}
+                    labelStyle={{ color: '#f3f4f6', fontSize: '12px' }}
+                  formatter={(value: number) => formatCurrency(value, 'MWK')}
+                />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                    iconSize={12}
+                  />
+                <Bar dataKey="revenue" fill="#3b82f6" name="Revenue (MWK)" />
+              </BarChart>
+            </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-text-secondary">
+              <p className="text-xs sm:text-sm md:text-base">No sales data available</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

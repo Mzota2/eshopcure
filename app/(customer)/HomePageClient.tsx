@@ -1,0 +1,468 @@
+'use client';
+
+import React, { useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
+import { ProductCard } from '@/components/products';
+import { ServiceCard } from '@/components/services';
+import { isProduct, isService } from '@/types';
+import { Item } from '@/types';
+import { useCart } from '@/contexts/CartContext';
+import { useApp } from '@/contexts/AppContext';
+import {
+  useProducts,
+  useServices,
+  useCategories,
+  usePromotions,
+  useDeliveryProviders,
+  // Real-time hooks removed for non-critical data to save Firebase quota
+  // Using polling instead via refetchInterval in hooks
+} from '@/hooks';
+import { PromotionStatus } from '@/types/promotion';
+import { ItemStatus } from '@/types/item';
+import { Timestamp } from 'firebase/firestore';
+import { PromotionCarousel } from '@/components/carousel/PromotionCarousel';
+import { OptimizedImage, CategoryImage } from '@/components/ui/OptimizedImage';
+import { ReviewsSection } from '@/components/reviews';
+
+export default function HomePageClient() {
+  const { addItem } = useCart();
+  const { currentBusiness } = useApp();
+  
+  // React Query hooks
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+  } = useProducts({
+    businessId: currentBusiness?.id,
+    status: ItemStatus.ACTIVE,
+    limit: 10,
+    enabled: !!currentBusiness?.id,
+  });
+
+  const {
+    data: services = [],
+    isLoading: servicesLoading,
+  } = useServices({
+    businessId: currentBusiness?.id,
+    status: ItemStatus.ACTIVE,
+    limit: 10,
+    enabled: !!currentBusiness?.id,
+    refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+  });
+
+  const {
+    data: categories = [],
+  } = useCategories({
+    businessId: currentBusiness?.id,
+    type: 'both',
+    limit: 6,
+    enabled: !!currentBusiness?.id,
+    refetchInterval: 15 * 60 * 1000, // Poll every 15 minutes (categories change rarely)
+    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes
+  });
+
+  const {
+    data: promotions = [],
+  } = usePromotions({
+    businessId: currentBusiness?.id,
+    status: PromotionStatus.ACTIVE,
+    limit: 10,
+    enabled: !!currentBusiness?.id,
+    refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+  });
+
+  const {
+    data: deliveryProviders = [],
+  } = useDeliveryProviders({
+    businessId: currentBusiness?.id,
+    isActive: true,
+    limit: 3,
+    enabled: !!currentBusiness?.id,
+    refetchInterval: 15 * 60 * 1000, // Poll every 15 minutes (delivery providers change rarely)
+    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes
+  });
+
+  // Note: Real-time updates removed for public data to save Firebase quota
+  // Using polling instead (refetchInterval in hooks)
+  // Real-time is only used for critical data (notifications, user orders/bookings)
+  
+  // Combine products and services into all items
+  const allItems = [...products, ...services];
+  
+  // Helper to convert createdAt to Date
+  const getDate = (date: Date | Timestamp | string | undefined): Date => {
+    if (!date) return new Date(0);
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+    return new Date(date);
+  };
+
+  // Derive new arrivals and top picks from store state
+  const newArrivals = allItems
+    .filter(item => item.status === ItemStatus.ACTIVE)
+    .sort((a, b) => {
+      const aDate = getDate(a.createdAt);
+      const bDate = getDate(b.createdAt);
+      return bDate.getTime() - aDate.getTime();
+    })
+    .slice(0, 3);
+  
+  const featuredItems = allItems.filter(item => item.isFeatured && item.status === ItemStatus.ACTIVE);
+  const topPicks = featuredItems.length >= 4 
+    ? featuredItems.slice(0, 4) 
+    : allItems.filter(item => item.status === ItemStatus.ACTIVE).slice(0, 4);
+  
+  const loading = productsLoading || servicesLoading;
+
+  // Helper to convert endDate to Date
+  const getEndDate = (date: Date | Timestamp | string | undefined): Date => {
+    if (!date) return new Date(0);
+    if (date instanceof Date) return date;
+    if (date && typeof date === 'object' && 'toDate' in date) {
+      return (date as Timestamp).toDate();
+    }
+    return new Date(date as string | number);
+  };
+
+  // Filter active promotions that haven't expired
+  const activePromotions = useMemo(() => {
+    if (!promotions || promotions.length === 0) {
+      console.log('No promotions found in store');
+      return [];
+    }
+    
+    console.log('Total promotions from store:', promotions.length);
+    console.log('Promotions data:', promotions);
+    
+    const now = new Date();
+    const filtered = promotions.filter((promo) => {
+      // Check status
+      if (promo.status !== PromotionStatus.ACTIVE) {
+        console.log(`Promotion "${promo.name}" filtered out - status: ${promo.status}`);
+        return false;
+      }
+      
+      // Check if promotion hasn't expired
+      const endDate = getEndDate(promo.endDate);
+      const isNotExpired = endDate >= now;
+      
+      if (!isNotExpired) {
+        console.log(`Promotion "${promo.name}" filtered out - expired. End date: ${endDate}, Now: ${now}`);
+      }
+      
+      return isNotExpired;
+    });
+    
+    console.log('Active promotions after filtering:', filtered.length);
+    return filtered;
+  }, [promotions]);
+
+  const handleAddToCart = (product: Item) => {
+    addItem(product, 1);
+  };
+
+  // Data is automatically fetched by React Query hooks above
+
+  return (
+    <div className="min-h-screen">
+      {/* Animated Carousel for Promotions and Business Details */}
+      {loading ? (
+        <section className="bg-gradient-to-br from-secondary to-background text-primary-foreground">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div className="text-center">
+              <p className="text-xl">Loading...</p>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <PromotionCarousel
+          promotions={activePromotions}
+          businessData={currentBusiness}
+          products={products}
+          services={services}
+          autoPlayInterval={10000}
+        />
+      )}
+
+      {/* Shop By Category */}
+      <section className="py-16 bg-background-secondary">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">SHOP BY CATEGORY</h2>
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-text-secondary">Loading categories...</p>
+            </div>
+          ) : categories.length > 0 ? (
+            <>
+              {/* Mobile: Horizontal Scroll */}
+              <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+                <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                  {categories.map((category) => (
+                    <Link
+                      key={category.id}
+                      href={`/products?category=${category.slug}`}
+                      className="flex-shrink-0 w-[140px] snap-start bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
+                    >
+                      <div className="relative aspect-square bg-background-secondary">
+                        {category.image ? (
+                          <CategoryImage 
+                            src={category.image}
+                            alt={category.name}
+                            fill
+                            context="card"
+                            className="object-cover"
+                            sizes="(max-width: 768px) 140px, 50vw"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary-light to-primary flex items-center justify-center">
+                            {category.icon ? (
+                              <span className="text-3xl">{category.icon}</span>
+                            ) : (
+                              <OptimizedImage src="/hero.jpg" alt={category.name} fill className="object-cover opacity-50" sizes="(max-width: 768px) 140px, 50vw" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 text-center">
+                        <h2 className="font-semibold text-sm text-foreground mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                          {category.name}
+                        </h2>
+                        {category.description && (
+                          <p className="text-xs text-text-secondary line-clamp-2">{category.description}</p>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              {/* Desktop: Grid Layout */}
+              <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-6">
+              {categories.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/products?category=${category.slug}`}
+                  className="bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
+                >
+                  <div className="relative aspect-square bg-background-secondary">
+                    {category.image ? (
+                      <CategoryImage 
+                        src={category.image}
+                        alt={category.name}
+                        fill
+                        context="card"
+                        className="object-cover"
+                          sizes="(max-width: 1200px) 50vw, 33vw"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary-light to-primary flex items-center justify-center">
+                        {category.icon ? (
+                          <span className="text-4xl">{category.icon}</span>
+                        ) : (
+                          <Image src={'/hero.jpg'} fill alt={category.name} className="object-cover opacity-50" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 text-center">
+                    <h2 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
+                      {category.name}
+                    </h2>
+                    {category.description && (
+                      <p className="text-xs text-text-secondary line-clamp-2">{category.description}</p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+            </>
+          ) : (
+            <div className="text-center py-12 text-text-muted">
+              <p>No categories available at the moment.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* New Arrivals */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col gap-2 w-full text-center">
+              <h2 className="text-3xl font-bold mb-2 text-foreground">NEW ARRIVALS</h2>
+              <p className="text-text-secondary">
+                Explore our latest collection featuring exclusive designs and premium quality. Limited stock available.
+              </p>
+              <Link className="shrink-0" href="/products?sort=newest">
+                <Button variant="outline">View All →</Button>
+              </Link>
+            </div>
+          </div>
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-text-secondary">Loading new arrivals...</p>
+            </div>
+          ) : newArrivals.length > 0 ? (
+            <>
+              {/* Mobile: Horizontal Scroll */}
+              <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+                <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                  {newArrivals.map((item) => (
+                    <div key={item.id} className="flex-shrink-0 w-[280px] snap-start">
+                      {isProduct(item) ? (
+                        <ProductCard
+                          product={item}
+                          onAddToCart={handleAddToCart}
+                        />
+                      ) : isService(item) ? (
+                        <ServiceCard
+                          service={item}
+                        />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Desktop: Grid Layout */}
+              <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {newArrivals.map((item) => (
+                isProduct(item) ? (
+                  <ProductCard
+                    key={item.id}
+                    product={item}
+                    onAddToCart={handleAddToCart}
+                  />
+                ) : isService(item) ? (
+                  <ServiceCard
+                    key={item.id}
+                    service={item}
+                  />
+                ) : null
+              ))}
+            </div>
+            </>
+          ) : (
+            <div className="text-center py-12 text-text-muted">
+              <p>No new arrivals at the moment. Check back soon!</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Top Picks */}
+      <section className="py-16 bg-background-secondary">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">OUR TOP PICKS</h2>
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-text-secondary">Loading top picks...</p>
+            </div>
+          ) : topPicks.length > 0 ? (
+            <>
+              {/* Mobile: Horizontal Scroll */}
+              <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+                <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                  {topPicks.map((item) => (
+                    <div key={item.id} className="flex-shrink-0 w-[280px] snap-start">
+                      {isProduct(item) ? (
+                        <ProductCard
+                          product={item}
+                          onAddToCart={handleAddToCart}
+                        />
+                      ) : isService(item) ? (
+                        <ServiceCard
+                          service={item}
+                        />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Desktop: Grid Layout */}
+              <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {topPicks.map((item) => (
+                isProduct(item) ? (
+                  <ProductCard
+                    key={item.id}
+                    product={item}
+                    onAddToCart={handleAddToCart}
+                  />
+                ) : isService(item) ? (
+                  <ServiceCard
+                    key={item.id}
+                    service={item}
+                  />
+                ) : null
+              ))}
+            </div>
+            </>
+          ) : (
+            <div className="text-center py-12 text-text-muted">
+              <p>No top picks available at the moment.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Service Highlights */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Why Choose Us</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-foreground">Fast & Cheap Delivery</h3>
+                <p className="text-text-secondary">Receive your orders right at your door step</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-foreground">Secure Payment</h3>
+                <p className="text-text-secondary">Shop with confidence using our encrypted checkout.</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-foreground">Easy Returns</h3>
+                <p className="text-text-secondary">Hassle-free returns within 30 days of purchase.</p>
+              </div>
+            </>
+          </div>
+        </div>
+      </section>
+
+      {/* Customer Reviews Section */}
+      {currentBusiness?.id && (
+        <section className="py-16 bg-background-secondary">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-foreground mb-4">What Our Customers Say</h2>
+              <p className="text-lg text-text-secondary max-w-3xl mx-auto">
+                Join thousands of satisfied customers. See why people love shopping with us!
+              </p>
+            </div>
+            <ReviewsSection
+              businessId={currentBusiness.id}
+              reviewType="business"
+              title="Customer Reviews"
+            />
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
