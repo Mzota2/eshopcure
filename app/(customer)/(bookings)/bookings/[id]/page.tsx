@@ -5,7 +5,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Calendar, Clock, User, Phone, Mail, CreditCard, AlertCircle } from 'lucide-react';
@@ -22,7 +22,6 @@ import { Timestamp } from 'firebase/firestore';
 export default function CustomerBookingDetailPage() {
   const toast = useToast();
   const params = useParams();
-  const router = useRouter();
   const bookingId = params?.id as string;
   
   const { data: booking, isLoading, error } = useBooking(bookingId);
@@ -65,7 +64,7 @@ export default function CustomerBookingDetailPage() {
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-error mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4 text-foreground">Booking Not Found</h1>
-          <p className="text-text-secondary mb-6">The booking you're looking for doesn't exist or you don't have permission to view it.</p>
+          <p className="text-text-secondary mb-6">The booking you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.</p>
           <Link href="/profile?tab=bookings">
             <Button>Back to My Bookings</Button>
           </Link>
@@ -118,7 +117,7 @@ export default function CustomerBookingDetailPage() {
               <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-foreground">Service Details</h2>
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                 {booking.serviceImage && (
-                  <div className="relative w-full sm:w-48 md:w-56 h-48 sm:h-48 md:h-56 bg-background-secondary rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="relative w-full sm:w-48 md:w-56 h-48 sm:h-48 md:h-56 bg-background-secondary rounded-lg overflow-hidden shrink-0">
                     <Image
                       src={getOptimizedImageUrl(booking.serviceImage, { width: 400, height: 400, format: 'webp' })}
                       alt={booking.serviceName}
@@ -128,7 +127,7 @@ export default function CustomerBookingDetailPage() {
                     />
                   </div>
                 )}
-                <div className="flex-grow min-w-0 flex flex-col">
+                <div className="grow min-w-0 flex flex-col">
                   <h3 className="font-semibold text-base sm:text-lg text-foreground mb-3 sm:mb-4">{booking.serviceName}</h3>
                   <Link href={`/services/${booking.serviceId}`} className="w-full sm:w-auto">
                     <Button variant="outline" size="sm" className="w-full sm:w-auto">View Service</Button>

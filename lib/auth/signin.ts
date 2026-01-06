@@ -51,7 +51,7 @@ export const signIn = async (input: SignInInput): Promise<SignInResult> => {
       if (!isValid) {
         throw new AuthenticationError('Security verification failed. Please try again.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof AuthenticationError) {
         throw error;
       }
@@ -70,26 +70,31 @@ export const signIn = async (input: SignInInput): Promise<SignInResult> => {
       input.email,
       input.password
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Record failed attempt
     await recordFailedAttempt(input.email);
     
-    if (error.code === 'auth/user-not-found') {
-      throw new AuthenticationError('No account found with this email');
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/user-not-found') {
+        throw new AuthenticationError('No account found with this email');
+      }
+      if (error.code === 'auth/wrong-password') {
+        throw new AuthenticationError('Incorrect password');
+      }
+      if (error.code === 'auth/invalid-email') {
+        throw new ValidationError('Invalid email address');
+      }
+      if (error.code === 'auth/user-disabled') {
+        throw new AuthenticationError('This account has been disabled');
+      }
+      if (error.code === 'auth/too-many-requests') {
+        throw new AuthenticationError('Too many failed attempts. Please try again later');
+      }
     }
-    if (error.code === 'auth/wrong-password') {
-      throw new AuthenticationError('Incorrect password');
-    }
-    if (error.code === 'auth/invalid-email') {
-      throw new ValidationError('Invalid email address');
-    }
-    if (error.code === 'auth/user-disabled') {
-      throw new AuthenticationError('This account has been disabled');
-    }
-    if (error.code === 'auth/too-many-requests') {
-      throw new AuthenticationError('Too many failed attempts. Please try again later');
-    }
-    throw new AuthenticationError(error.message || 'Failed to sign in');
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to sign in';
+    throw new AuthenticationError(message);
   }
 
   const firebaseUser = userCredential.user;

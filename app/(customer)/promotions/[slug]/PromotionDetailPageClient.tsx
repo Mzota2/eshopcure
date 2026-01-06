@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ProductCard } from '@/components/products';
 import { ServiceCard } from '@/components/services';
@@ -61,7 +60,9 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
   // Get items in this promotion
   const promotionItems = useMemo(() => {
     if (!promotion) return [];
-    const allItems = [...products, ...services];
+    const productsArray = Array.isArray(products) ? products : [];
+    const servicesArray = Array.isArray(services) ? services : [];
+    const allItems = [...productsArray, ...servicesArray];
     const itemIds = [...(promotion.productsIds || []), ...(promotion.servicesIds || [])];
     return allItems.filter(item => item.id && itemIds.includes(item.id));
   }, [promotion, products, services]);
@@ -110,7 +111,7 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
         <div className="bg-card rounded-lg shadow-md overflow-hidden mb-8">
           {/* Promotion Image */}
           {promotion.image && (
-            <div className="relative w-full bg-background-secondary aspect-[8/3]">
+            <div className="relative w-full bg-background-secondary aspect-8/3">
               <OptimizedImage
                 src={promotion.image}
                 alt={promotion.name}

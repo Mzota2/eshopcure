@@ -4,6 +4,7 @@
  */
 
 import { BaseDocument } from './common';
+import type { CancellationPolicyFields } from './policy';
 
 /**
  * Booking status lifecycle
@@ -71,6 +72,10 @@ export interface Booking extends BaseDocument {
   refundedAt?: Date | string;
   refundedAmount?: number;
   refundedReason?: string;
+  cancellationPolicy?: CancellationPolicyFields & {
+    version?: number;
+  };
+  notes?: string;
 }
 
 /**
@@ -83,5 +88,6 @@ export interface CreateBookingInput {
   customerName?: string;
   customerPhone?: string;
   timeSlot: TimeSlot;
+  notes?: string;
 }
 

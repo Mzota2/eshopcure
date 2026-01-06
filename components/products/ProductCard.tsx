@@ -6,7 +6,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { Item, isProduct, ItemStatus } from '@/types';
@@ -22,17 +21,17 @@ export interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
-  // Type guard to ensure it's a product
-  if (!isProduct(product)) {
-    return null;
-  }
-
   const [isHovered, setIsHovered] = useState(false);
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';
   const secondImage = product.images[1]?.url;
 
   // Check if product is on promotion from promotions collection
   const { promotion, isOnPromotion, discountPercentage } = useItemPromotion(product);
+
+  // Type guard to ensure it's a product
+  if (!isProduct(product)) {
+    return null;
+  }
 
   // Step 1: Calculate promotion price from base price (promotion applied first)
   const promotionPrice = promotion 
@@ -118,7 +117,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
             </div>
           )}
           {/* Dark overlay gradient for badge visibility */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
           
           {product.status === ItemStatus.OUT_OF_STOCK && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">

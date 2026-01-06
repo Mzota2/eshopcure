@@ -5,22 +5,25 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle, Clock, Calendar, XCircle, CreditCard, UserCheck } from 'lucide-react';
+import { CheckCircle, Calendar, XCircle, CreditCard, UserCheck } from 'lucide-react';
 import { BookingStatus } from '@/types/booking';
 import { formatDate, formatDateTime } from '@/lib/utils/formatting';
+import { Timestamp } from 'firebase/firestore';
+
+type DateLike = Date | string | Timestamp;
 
 interface BookingTimelineProps {
   status: BookingStatus;
-  createdAt?: Date | string;
-  paidAt?: Date | string;
-  confirmedAt?: Date | string;
-  canceledAt?: Date | string;
-  noShowAt?: Date | string;
-  refundedAt?: Date | string;
-  completedAt?: Date | string;
+  createdAt?: DateLike;
+  paidAt?: DateLike;
+  confirmedAt?: DateLike;
+  canceledAt?: DateLike;
+  noShowAt?: DateLike;
+  refundedAt?: DateLike;
+  completedAt?: DateLike;
   timeSlot?: {
-    startTime: Date | string;
-    endTime: Date | string;
+    startTime: DateLike;
+    endTime: DateLike;
   };
 }
 
@@ -80,7 +83,7 @@ export const BookingTimeline: React.FC<BookingTimelineProps> = ({
     return statusOrder.indexOf(currentStatus);
   };
 
-  const getStatusDate = (stepStatus: BookingStatus): Date | string | undefined => {
+  const getStatusDate = (stepStatus: BookingStatus): DateLike | undefined => {
     switch (stepStatus) {
       case BookingStatus.PENDING:
         return createdAt;
@@ -110,7 +113,21 @@ export const BookingTimeline: React.FC<BookingTimelineProps> = ({
             <div>
               <p className="font-semibold text-foreground">Scheduled Time</p>
               <p className="text-sm text-text-secondary">
-                {formatDateTime(new Date(timeSlot.startTime))} - {formatDateTime(new Date(timeSlot.endTime))}
+                {formatDateTime(
+                  timeSlot.startTime instanceof Date
+                    ? timeSlot.startTime
+                    : (timeSlot.startTime as Timestamp | string) instanceof Timestamp
+                    ? (timeSlot.startTime as Timestamp).toDate()
+                    : new Date(timeSlot.startTime as string)
+                )}{' '}
+                -{' '}
+                {formatDateTime(
+                  timeSlot.endTime instanceof Date
+                    ? timeSlot.endTime
+                    : (timeSlot.endTime as Timestamp | string) instanceof Timestamp
+                    ? (timeSlot.endTime as Timestamp).toDate()
+                    : new Date(timeSlot.endTime as string)
+                )}
               </p>
             </div>
           </div>
@@ -127,9 +144,30 @@ export const BookingTimeline: React.FC<BookingTimelineProps> = ({
                 {isCanceled ? 'Booking Canceled' : isRefunded ? 'Booking Refunded' : 'No Show'}
               </p>
               <p className="text-sm text-text-secondary">
-                {isCanceled && canceledAt && formatDateTime(new Date(canceledAt))}
-                {isRefunded && refundedAt && formatDateTime(new Date(refundedAt))}
-                {isNoShow && noShowAt && formatDateTime(new Date(noShowAt))}
+                {isCanceled && canceledAt &&
+                  formatDateTime(
+                    canceledAt instanceof Timestamp
+                      ? canceledAt.toDate()
+                      : canceledAt instanceof Date
+                      ? canceledAt
+                      : new Date(canceledAt as string)
+                  )}
+                {isRefunded && refundedAt &&
+                  formatDateTime(
+                    refundedAt instanceof Timestamp
+                      ? refundedAt.toDate()
+                      : refundedAt instanceof Date
+                      ? refundedAt
+                      : new Date(refundedAt as string)
+                  )}
+                {isNoShow && noShowAt &&
+                  formatDateTime(
+                    noShowAt instanceof Timestamp
+                      ? noShowAt.toDate()
+                      : noShowAt instanceof Date
+                      ? noShowAt
+                      : new Date(noShowAt as string)
+                  )}
               </p>
             </div>
           </div>
@@ -169,7 +207,7 @@ export const BookingTimeline: React.FC<BookingTimelineProps> = ({
               </div>
 
               {/* Content */}
-              <div className="flex-grow pb-6">
+              <div className="grow pb-6">
                 <div className="flex items-center justify-between mb-1">
                   <h4
                     className={`font-semibold ${
@@ -180,7 +218,13 @@ export const BookingTimeline: React.FC<BookingTimelineProps> = ({
                   </h4>
                   {stepDate && (isCompleted || isCurrent) && (
                     <span className="text-xs text-text-secondary">
-                      {formatDate(new Date(stepDate))}
+                      {formatDate(
+                        stepDate instanceof Timestamp
+                          ? stepDate.toDate().toISOString()
+                          : stepDate instanceof Date
+                          ? stepDate.toISOString()
+                          : (stepDate as string)
+                      )}
                     </span>
                   )}
                 </div>

@@ -27,7 +27,7 @@ export const validateEmail = (email: string, fieldName: string = 'email'): void 
 /**
  * Validate required field
  */
-export const validateRequired = (value: any, fieldName: string): void => {
+export const validateRequired = (value: unknown, fieldName: string): void => {
   if (value === undefined || value === null || value === '') {
     throw new ValidationError(`${fieldName} is required`, fieldName);
   }

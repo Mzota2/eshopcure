@@ -26,7 +26,7 @@ interface PaymentVerificationData {
   metadata?: {
     orderId?: string;
     bookingId?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   transaction_id?: string;
   customer_email?: string;
@@ -78,9 +78,10 @@ export default function PaymentStatusPage() {
             }, 2000);
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error verifying payment:', err);
-        setError(err.message || 'Failed to verify payment status');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to verify payment status';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }

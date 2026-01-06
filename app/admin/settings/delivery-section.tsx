@@ -10,7 +10,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useDeliveryProviders, useRealtimeDeliveryProviders, useCreateDeliveryProvider, useUpdateDeliveryProvider, useDeleteDeliveryProvider } from '@/hooks';
 import { DeliveryProvider, MalawiRegion, MALAWI_DISTRICTS } from '@/types/delivery';
 import { Button, Input, Modal, Loading } from '@/components/ui';
-import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Save } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
 
@@ -88,8 +88,16 @@ export function DeliverySection({ businessId }: DeliverySectionProps) {
       name: provider.name,
       description: provider.description || '',
       isActive: provider.isActive,
-      contactInfo: provider.contactInfo || { phone: '', email: '', website: '' },
-      pricing: provider.pricing,
+      contactInfo: {
+        phone: provider?.contactInfo?.phone || '',
+        email: provider?.contactInfo?.email || '',
+        website: provider?.contactInfo?.website || '',
+      },
+      pricing: {
+        generalPrice: provider.pricing?.generalPrice || 0,
+        regionPricing: provider.pricing?.regionPricing || ({} as Record<MalawiRegion, number>),
+        districtPricing: provider.pricing?.districtPricing || ({} as Record<string, number>),
+      },
       currency: provider.currency,
       estimatedDays: provider.estimatedDays || { min: 1, max: 7 },
       trackingAvailable: provider.trackingAvailable || false,
@@ -171,7 +179,7 @@ export function DeliverySection({ businessId }: DeliverySectionProps) {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 sm:gap-2 shrink-0">
                   <button
                     onClick={() => handleEdit(provider)}
                     className="p-1.5 sm:p-1 text-text-secondary hover:text-foreground transition-colors"
@@ -269,7 +277,7 @@ export function DeliverySection({ businessId }: DeliverySectionProps) {
             <div className="space-y-2">
               {Object.values(MalawiRegion).map((region) => (
                 <div key={region} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="w-full sm:w-24 text-xs sm:text-sm text-text-secondary flex-shrink-0">{region}:</span>
+                  <span className="w-full sm:w-24 text-xs sm:text-sm text-text-secondary shrink-0">{region}:</span>
                   <Input
                     type="number"
                     step="0.01"
@@ -303,7 +311,7 @@ export function DeliverySection({ businessId }: DeliverySectionProps) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {districts.map((district) => (
                       <div key={district} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                        <span className="text-xs text-text-secondary w-full sm:w-20 truncate flex-shrink-0">{district}:</span>
+                        <span className="text-xs text-text-secondary w-full sm:w-20 truncate shrink-0">{district}:</span>
                         <Input
                           type="number"
                           step="0.01"

@@ -2,7 +2,7 @@
  * Delete account functions
  */
 
-import { deleteUser as firebaseDeleteUser, reauthenticateWithCredential, EmailAuthProvider, User as FirebaseUser } from 'firebase/auth';
+import { deleteUser as firebaseDeleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
@@ -47,12 +47,14 @@ export const deleteAccount = async (input: DeleteAccountInput): Promise<void> =>
   try {
     const credential = EmailAuthProvider.credential(currentUser.email, input.password);
     await reauthenticateWithCredential(currentUser, credential);
-  } catch (error: any) {
-    if (error.code === 'auth/wrong-password') {
-      throw new AuthenticationError('Incorrect password');
-    }
-    if (error.code === 'auth/invalid-credential') {
-      throw new AuthenticationError('Invalid credentials');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/wrong-password') {
+        throw new AuthenticationError('Incorrect password');
+      }
+      if (error.code === 'auth/invalid-credential') {
+        throw new AuthenticationError('Invalid credentials');
+      }
     }
     throw new AuthenticationError('Re-authentication failed. Please check your password.');
   }
@@ -72,7 +74,7 @@ export const deleteAccount = async (input: DeleteAccountInput): Promise<void> =>
   // Delete Firebase Auth user (this will also sign out the user)
   try {
     await firebaseDeleteUser(currentUser);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting Firebase Auth user:', error);
     throw new AuthenticationError('Failed to delete account. Please try again or contact support.');
   }

@@ -56,10 +56,12 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
           }, 2000);
         }
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to share. Please try again.';
       // User cancelled or error occurred
-      if (error.name !== 'AbortError') {
-        console.error('Error sharing:', error);
+      const errorName = error instanceof Error ? error.name : 'Unknown error';
+      if (errorName !== 'AbortError') {
+        console.error('Error sharing:', errorMessage);
         
         // Fallback: Copy to clipboard
         try {

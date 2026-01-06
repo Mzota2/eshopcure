@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button, Badge, Input, StatusBadge, CancellationDialog, useToast } from '@/components/ui';
+import { Button, Input, StatusBadge, CancellationDialog, useToast } from '@/components/ui';
 import { Loading } from '@/components/ui/Loading';
 import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
 import { formatCurrency, formatDate } from '@/lib/utils/formatting';
@@ -15,10 +15,10 @@ import { Order, OrderStatus, FulfillmentMethod } from '@/types/order';
 import { Booking, BookingStatus } from '@/types/booking';
 import { User } from '@/types';
 import { COLLECTIONS } from '@/types/collections';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { ChevronDown, Package, MapPin, Clock, XCircle, AlertCircle } from 'lucide-react';
+import { ChevronDown, Package, MapPin, Clock, XCircle } from 'lucide-react';
 import { getLoginUrl, getReturnUrl } from '@/lib/utils/redirect';
 import { cn } from '@/lib/utils/cn';
 import { useCancelBooking } from '@/hooks/useBookings';
@@ -48,7 +48,7 @@ export default function ProfilePage() {
   });
 
   // Fetch business data for cancellation time
-  const { data: businesses = [], isLoading: businessLoading } = useBusinesses({ limit: 1 });
+  const { data: businesses = [] } = useBusinesses({ limit: 1 });
   const business = businesses.length > 0 ? businesses[0] : null;
   // Use nullish coalescing to handle 0 as a valid value
   const cancellationTime = business?.cancellationTime ?? 24; // Default 24 hours
@@ -63,6 +63,7 @@ export default function ProfilePage() {
       const returnUrl = getReturnUrl(pathname, searchParams);
       router.push(getLoginUrl(returnUrl));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, router, pathname, searchParams]);
 
   const loadUserData = async () => {
@@ -102,8 +103,16 @@ export default function ProfilePage() {
         }
       });
       setOrders(ordersData.sort((a, b) => {
-        const aDate = a.createdAt instanceof Date ? a.createdAt : (a.createdAt as any).toDate();
-        const bDate = b.createdAt instanceof Date ? b.createdAt : (b.createdAt as any).toDate();
+        const aDate = a.createdAt instanceof Date 
+          ? a.createdAt 
+          : (a.createdAt && typeof a.createdAt === 'object' && 'toDate' in a.createdAt && typeof a.createdAt.toDate === 'function')
+          ? a.createdAt.toDate()
+          : new Date();
+        const bDate = b.createdAt instanceof Date 
+          ? b.createdAt 
+          : (b.createdAt && typeof b.createdAt === 'object' && 'toDate' in b.createdAt && typeof b.createdAt.toDate === 'function')
+          ? b.createdAt.toDate()
+          : new Date();
         return bDate.getTime() - aDate.getTime();
       }));
 
@@ -122,8 +131,16 @@ export default function ProfilePage() {
         }
       });
       setBookings(bookingsData.sort((a, b) => {
-        const aDate = a.createdAt instanceof Date ? a.createdAt : (a.createdAt as any).toDate();
-        const bDate = b.createdAt instanceof Date ? b.createdAt : (b.createdAt as any).toDate();
+        const aDate = a.createdAt instanceof Date 
+          ? a.createdAt 
+          : (a.createdAt && typeof a.createdAt === 'object' && 'toDate' in a.createdAt && typeof a.createdAt.toDate === 'function')
+          ? a.createdAt.toDate()
+          : new Date();
+        const bDate = b.createdAt instanceof Date 
+          ? b.createdAt 
+          : (b.createdAt && typeof b.createdAt === 'object' && 'toDate' in b.createdAt && typeof b.createdAt.toDate === 'function')
+          ? b.createdAt.toDate()
+          : new Date();
         return bDate.getTime() - aDate.getTime();
       }));
     } catch (error) {
@@ -157,24 +174,6 @@ export default function ProfilePage() {
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case OrderStatus.COMPLETED:
-      case BookingStatus.COMPLETED:
-        return 'success';
-      case OrderStatus.SHIPPED:
-      case BookingStatus.CONFIRMED:
-        return 'info';
-      case OrderStatus.PROCESSING:
-      case BookingStatus.PAID:
-        return 'warning';
-      case OrderStatus.PENDING:
-      case BookingStatus.PENDING:
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
 
   if (loading) {
     return (
@@ -290,7 +289,9 @@ export default function ProfilePage() {
               orders.map((order) => {
                 const orderDate = order.createdAt instanceof Date 
                   ? order.createdAt 
-                  : (order.createdAt as any)?.toDate?.() || new Date();
+                  : (order.createdAt && typeof order.createdAt === 'object' && 'toDate' in order.createdAt && typeof order.createdAt.toDate === 'function')
+                  ? order.createdAt.toDate()
+                  : new Date();
                 const isExpanded = order.id ? expandedOrders.has(order.id) : false;
 
                 return (
@@ -308,7 +309,7 @@ export default function ProfilePage() {
                     <div className="mb-4">
                       {order.items.map((item, index) => (
                         <div key={index} className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2 text-xs sm:text-sm mb-2">
-                          <span className="text-foreground break-words">
+                          <span className="text-foreground wrap-break-word">
                             {item.productName} x {item.quantity}
                           </span>
                           <span className="text-foreground font-medium sm:font-normal">
@@ -343,7 +344,7 @@ export default function ProfilePage() {
                           </div>
                           <ChevronDown
                             className={cn(
-                              'w-4 h-4 text-text-secondary transition-transform flex-shrink-0',
+                              'w-4 h-4 text-text-secondary transition-transform shrink-0',
                               isExpanded && 'transform rotate-180'
                             )}
                           />
@@ -537,7 +538,9 @@ export default function ProfilePage() {
               bookings.map((booking) => {
                 const bookingDate = booking.createdAt instanceof Date 
                   ? booking.createdAt 
-                  : (booking.createdAt as any)?.toDate?.() || new Date();
+                  : (booking.createdAt && typeof booking.createdAt === 'object' && 'toDate' in booking.createdAt && typeof booking.createdAt.toDate === 'function')
+                  ? booking.createdAt.toDate()
+                  : new Date();
                 const timeSlot = booking.timeSlot;
                 
                 // Calculate if booking can be cancelled
@@ -570,29 +573,10 @@ export default function ProfilePage() {
                 }
                 
                 const isExpanded = booking.id ? expandedBookings.has(booking.id) : false;
-                const isCanceling = showCancelDialog === booking.id;
 
                 const handleCancelClick = () => {
                   if (booking.id) {
                     setShowCancelDialog(booking.id);
-                  }
-                };
-
-                const handleConfirmCancel = async (reason?: string) => {
-                  if (!booking.id) return;
-                  
-                  try {
-                    await cancelBookingMutation.mutateAsync({
-                      bookingId: booking.id,
-                      reason: reason?.trim() || undefined,
-                    });
-                    // Reload bookings
-                    loadUserData();
-                    toast.showSuccess(SUCCESS_MESSAGES.BOOKING_CANCELED);
-                  } catch (error) {
-                    console.error('Error canceling booking:', error);
-                    toast.showError(getUserFriendlyMessage(error, ERROR_MESSAGES.UPDATE_FAILED));
-                    throw error; // Re-throw so dialog doesn't close on error
                   }
                 };
 
@@ -774,6 +758,7 @@ export default function ProfilePage() {
       {showCancelDialog && (() => {
         const booking = bookings.find(b => b.id === showCancelDialog);
         if (!booking?.id) return null;
+        const bookingId = booking.id; // Store in a const to ensure TypeScript knows it's defined
         
         return (
           <CancellationDialog
@@ -782,7 +767,7 @@ export default function ProfilePage() {
             onConfirm={async (reason) => {
               try {
                 await cancelBookingMutation.mutateAsync({
-                  bookingId: booking.id,
+                  bookingId,
                   reason: reason?.trim() || undefined,
                 });
                 loadUserData();

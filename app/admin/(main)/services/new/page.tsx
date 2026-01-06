@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
-import { useCreateService, useCategories } from '@/hooks';
+import { useCreateService, useCategories, useDeleteService, useUpdateService } from '@/hooks';
 import { Item, ItemStatus, ItemImage } from '@/types/item';
 import { Button, Input, Textarea, Loading } from '@/components/ui';
 import { uploadImage } from '@/lib/cloudinary/utils';
@@ -22,6 +22,8 @@ export default function NewServicePage() {
   const router = useRouter();
   const { currentBusiness } = useApp();
   const createService = useCreateService();
+  const deleteService = useDeleteService();
+  const updateService = useUpdateService();
   const { data: categories = [] } = useCategories({
     businessId: currentBusiness?.id,
     type: 'service',
@@ -146,7 +148,7 @@ export default function NewServicePage() {
     try {
       setIsSubmitting(true);
       let serviceId: string | null = null;
-      let uploadedImages: ItemImage[] = [];
+      const uploadedImages: ItemImage[] = [];
 
       // Step 1: Save to Firebase first (without new image URLs)
       // This way we don't waste Cloudinary storage if Firebase fails
@@ -183,8 +185,6 @@ export default function NewServicePage() {
           // Cleanup: Delete the Firebase record if Cloudinary is not configured
           if (serviceId) {
             try {
-              const { useDeleteService } = await import('@/hooks');
-              const deleteService = useDeleteService();
               await deleteService.mutateAsync(serviceId);
             } catch (cleanupError) {
               console.error('Failed to cleanup Firebase record:', cleanupError);
@@ -218,10 +218,8 @@ export default function NewServicePage() {
               ...img,
               order: idx,
             }));
-            const { useUpdateService } = await import('@/hooks');
-            const updateService = useUpdateService();
             await updateService.mutateAsync({
-              itemId: serviceId,
+              serviceId: serviceId,
               updates: { images: allImages },
             });
           }
@@ -231,8 +229,6 @@ export default function NewServicePage() {
           // Cleanup: Delete the Firebase record if image upload fails
           if (serviceId) {
             try {
-              const { useDeleteService } = await import('@/hooks');
-              const deleteService = useDeleteService();
               await deleteService.mutateAsync(serviceId);
               console.log('Cleaned up Firebase record after failed image upload');
             } catch (cleanupError) {
@@ -461,7 +457,7 @@ export default function NewServicePage() {
                     Include Transaction Fee in Selling Price
                   </span>
                   <p className="text-xs text-text-secondary mt-1">
-                    When enabled, the selling price will automatically include the payment provider's transaction fee (3% by default) so the business doesn't lose money. The displayed price will be calculated as: Base Price ÷ (1 - Fee Rate).
+                    When enabled, the selling price will automatically include the payment provider&apos;s transaction fee (3% by default) so the business doesn&apos;t lose money. The displayed price will be calculated as: Base Price ÷ (1 - Fee Rate).
                   </p>
                 </div>
               </label>
@@ -484,7 +480,7 @@ export default function NewServicePage() {
                       }))
                     }
                     placeholder="0.03"
-                    helperText="Enter as decimal (e.g., 0.03 for 3%)"
+                    helpText="Enter as decimal (e.g., 0.03 for 3%)"
                   />
                   {formData.pricing.basePrice > 0 && (
                     <div className="mt-2 p-3 bg-background-secondary rounded-lg">
@@ -502,7 +498,7 @@ export default function NewServicePage() {
                         ).toFixed(2)}
                       </p>
                       <p className="text-xs text-text-secondary mt-1">
-                        After {((formData.pricing.transactionFeeRate || 0.03) * 100).toFixed(1)}% fee, you'll receive:{' '}
+                        After {((formData.pricing.transactionFeeRate || 0.03) * 100).toFixed(1)}% fee, you&apos;ll receive:{' '}
                         {formData.pricing.currency} {formData.pricing.basePrice.toFixed(2)}
                       </p>
                     </div>

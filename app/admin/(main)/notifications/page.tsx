@@ -9,10 +9,22 @@ import React, { useState, useMemo } from 'react';
 import { useNotifications, useRealtimeNotifications, useMarkNotificationAsRead } from '@/hooks';
 import { NotificationType, NotificationChannel, NotificationDeliveryStatus } from '@/types/notification';
 import { Button, Modal, Loading } from '@/components/ui';
-import { Bell, Search, Filter, Trash2, Eye, Check, X, Mail, Smartphone, MessageSquare } from 'lucide-react';
+import { Bell, Search, Trash2, Eye, Check, X, Mail, Smartphone, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/formatting';
 import { Notification } from '@/types/notification';
+import { Timestamp } from 'firebase/firestore';
+
+// Helper to convert date safely
+const getDate = (date: Date | string | Timestamp | { toDate?: () => Date } | undefined): Date => {
+  if (!date) return new Date(0);
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+    return date.toDate();
+  }
+  return new Date(date as string);
+};
 
 export default function AdminNotificationsPage() {
   const [selectedType, setSelectedType] = useState<NotificationType | 'all'>('all');
@@ -68,8 +80,8 @@ export default function AdminNotificationsPage() {
     }
 
     return filtered.sort((a, b) => {
-      const aDate = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt as string);
-      const bDate = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt as string);
+      const aDate = getDate(a.createdAt);
+      const bDate = getDate(b.createdAt);
       return bDate.getTime() - aDate.getTime();
     });
   }, [items, selectedType, selectedChannel, selectedStatus, searchQuery]);
@@ -88,13 +100,6 @@ export default function AdminNotificationsPage() {
     setSelectedNotifications(newSelection);
   };
 
-  const selectAll = () => {
-    if (selectedNotifications.size === filteredNotifications.length) {
-      setSelectedNotifications(new Set());
-    } else {
-      setSelectedNotifications(new Set(filteredNotifications.map((n) => n.id!).filter(Boolean)));
-    }
-  };
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -288,9 +293,7 @@ export default function AdminNotificationsPage() {
           filteredNotifications.map((notification) => {
             const isRead = !!notification.readAt;
             const isSelected = selectedNotifications.has(notification.id!);
-            const createdAt = notification.createdAt instanceof Date 
-              ? notification.createdAt 
-              : (notification.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(notification.createdAt as string);
+            const createdAt = getDate(notification.createdAt);
 
             return (
               <div
@@ -304,9 +307,9 @@ export default function AdminNotificationsPage() {
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => toggleSelection(notification.id!)}
-                  className="w-4 h-4 rounded border-border mt-1 flex-shrink-0"
+                  className="w-4 h-4 rounded border-border mt-1 shrink-0"
                 />
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background-secondary flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background-secondary flex items-center justify-center shrink-0">
                   <Bell className={cn('w-4 h-4 sm:w-5 sm:h-6', isRead ? 'text-text-muted' : 'text-primary')} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -317,7 +320,7 @@ export default function AdminNotificationsPage() {
                           {notification.title}
                         </p>
                         {!isRead && (
-                          <span className="px-1.5 sm:px-2 py-0.5 bg-primary text-primary-foreground rounded-full text-xs font-medium flex-shrink-0">
+                          <span className="px-1.5 sm:px-2 py-0.5 bg-primary text-primary-foreground rounded-full text-xs font-medium shrink-0">
                             New
                           </span>
                         )}
@@ -353,7 +356,7 @@ export default function AdminNotificationsPage() {
                           ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                       <p className="text-xs sm:text-sm text-text-secondary whitespace-nowrap hidden sm:block">
                         {formatDate(createdAt.toISOString())}
                       </p>
@@ -452,24 +455,14 @@ export default function AdminNotificationsPage() {
             <div>
               <label className="text-xs sm:text-sm font-medium text-text-secondary">Created At</label>
               <p className="text-sm sm:text-base text-foreground mt-1">
-                {formatDate(
-                  (viewingNotification.createdAt instanceof Date 
-                    ? viewingNotification.createdAt 
-                    : (viewingNotification.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(viewingNotification.createdAt as string)
-                  ).toISOString()
-                )}
+                {formatDate(getDate(viewingNotification.createdAt).toISOString())}
               </p>
             </div>
             {viewingNotification.readAt && (
               <div>
                 <label className="text-xs sm:text-sm font-medium text-text-secondary">Read At</label>
                 <p className="text-sm sm:text-base text-foreground mt-1">
-                  {formatDate(
-                    (viewingNotification.readAt instanceof Date 
-                      ? viewingNotification.readAt 
-                      : (viewingNotification.readAt as { toDate?: () => Date })?.toDate?.() || new Date(viewingNotification.readAt as string)
-                    ).toISOString()
-                  )}
+                  {formatDate(getDate(viewingNotification.readAt).toISOString())}
                 </p>
               </div>
             )}

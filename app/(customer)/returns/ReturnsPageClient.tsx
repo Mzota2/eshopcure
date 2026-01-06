@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { ChevronDown, AlertCircle } from 'lucide-react';
 import { Policy, PolicyType } from '@/types/policy';
 import { COLLECTIONS } from '@/types/collections';

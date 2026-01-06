@@ -5,10 +5,10 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 interface AnalyticsContextType {
-  trackEvent: (eventName: string, properties?: Record<string, any>) => void;
+  trackEvent: (eventName: string, properties?: Record<string, unknown>) => void;
   trackPageView: (path: string) => void;
   isEnabled: boolean;
 }
@@ -34,13 +34,9 @@ export const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({
   trackingId,
   enabled = false,
 }) => {
-  const [isEnabled, setIsEnabled] = useState(enabled && !!trackingId);
+  const [isEnabled] = useState(() => enabled && !!trackingId);
 
-  useEffect(() => {
-    setIsEnabled(enabled && !!trackingId);
-  }, [enabled, trackingId]);
-
-  const trackEvent = (eventName: string, properties?: Record<string, any>) => {
+  const trackEvent = (eventName: string, properties?: Record<string, unknown>) => {
     if (!isEnabled) return;
     
     // Analytics tracking implementation

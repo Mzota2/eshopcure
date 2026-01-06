@@ -54,17 +54,22 @@ export const signUp = async (input: SignUpInput): Promise<SignUpResult> => {
       input.email,
       input.password
     );
-  } catch (error: any) {
-    if (error.code === 'auth/email-already-in-use') {
-      throw new ValidationError('Email is already registered');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/email-already-in-use') {
+        throw new ValidationError('Email is already registered');
+      }
+      if (error.code === 'auth/invalid-email') {
+        throw new ValidationError('Invalid email address');
+      }
+      if (error.code === 'auth/weak-password') {
+        throw new ValidationError('Password is too weak');
+      }
     }
-    if (error.code === 'auth/invalid-email') {
-      throw new ValidationError('Invalid email address');
-    }
-    if (error.code === 'auth/weak-password') {
-      throw new ValidationError('Password is too weak');
-    }
-    throw new ValidationError(error.message || 'Failed to create account');
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to create account';
+    throw new ValidationError(message);
   }
 
   const firebaseUser = userCredential.user;
@@ -107,10 +112,13 @@ export const signUp = async (input: SignUpInput): Promise<SignUpResult> => {
     }
     
     user = createdUser;
-  } catch (error: any) {
+  } catch (error: unknown) {
     //delete the firebase user
     await deleteUser(firebaseUser);
-    throw new ValidationError('Failed to create user profile: ' + error.message);
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Unknown error';
+    throw new ValidationError('Failed to create user profile: ' + message);
   }
 
   // Send email verification

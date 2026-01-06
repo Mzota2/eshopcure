@@ -53,8 +53,11 @@ export const updateUserProfile = async (
     }
 
     return updatedUser;
-  } catch (error: any) {
-    throw new ValidationError(error.message || 'Failed to update profile');
+  } catch (error: unknown) {
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to update profile';
+    throw new ValidationError(message);
   }
 };
 
@@ -94,20 +97,25 @@ export const updateUserEmail = async (
         emailVerified: false, // Email needs to be verified again
       });
     }
-  } catch (error: any) {
-    if (error.code === 'auth/email-already-in-use') {
-      throw new ValidationError('Email is already in use');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/email-already-in-use') {
+        throw new ValidationError('Email is already in use');
+      }
+      if (error.code === 'auth/invalid-email') {
+        throw new ValidationError('Invalid email address');
+      }
+      if (error.code === 'auth/wrong-password') {
+        throw new ValidationError('Incorrect password');
+      }
+      if (error.code === 'auth/requires-recent-login') {
+        throw new AuthenticationError('Please sign in again before changing your email');
+      }
     }
-    if (error.code === 'auth/invalid-email') {
-      throw new ValidationError('Invalid email address');
-    }
-    if (error.code === 'auth/wrong-password') {
-      throw new ValidationError('Incorrect password');
-    }
-    if (error.code === 'auth/requires-recent-login') {
-      throw new AuthenticationError('Please sign in again before changing your email');
-    }
-    throw new ValidationError(error.message || 'Failed to update email');
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to update email';
+    throw new ValidationError(message);
   }
 };
 
@@ -172,14 +180,19 @@ export const deleteAccount = async (
 
     // Note: Actual Firebase Auth user deletion should be done server-side
     // via Firebase Admin SDK for security reasons
-  } catch (error: any) {
-    if (error.code === 'auth/wrong-password') {
-      throw new ValidationError('Incorrect password');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/wrong-password') {
+        throw new ValidationError('Incorrect password');
+      }
+      if (error.code === 'auth/requires-recent-login') {
+        throw new AuthenticationError('Please sign in again before deleting your account');
+      }
     }
-    if (error.code === 'auth/requires-recent-login') {
-      throw new AuthenticationError('Please sign in again before deleting your account');
-    }
-    throw new ValidationError(error.message || 'Failed to delete account');
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to delete account';
+    throw new ValidationError(message);
   }
 };
 

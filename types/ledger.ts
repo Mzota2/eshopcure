@@ -36,7 +36,7 @@ export interface LedgerEntry extends BaseDocument {
   bookingId?: string; // Reference to booking
   paymentId?: string; // Paychangu transaction ID
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   reversedAt?: Date | string; // If this entry was reversed
   reversedBy?: string; // Admin UID who reversed it
   reversalReason?: string;
@@ -53,6 +53,6 @@ export interface CreateLedgerEntryInput {
   bookingId?: string;
   paymentId?: string;
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 

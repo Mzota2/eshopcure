@@ -16,7 +16,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { ProductImage } from '@/components/ui/OptimizedImage';
 
 export default function CartPage() {
-  const { items, itemCount, totalAmount, updateQuantity, removeItem, clearCart } = useCart();
+  const { items, itemCount, updateQuantity, removeItem } = useCart();
   
   // Fetch active promotions
   const { data: promotions = [] } = usePromotions({
@@ -40,7 +40,6 @@ export default function CartPage() {
   // - Selected delivery provider
   // - Delivery address (district and region)
   // For now, show 0 in cart - will be calculated at checkout
-  const delivery = 0;
   const taxRate = settings?.payment?.taxRate || 0; // Percentage value (0-100), default to 0 if not set
   const tax = subtotal * (taxRate / 100); // Convert percentage to decimal
   // Note: Total shown here is approximate - final total will include delivery cost calculated at checkout
@@ -95,7 +94,7 @@ export default function CartPage() {
                   {/* Top Section: Image and Product Info */}
                   <div className="flex gap-3 sm:gap-4 lg:gap-6 mb-3 sm:mb-4">
                     {/* Product Image */}
-                    <Link href={`/products/${product.slug}`} className="flex-shrink-0">
+                    <Link href={`/products/${product.slug}`} className="shrink-0">
                       <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-background-secondary rounded-lg overflow-hidden">
                         <ProductImage
                           src={imageUrl}
@@ -110,7 +109,7 @@ export default function CartPage() {
                     </Link>
 
                     {/* Product Info */}
-                    <div className="flex-grow min-w-0">
+                    <div className="grow min-w-0">
                       <Link href={`/products/${product.slug}`}>
                         <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-foreground mb-1 sm:mb-2 hover:text-primary transition-colors line-clamp-2">
                           {product.name}
@@ -138,7 +137,7 @@ export default function CartPage() {
                   <div className="flex items-center justify-between gap-3 sm:gap-4 pt-3 sm:pt-4 border-t border-border">
                     <div className="flex items-center border border-border rounded-lg">
                       <button
-                        onClick={() => handleQuantityChange(product.id, item.quantity - 1)}
+                        onClick={() => product.id && handleQuantityChange(product.id, item.quantity - 1)}
                         className="px-2 sm:px-3 py-2 hover:bg-background-secondary transition-colors"
                         aria-label="Decrease quantity"
                       >
@@ -148,8 +147,8 @@ export default function CartPage() {
                       </button>
                       <span className="px-3 sm:px-4 py-2 min-w-[50px] sm:min-w-[60px] text-center text-sm sm:text-base text-foreground font-medium">{item.quantity}</span>
                       <button
-                        onClick={() => handleQuantityChange(product.id, item.quantity + 1)}
-                        disabled={item.quantity >= product.inventory.available}
+                        onClick={() => product.id && handleQuantityChange(product.id, item.quantity + 1)}
+                        disabled={!product.id || item.quantity >= (product.inventory?.available ?? 0)}
                         className="px-2 sm:px-3 py-2 hover:bg-background-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Increase quantity"
                       >
@@ -161,7 +160,7 @@ export default function CartPage() {
 
                     {/* Remove Button */}
                     <button
-                      onClick={() => removeItem(product.id)}
+                      onClick={() => product.id && removeItem(product.id)}
                       className="text-destructive hover:text-destructive-hover transition-colors p-2 hover:bg-destructive/10 rounded-lg"
                       aria-label="Remove item"
                     >

@@ -80,8 +80,6 @@ function ProductsPageContent() {
     status: undefined,
     categoryId: filters.category !== 'all' ? filters.category : undefined,
     enabled: !!currentBusiness?.id,
-    refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   // Calculate price range only when price filter is enabled (saves computation)
@@ -141,16 +139,8 @@ function ProductsPageContent() {
     { id: 'refurbished', label: 'Refurbished' },
   ];
 
-  // Update price range filters when price filter is enabled and priceRange is calculated
-  useEffect(() => {
-    if (priceFilterEnabled && products.length > 0 && priceRange.min !== 0 && priceRange.max !== 10000) {
-      setLocalFilters(prev => ({
-        ...prev,
-        priceMin: priceRange.min,
-        priceMax: priceRange.max,
-      }));
-    }
-  }, [priceRange, products.length, priceFilterEnabled]);
+  // Initialize price range when enabling price filter (handled in button click handler)
+  // No useEffect needed - initialization happens on user interaction
 
   // Sync filters to AppContext after local state updates
   useEffect(() => {
@@ -243,7 +233,7 @@ function ProductsPageContent() {
     });
 
     return sorted;
-  }, [products, filters, searchQuery, sortBy, promotions]);
+  }, [products, filters, searchQuery, sortBy, promotions, priceFilterEnabled]);
 
   // Pagination
   const pageSize = 12;
@@ -572,7 +562,7 @@ function ProductsPageContent() {
                 <div className="md:hidden mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
                   <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                     {paginatedProducts.map((product) => (
-                      <div key={product.id} className="flex-shrink-0 w-[280px] snap-start">
+                      <div key={product.id} className="shrink-0 w-[280px] snap-start">
                         <ProductCard
                           product={product}
                           onAddToCart={handleAddToCart}

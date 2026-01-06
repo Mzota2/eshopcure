@@ -43,6 +43,7 @@ export default function AddressesPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);

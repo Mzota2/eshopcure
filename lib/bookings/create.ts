@@ -50,8 +50,8 @@ export const createBooking = async (input: CreateBookingInput): Promise<string> 
     },
     cancellationPolicy,
     notes: input.notes,
-    createdAt: serverTimestamp() as any,
-    updatedAt: serverTimestamp() as any,
+    createdAt: serverTimestamp() as unknown as Date,
+    updatedAt: serverTimestamp() as unknown as Date,
   };
 
   const bookingRef = await addDoc(collection(db, COLLECTIONS.BOOKINGS), bookingData);

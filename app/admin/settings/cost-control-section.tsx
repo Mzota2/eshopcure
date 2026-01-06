@@ -365,7 +365,7 @@ export const CostControlSection: React.FC<CostControlSectionProps> = ({ onSave }
                       onChange={(e) => setNotifications({ ...notifications, notificationRetentionDays: parseInt(e.target.value) || 90 })}
                       min={1}
                       max={365}
-                      helperText="Auto-delete notifications older than this"
+                      helpText="Auto-delete notifications older than this"
                     />
                   </div>
                 </div>

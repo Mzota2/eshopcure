@@ -52,7 +52,7 @@ function AdminServicesPageContent() {
   // Delete mutation
   const deleteService = useDeleteService();
 
-  const filteredServices = items.filter((service) => {
+  const filteredServices = Array.isArray(items) ? items.filter((service: { name: string; description?: string }) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return (
@@ -61,7 +61,7 @@ function AdminServicesPageContent() {
       );
     }
     return true;
-  });
+  }) : [];
 
   const handleDelete = async (serviceId: string) => {
     showConfirm({
@@ -81,7 +81,7 @@ function AdminServicesPageContent() {
     });
   };
 
-  if (loading && items.length === 0) {
+  if (loading && (!Array.isArray(items) || items.length === 0)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loading size="lg" />
@@ -172,7 +172,7 @@ function AdminServicesPageContent() {
               <p className="text-sm sm:text-base">No services found</p>
             </div>
           ) : (
-            filteredServices.map((service) => {
+            filteredServices.map((service: { id: string; name: string; images?: Array<{ url: string }>; duration?: number; pricing: { basePrice: number; currency: string }; status: string }) => {
               const mainImage = service.images?.[0]?.url;
               const duration = service.duration ? `${service.duration} minutes` : 'N/A';
               
@@ -230,7 +230,7 @@ function AdminServicesPageContent() {
         {filteredServices.length > 0 && (
           <div className="p-3 sm:p-4 border-t border-border">
             <p className="text-xs sm:text-sm text-text-secondary">
-              Showing {filteredServices.length} of {items.length} services
+              Showing {filteredServices.length} of {Array.isArray(items) ? items.length : 0} services
             </p>
           </div>
         )}

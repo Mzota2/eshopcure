@@ -113,12 +113,12 @@ export default function EditProductPage() {
           includeTransactionFee: product.pricing?.includeTransactionFee || false,
           transactionFeeRate: product.pricing?.transactionFeeRate || 0.03,
         },
-        inventory: product.inventory || {
-          quantity: 0,
-          reserved: 0,
-          available: 0,
-          lowStockThreshold: 10,
-          trackInventory: true,
+        inventory: {
+          quantity: product.inventory?.quantity || 0,
+          reserved: product.inventory?.reserved || 0,
+          available: product.inventory?.available || 0,
+          lowStockThreshold: product.inventory?.lowStockThreshold ?? 10,
+          trackInventory: product.inventory?.trackInventory ?? true,
         },
         images: product.images || [],
         tags: product.tags || [],
@@ -154,7 +154,7 @@ export default function EditProductPage() {
     if (imageUrl) {
       setFormData((prev) => ({
         ...prev,
-        images: [...prev.images, { url: imageUrl, alt: '' }],
+        images: [...prev.images, { url: imageUrl, alt: '', order: prev.images.length }],
       }));
     }
   };
@@ -192,7 +192,7 @@ export default function EditProductPage() {
 
     try {
       setIsSubmitting(true);
-      let uploadedImages: ItemImage[] = [];
+      const uploadedImages: ItemImage[] = [];
 
       // Step 1: Update Firebase first (without new image URLs)
       // This way we don't waste Cloudinary storage if Firebase fails
@@ -434,7 +434,7 @@ export default function EditProductPage() {
                     ...prev,
                     pricing: {
                       ...prev.pricing,
-                      compareAtPrice: parseFloat(e.target.value) || undefined,
+                      compareAtPrice: e.target.value ? parseFloat(e.target.value) : 0,
                     },
                   }))
                 }
@@ -473,7 +473,7 @@ export default function EditProductPage() {
                     Include Transaction Fee in Selling Price
                   </span>
                   <p className="text-xs text-text-secondary mt-1">
-                    When enabled, the selling price will automatically include the payment provider's transaction fee (3% by default) so the business doesn't lose money. The displayed price will be calculated as: Base Price ÷ (1 - Fee Rate).
+                    When enabled, the selling price will automatically include the payment provider&apos;s transaction fee (3% by default) so the business doesn&apos;t lose money. The displayed price will be calculated as: Base Price ÷ (1 - Fee Rate).
                   </p>
                 </div>
               </label>
@@ -496,7 +496,7 @@ export default function EditProductPage() {
                       }))
                     }
                     placeholder="0.03"
-                    helperText="Enter as decimal (e.g., 0.03 for 3%)"
+                    helpText="Enter as decimal (e.g., 0.03 for 3%)"
                   />
                   {formData.pricing.basePrice > 0 && (
                     <div className="mt-2 p-3 bg-background-secondary rounded-lg">
@@ -514,7 +514,7 @@ export default function EditProductPage() {
                         ).toFixed(2)}
                       </p>
                       <p className="text-xs text-text-secondary mt-1">
-                        After {((formData.pricing.transactionFeeRate || 0.03) * 100).toFixed(1)}% fee, you'll receive:{' '}
+                        After {((formData.pricing.transactionFeeRate || 0.03) * 100).toFixed(1)}% fee, you&apos;ll receive:{' '}
                         {formData.pricing.currency} {formData.pricing.basePrice.toFixed(2)}
                       </p>
                     </div>

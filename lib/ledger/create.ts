@@ -86,8 +86,8 @@ export const createLedgerEntry = async (
     paymentId: input.paymentId,
     description: input.description,
     metadata: input.metadata,
-    createdAt: serverTimestamp() as any,
-    updatedAt: serverTimestamp() as any,
+    createdAt: serverTimestamp() as unknown as Date,
+    updatedAt: serverTimestamp() as unknown as Date,
   };
 
   // Use custom ID if provided (for idempotency), otherwise use auto-generated ID
@@ -109,9 +109,9 @@ export const createLedgerEntry = async (
  * This helps ensure idempotency
  */
 const checkExistingLedgerEntry = async (
-  entryType: string,
-  orderId?: string,
-  bookingId?: string
+  _entryType: string,
+  _orderId?: string,
+  _bookingId?: string
 ): Promise<string | null> => {
   // This is a simplified check
   // In production, you'd want to query the ledger collection
@@ -156,11 +156,11 @@ export const reverseLedgerEntry = async (
       reversedEntryId: originalEntryId,
       reversalReason: reason,
     },
-    reversedAt: serverTimestamp() as any,
+    reversedAt: serverTimestamp() as unknown as Date,
     reversedBy,
     reversalReason: reason,
-    createdAt: serverTimestamp() as any,
-    updatedAt: serverTimestamp() as any,
+    createdAt: serverTimestamp() as unknown as Date,
+    updatedAt: serverTimestamp() as unknown as Date,
   };
 
   const docRef = await addDoc(

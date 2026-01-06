@@ -97,7 +97,7 @@ export const updateBusiness = async (businessId: string, updates: Partial<busine
   }
   
   // Prepare update data - ensure nested objects are properly included
-  const updateData: Record<string, any> = {
+  const updateData: Record<string, unknown> = {
     ...updates,
     updatedAt: serverTimestamp(),
   };

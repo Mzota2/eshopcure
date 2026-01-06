@@ -41,30 +41,45 @@ export const getBookingById = async (bookingId: string): Promise<Booking> => {
 /**
  * Convert Firestore booking data to Booking type with proper date conversions
  */
-const convertBookingData = (docId: string, data: any): Booking => {
+const convertBookingData = (docId: string, data: Record<string, unknown>): Booking => {
+  const convertTimestamp = (ts: unknown): Date => {
+    if (ts instanceof Date) return ts;
+    if (ts && typeof ts === 'object' && 'toDate' in ts && typeof ts.toDate === 'function') {
+      return (ts as { toDate: () => Date }).toDate();
+    }
+    try {
+      return new Date(String(ts));
+    } catch {
+      return new Date();
+    }
+  };
+
+  const timeSlot = data.timeSlot as { startTime?: unknown; endTime?: unknown } | undefined;
+  const payment = data.payment as { paidAt?: unknown } | undefined;
+
   return {
     id: docId,
     ...data,
     // Convert timeSlot timestamps
-    timeSlot: {
-      ...data.timeSlot,
-      startTime: data.timeSlot?.startTime?.toDate ? data.timeSlot.startTime.toDate() : (data.timeSlot?.startTime ? new Date(data.timeSlot.startTime) : new Date()),
-      endTime: data.timeSlot?.endTime?.toDate ? data.timeSlot.endTime.toDate() : (data.timeSlot?.endTime ? new Date(data.timeSlot.endTime) : new Date()),
-    },
+    timeSlot: timeSlot ? {
+      ...timeSlot,
+      startTime: convertTimestamp(timeSlot.startTime),
+      endTime: convertTimestamp(timeSlot.endTime),
+    } : { startTime: new Date(), endTime: new Date() },
     // Convert payment.paidAt if it exists
-    ...(data.payment && {
+    ...(payment && {
       payment: {
-        ...data.payment,
-        paidAt: data.payment.paidAt?.toDate ? data.payment.paidAt.toDate() : (data.payment.paidAt ? new Date(data.payment.paidAt) : new Date()),
+        ...payment,
+        paidAt: convertTimestamp(payment.paidAt),
       },
     }),
     // Convert other date fields
-    ...(data.createdAt && { createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt) }),
-    ...(data.updatedAt && { updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt) }),
-    ...(data.canceledAt && { canceledAt: data.canceledAt?.toDate ? data.canceledAt.toDate() : new Date(data.canceledAt) }),
-    ...(data.noShowAt && { noShowAt: data.noShowAt?.toDate ? data.noShowAt.toDate() : new Date(data.noShowAt) }),
-    ...(data.refundedAt && { refundedAt: data.refundedAt?.toDate ? data.refundedAt.toDate() : new Date(data.refundedAt) }),
-  } as Booking;
+    createdAt: convertTimestamp(data.createdAt),
+    updatedAt: convertTimestamp(data.updatedAt),
+    ...(data.canceledAt ? { canceledAt: convertTimestamp(data.canceledAt) } : {}),
+    ...(data.noShowAt ? { noShowAt: convertTimestamp(data.noShowAt) } : {}),
+    ...(data.refundedAt ? { refundedAt: convertTimestamp(data.refundedAt) } : {}),
+  } as unknown as Booking;
 };
 
 /**
@@ -200,7 +215,7 @@ export const cancelBooking = async (bookingId: string, reason?: string, canceled
       // Try to order by createdAt, but if index doesn't exist, we'll sort client-side
       try {
         ledgerQuery = query(ledgerQuery, orderBy('createdAt', 'desc'), limit(1));
-      } catch (error) {
+      } catch {
         // If index doesn't exist, we'll get all and sort client-side
         console.warn('Could not order ledger query by createdAt, will sort client-side');
       }

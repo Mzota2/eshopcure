@@ -7,10 +7,10 @@
 import React, { useState, useEffect } from 'react';
 import { useBookings, useUpdateBooking, useCancelBooking } from '@/hooks';
 import { Booking, BookingStatus } from '@/types/booking';
-import { Button, Loading, Input, useToast, StatusBadge, CancellationDialog, statusUtils } from '@/components/ui';
+import { Button, Loading, Input, useToast, StatusBadge, CancellationDialog } from '@/components/ui';
 import { Search, Eye, Calendar, Download, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils/formatting';
+import { formatCurrency, formatDateTime } from '@/lib/utils/formatting';
 import Link from 'next/link';
 import { StoreTypeGuard } from '@/components/guards/StoreTypeGuard';
 import { getUserFriendlyMessage, SUCCESS_MESSAGES, ERROR_MESSAGES } from '@/lib/utils/user-messages';
@@ -46,11 +46,12 @@ function AdminBookingsPageContent() {
   const updateBooking = useUpdateBooking();
   const cancelBooking = useCancelBooking();
 
-  useEffect(() => {
+  // Update staff notes when booking is selected
+  React.useEffect(() => {
     if (selectedBooking) {
       setStaffNotes(selectedBooking.staffNotes || '');
     }
-  }, [selectedBooking]);
+  }, [selectedBooking?.id, selectedBooking?.staffNotes]);
 
   // Filter bookings by search query
   const filteredBookings = items.filter((booking) => {
@@ -189,7 +190,7 @@ function AdminBookingsPageContent() {
               key={status}
               onClick={() => setSelectedStatus(status as BookingStatus | 'all')}
               className={cn(
-                'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors capitalize whitespace-nowrap flex-shrink-0',
+                'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors capitalize whitespace-nowrap shrink-0',
                 selectedStatus === status
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -202,7 +203,7 @@ function AdminBookingsPageContent() {
 
         {error && (
           <div className="mb-4 p-3 sm:p-4 bg-destructive/20 text-destructive rounded-lg text-sm sm:text-base">
-            {error}
+            {error instanceof Error ? error.message : String(error)}
           </div>
         )}
 
@@ -301,7 +302,7 @@ function AdminBookingsPageContent() {
                   <Link
                     href={`/admin/bookings/${booking.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="p-1 text-text-secondary hover:text-foreground transition-colors flex-shrink-0"
+                    className="p-1 text-text-secondary hover:text-foreground transition-colors shrink-0"
                     title="View Details"
                   >
                     <Eye className="w-4 h-4" />
@@ -360,7 +361,7 @@ function AdminBookingsPageContent() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Service:</span>
-                  <span className="text-foreground break-words text-right">{selectedBooking.serviceName}</span>
+                  <span className="text-foreground wrap-break-word text-right">{selectedBooking.serviceName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Date:</span>
@@ -441,7 +442,7 @@ function AdminBookingsPageContent() {
               <h3 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3">Customer Information</h3>
               <div className="text-xs sm:text-sm space-y-1">
                 <p className="text-foreground">{selectedBooking.customerName || 'Guest'}</p>
-                <p className="text-text-secondary break-words">{selectedBooking.customerEmail}</p>
+                <p className="text-text-secondary wrap-break-word">{selectedBooking.customerEmail}</p>
                 {selectedBooking.customerPhone && (
                   <p className="text-text-secondary">{selectedBooking.customerPhone}</p>
                 )}

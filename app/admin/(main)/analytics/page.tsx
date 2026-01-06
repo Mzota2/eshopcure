@@ -19,13 +19,12 @@ import {
   useRealtimeServices,
   useRealtimeCustomers,
 } from '@/hooks';
-import { Loading, Button } from '@/components/ui';
+import { Loading } from '@/components/ui';
 import { useSettings } from '@/hooks/useSettings';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Calendar, Users, AlertTriangle } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils/formatting';
+import { formatCurrency } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
-import { calculateRevenueMetrics, calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
+import { calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
 import { OrderStatus } from '@/types/order';
 import { BookingStatus } from '@/types/booking';
 import { ItemStatus } from '@/types/item';
@@ -63,11 +62,6 @@ const BOOKING_REVENUE_STATUSES = [
   BookingStatus.COMPLETED,
 ];
 
-// Helper function to check if order/booking should count toward revenue
-const isRevenueGenerating = (status: OrderStatus | BookingStatus): boolean => {
-  return ORDER_REVENUE_STATUSES.includes(status as OrderStatus) || 
-         BOOKING_REVENUE_STATUSES.includes(status as BookingStatus);
-};
 
 // Helper to convert date safely
 const getDate = (date: Date | string | { toDate?: () => Date } | undefined): Date => {
@@ -85,46 +79,31 @@ export default function AdminAnalyticsPage() {
   // Get pagination settings
   const loadStrategy = settings?.performance?.analyticsLoadStrategy ?? 'paginated';
   const pageSize = settings?.performance?.analyticsPageSize ?? 50;
-  const [ordersPage, setOrdersPage] = useState(1);
-  const [bookingsPage, setBookingsPage] = useState(1);
-  const [productsPage, setProductsPage] = useState(1);
-  const [servicesPage, setServicesPage] = useState(1);
-  const [customersPage, setCustomersPage] = useState(1);
 
   // Determine if we should use limits
   const useLimits = loadStrategy !== 'all';
-  const ordersLimit = useLimits ? pageSize : undefined;
-  const bookingsLimit = useLimits ? pageSize : undefined;
-  const productsLimit = useLimits ? pageSize : undefined;
-  const servicesLimit = useLimits ? pageSize : undefined;
-  const customersLimit = useLimits ? pageSize : undefined;
 
   // Fetch data with pagination
   const { data: orders = [], isLoading: ordersLoading, error: ordersError } = useOrders({
     enabled: !!currentBusiness?.id,
-    limit: ordersLimit,
   });
 
   const { data: bookings = [], isLoading: bookingsLoading, error: bookingsError } = useBookings({
     enabled: !!currentBusiness?.id,
-    limit: bookingsLimit,
   });
 
   const { data: products = [], isLoading: productsLoading } = useProducts({
     businessId: currentBusiness?.id,
     enabled: !!currentBusiness?.id,
-    limit: productsLimit,
   });
 
   const { data: services = [], isLoading: servicesLoading } = useServices({
     businessId: currentBusiness?.id,
     enabled: !!currentBusiness?.id,
-    limit: servicesLimit,
   });
 
   const { data: customers = [], isLoading: customersLoading } = useCustomers({
     enabled: !!currentBusiness?.id,
-    limit: customersLimit,
   });
 
   // Real-time updates for analytics (critical - admin needs immediate updates)
@@ -196,8 +175,12 @@ export default function AdminAnalyticsPage() {
     const totalOrders = orders.length;
     const totalBookings = bookings.length;
     const totalCustomers = customers.length;
-    const activeProducts = products.filter(p => p.status === ItemStatus.ACTIVE).length;
-    const activeServices = services.filter(s => s.status === ItemStatus.ACTIVE).length;
+    const activeProducts = Array.isArray(products) ? products.filter((p) => {
+      return typeof p === 'object' && p !== null && 'status' in p && (p as { status: unknown }).status === ItemStatus.ACTIVE;
+    }).length : 0;
+    const activeServices = Array.isArray(services) ? services.filter((s) => {
+      return typeof s === 'object' && s !== null && 'status' in s && (s as { status: unknown }).status === ItemStatus.ACTIVE;
+    }).length : 0;
 
     // Calculate average order value (using net revenue)
     const revenueOrders = orders.filter(o => ORDER_REVENUE_STATUSES.includes(o.status) && o.payment);
@@ -396,7 +379,7 @@ export default function AdminAnalyticsPage() {
               key={range}
               onClick={() => setDateRange(range)}
               className={cn(
-                'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+                'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
                 dateRange === range
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background-secondary text-foreground hover:bg-background-tertiary'
@@ -411,17 +394,17 @@ export default function AdminAnalyticsPage() {
       {/* Metrics Grid */}
       <div className="overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="flex gap-3 sm:gap-4 min-w-max">
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs sm:text-sm text-text-secondary">Net Revenue</span>
-            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
           </div>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{formatCurrency(metrics.totalRevenue, 'MWK')}</p>
           <div className="flex items-center gap-1 mt-2">
             {metrics.revenueGrowth >= 0 ? (
-              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-success flex-shrink-0" />
+              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-success shrink-0" />
             ) : (
-              <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-destructive flex-shrink-0" />
+              <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-destructive shrink-0" />
             )}
             <span className={cn('text-xs sm:text-sm', metrics.revenueGrowth >= 0 ? 'text-success' : 'text-destructive')}>
               {metrics.revenueGrowth >= 0 ? '+' : ''}{metrics.revenueGrowth.toFixed(1)}%
@@ -434,10 +417,10 @@ export default function AdminAnalyticsPage() {
           )}
         </div>
 
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs sm:text-sm text-text-secondary">Transaction Fees</span>
-            <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-destructive flex-shrink-0" />
+            <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-destructive shrink-0" />
           </div>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-destructive whitespace-nowrap">{formatCurrency(metrics.transactionFees || 0, 'MWK')}</p>
           {metrics.grossRevenue !== undefined && metrics.transactionFees !== undefined && (
@@ -447,10 +430,10 @@ export default function AdminAnalyticsPage() {
           )}
         </div>
 
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs sm:text-sm text-text-secondary">Total Orders</span>
-            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
           </div>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalOrders}</p>
           <p className="text-xs sm:text-sm text-text-secondary mt-2">
@@ -458,10 +441,10 @@ export default function AdminAnalyticsPage() {
           </p>
         </div>
 
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs sm:text-sm text-text-secondary">Total Bookings</span>
-            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
           </div>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalBookings}</p>
           <p className="text-xs sm:text-sm text-text-secondary mt-2">
@@ -469,10 +452,10 @@ export default function AdminAnalyticsPage() {
           </p>
         </div>
 
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-2 gap-2">
             <span className="text-xs sm:text-sm text-text-secondary">Total Customers</span>
-            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
           </div>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalCustomers}</p>
           <p className="text-xs sm:text-sm text-text-secondary mt-2">
@@ -649,7 +632,7 @@ export default function AdminAnalyticsPage() {
                     cx="50%"
                     cy="45%"
                     labelLine={false}
-                    label={({ name, percent }) => {
+                    label={({ percent }) => {
                       // Only show label if percentage is significant (>5%)
                       if (percent < 0.05) return '';
                       return `${(percent * 100).toFixed(0)}%`;
@@ -706,12 +689,12 @@ export default function AdminAnalyticsPage() {
       {useLimits && loadStrategy === 'paginated' && (
         <div className="bg-warning/10 border border-warning/20 rounded-lg p-3 sm:p-4">
           <div className="flex items-start gap-2 sm:gap-3">
-            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-warning mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-warning mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
               <h3 className="text-sm sm:text-base font-medium text-foreground mb-1">Pagination Enabled</h3>
               <p className="text-xs sm:text-sm text-text-secondary">
                 Analytics are showing limited data ({pageSize} records per collection) to reduce costs. 
-                For complete analytics, switch to "Load All" mode in Settings → Cost Control → Performance.
+                For complete analytics, switch to &quot;Load All&quot; mode in Settings → Cost Control → Performance.
               </p>
             </div>
           </div>

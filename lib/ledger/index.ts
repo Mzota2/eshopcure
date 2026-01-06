@@ -13,8 +13,8 @@ import { COLLECTIONS } from '@/types/collections';
 import { LedgerEntry, LedgerEntryType, LedgerEntryStatus } from '@/types/ledger';
 import { NotFoundError } from '@/lib/utils/errors';
 import { createLedgerEntry, reverseLedgerEntry } from './create';
-import { Order, OrderStatus } from '@/types/order';
-import { Booking, BookingStatus } from '@/types/booking';
+import { OrderStatus } from '@/types/order';
+import { BookingStatus } from '@/types/booking';
 import { getOrders } from '@/lib/orders';
 import { getBookings } from '@/lib/bookings';
 
@@ -105,7 +105,7 @@ export interface DerivedTransaction {
   paymentId?: string;
   description: string;
   createdAt: Date | string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   source: 'order' | 'booking'; // Indicates the source of this transaction
 }
 
@@ -147,10 +147,10 @@ export const getDerivedTransactions = async (options?: {
         const transactionDate = order.payment.paidAt 
           ? (order.payment.paidAt instanceof Date 
               ? order.payment.paidAt 
-              : (order.payment.paidAt as any)?.toDate?.() || new Date(order.payment.paidAt as string))
+              : (order.payment.paidAt as { toDate?: () => Date })?.toDate?.() || new Date(String(order.payment.paidAt)))
           : (order.createdAt instanceof Date 
               ? order.createdAt 
-              : (order.createdAt as any)?.toDate?.() || new Date(order.createdAt as string));
+              : (order.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(String(order.createdAt))) as Date;
         
         // Apply date filters if provided
         if (options?.startDate && transactionDate < options.startDate) continue;
@@ -165,7 +165,19 @@ export const getDerivedTransactions = async (options?: {
           orderId: order.id,
           paymentId: order.payment.paymentId,
           description: `Order ${order.orderNumber} - ${order.items.length} item(s)`,
-          createdAt: order.payment.paidAt || order.createdAt,
+          createdAt: (() => {
+            if (order.payment.paidAt instanceof Date) return order.payment.paidAt;
+            if (order.payment.paidAt && typeof order.payment.paidAt === 'object' && 'toDate' in order.payment.paidAt) {
+              const date = (order.payment.paidAt as { toDate: () => Date }).toDate();
+              return date instanceof Date ? date : new Date();
+            }
+            if (order.createdAt instanceof Date) return order.createdAt;
+            if (order.createdAt && typeof order.createdAt === 'object' && 'toDate' in order.createdAt) {
+              const date = (order.createdAt as { toDate: () => Date }).toDate();
+              return date instanceof Date ? date : new Date();
+            }
+            return new Date();
+          })(),
           source: 'order',
           metadata: {
             orderNumber: order.orderNumber,
@@ -203,10 +215,10 @@ export const getDerivedTransactions = async (options?: {
         const transactionDate = booking.payment.paidAt 
           ? (booking.payment.paidAt instanceof Date 
               ? booking.payment.paidAt 
-              : (booking.payment.paidAt as any)?.toDate?.() || new Date(booking.payment.paidAt as string))
+              : (booking.payment.paidAt as { toDate?: () => Date })?.toDate?.() || new Date(String(booking.payment.paidAt)))
           : (booking.createdAt instanceof Date 
               ? booking.createdAt 
-              : (booking.createdAt as any)?.toDate?.() || new Date(booking.createdAt as string));
+              : (booking.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(String(booking.createdAt))) as Date;
         
         // Apply date filters if provided
         if (options?.startDate && transactionDate < options.startDate) continue;
@@ -221,7 +233,19 @@ export const getDerivedTransactions = async (options?: {
           bookingId: booking.id,
           paymentId: booking.payment.paymentId,
           description: `Booking ${booking.bookingNumber} - ${booking.serviceName}`,
-          createdAt: booking.payment.paidAt || booking.createdAt,
+          createdAt: (() => {
+            if (booking.payment.paidAt instanceof Date) return booking.payment.paidAt;
+            if (booking.payment.paidAt && typeof booking.payment.paidAt === 'object' && 'toDate' in booking.payment.paidAt) {
+              const date = (booking.payment.paidAt as { toDate: () => Date }).toDate();
+              return date instanceof Date ? date : new Date();
+            }
+            if (booking.createdAt instanceof Date) return booking.createdAt;
+            if (booking.createdAt && typeof booking.createdAt === 'object' && 'toDate' in booking.createdAt) {
+              const date = (booking.createdAt as { toDate: () => Date }).toDate();
+              return date instanceof Date ? date : new Date();
+            }
+            return new Date();
+          })(),
           source: 'booking',
           metadata: {
             bookingNumber: booking.bookingNumber,
@@ -239,10 +263,10 @@ export const getDerivedTransactions = async (options?: {
   transactions.sort((a, b) => {
     const aDate = a.createdAt instanceof Date 
       ? a.createdAt 
-      : (a.createdAt as any)?.toDate?.() || new Date(a.createdAt as string);
+      : (a.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(String(a.createdAt));
     const bDate = b.createdAt instanceof Date 
       ? b.createdAt 
-      : (b.createdAt as any)?.toDate?.() || new Date(b.createdAt as string);
+      : (b.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(String(b.createdAt));
     return bDate.getTime() - aDate.getTime();
   });
 

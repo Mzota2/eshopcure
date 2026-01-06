@@ -25,6 +25,18 @@ import { Loading } from '@/components/ui';
 import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
 import { calculateRevenueMetrics, calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
+import { Timestamp } from 'firebase/firestore';
+
+// Helper to convert date safely
+const getDate = (date: Date | string | Timestamp | { toDate?: () => Date } | undefined): Date => {
+  if (!date) return new Date(0);
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'object' && date !== null && 'toDate' in date && typeof (date as { toDate: () => Date }).toDate === 'function') {
+    return (date as { toDate: () => Date }).toDate();
+  }
+  return new Date(date as string);
+};
 import {
   ShoppingCart,
   DollarSign,
@@ -132,8 +144,8 @@ export default function AdminDashboardPage() {
         if (!ORDER_REVENUE_STATUSES.includes(o.status) || !o.payment) return false;
         // Use payment date (paidAt) if available, otherwise use createdAt
         const transactionDate = o.payment.paidAt
-          ? (o.payment.paidAt instanceof Date ? o.payment.paidAt : o.payment.paidAt?.toDate?.() || new Date(o.payment.paidAt as string))
-          : (o.createdAt instanceof Date ? o.createdAt : o.createdAt?.toDate?.() || new Date(0));
+          ? getDate(o.payment.paidAt)
+          : getDate(o.createdAt);
         return transactionDate >= currentPeriodStart;
       })
       .reduce((sum, o) => sum + (o.payment?.amount || o.pricing.total || 0), 0) +
@@ -142,8 +154,8 @@ export default function AdminDashboardPage() {
           if (!BOOKING_REVENUE_STATUSES.includes(b.status) || !b.payment) return false;
           // Use payment date (paidAt) if available, otherwise use createdAt
           const transactionDate = b.payment.paidAt
-            ? (b.payment.paidAt instanceof Date ? b.payment.paidAt : b.payment.paidAt?.toDate?.() || new Date(b.payment.paidAt as string))
-            : (b.createdAt instanceof Date ? b.createdAt : b.createdAt?.toDate?.() || new Date(0));
+            ? getDate(b.payment.paidAt)
+            : getDate(b.createdAt);
           return transactionDate >= currentPeriodStart;
         })
         .reduce((sum, b) => sum + (b.payment?.amount || b.pricing.total || 0), 0);
@@ -166,8 +178,8 @@ export default function AdminDashboardPage() {
         if (!ORDER_REVENUE_STATUSES.includes(o.status) || !o.payment) return false;
         // Use payment date (paidAt) if available, otherwise use createdAt
         const transactionDate = o.payment.paidAt
-          ? (o.payment.paidAt instanceof Date ? o.payment.paidAt : o.payment.paidAt?.toDate?.() || new Date(o.payment.paidAt as string))
-          : (o.createdAt instanceof Date ? o.createdAt : o.createdAt?.toDate?.() || new Date(0));
+          ? getDate(o.payment.paidAt)
+          : getDate(o.createdAt);
         return transactionDate >= previousPeriodStart && transactionDate < previousPeriodEnd;
       })
       .reduce((sum, o) => sum + (o.payment?.amount || o.pricing.total || 0), 0) +
@@ -176,8 +188,8 @@ export default function AdminDashboardPage() {
           if (!BOOKING_REVENUE_STATUSES.includes(b.status) || !b.payment) return false;
           // Use payment date (paidAt) if available, otherwise use createdAt
           const transactionDate = b.payment.paidAt
-            ? (b.payment.paidAt instanceof Date ? b.payment.paidAt : b.payment.paidAt?.toDate?.() || new Date(b.payment.paidAt as string))
-            : (b.createdAt instanceof Date ? b.createdAt : b.createdAt?.toDate?.() || new Date(0));
+            ? getDate(b.payment.paidAt)
+            : getDate(b.createdAt);
           return transactionDate >= previousPeriodStart && transactionDate < previousPeriodEnd;
         })
         .reduce((sum, b) => sum + (b.payment?.amount || b.pricing.total || 0), 0);
@@ -193,14 +205,16 @@ export default function AdminDashboardPage() {
 
     const totalOrders = orders.length;
     const totalBookings = bookings.length;
-    const totalProducts = products.length;
-    const totalServices = services.length;
+    const totalProducts = Array.isArray(products) ? products.length : 0;
+    const totalServices = Array.isArray(services) ? services.length : 0;
     const totalCustomers = customers.length;
 
     // Calculate low stock products (assuming stock threshold of 10)
     const lowStockProducts = products.filter((p) => {
       if (p.type !== 'product') return false;
-      const stock = (p as any).stock || (p as any).inventory?.quantity || 0;
+      const stock = 'inventory' in p && p.inventory && typeof p.inventory === 'object' && 'quantity' in p.inventory
+        ? (p.inventory as { quantity: number }).quantity
+        : 0;
       return stock > 0 && stock <= 10;
     }).length;
 
@@ -342,8 +356,8 @@ export default function AdminDashboardPage() {
         if (!ORDER_REVENUE_STATUSES.includes(order.status) || !order.payment) return false;
         // Use payment date (paidAt) if available, otherwise use createdAt
         const transactionDate = order.payment.paidAt
-          ? (order.payment.paidAt instanceof Date ? order.payment.paidAt : order.payment.paidAt?.toDate?.() || new Date(order.payment.paidAt as string))
-          : (order.createdAt instanceof Date ? order.createdAt : order.createdAt?.toDate?.() || new Date(0));
+          ? getDate(order.payment.paidAt)
+          : getDate(order.createdAt);
         return transactionDate >= dateStart && transactionDate < dateEnd;
       });
 
@@ -351,8 +365,8 @@ export default function AdminDashboardPage() {
         if (!BOOKING_REVENUE_STATUSES.includes(booking.status) || !booking.payment) return false;
         // Use payment date (paidAt) if available, otherwise use createdAt
         const transactionDate = booking.payment.paidAt
-          ? (booking.payment.paidAt instanceof Date ? booking.payment.paidAt : booking.payment.paidAt?.toDate?.() || new Date(booking.payment.paidAt as string))
-          : (booking.createdAt instanceof Date ? booking.createdAt : booking.createdAt?.toDate?.() || new Date(0));
+          ? getDate(booking.payment.paidAt)
+          : getDate(booking.createdAt);
         return transactionDate >= dateStart && transactionDate < dateEnd;
       });
 
@@ -481,6 +495,7 @@ export default function AdminDashboardPage() {
   }, [orders]);
 
   // Show store type selector if not set
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!storeTypeLoading && !storeType) {
       setShowStoreTypeSelector(true);
@@ -544,7 +559,7 @@ export default function AdminDashboardPage() {
         {/* Today's Orders */}
         <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Today's Orders</h3>
+            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Today&apos;s Orders</h3>
             <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
           </div>
           <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">

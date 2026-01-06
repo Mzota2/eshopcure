@@ -17,7 +17,6 @@ import {
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
-import type { Timestamp as FirestoreTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { COLLECTIONS } from '@/types/collections';
 import { Review } from '@/types/reviews';
@@ -37,13 +36,15 @@ export const getReviewById = async (reviewId: string): Promise<Review> => {
 
   const data = reviewSnap.data();
   // Helper function to convert Timestamp to Date
-  const convertTimestamp = (ts: any): Date | undefined => {
+  const convertTimestamp = (ts: unknown): Date | undefined => {
     if (!ts) return undefined;
     if (ts instanceof Date) return ts;
-    if (typeof ts?.toDate === 'function') return ts.toDate();
+    if (ts && typeof ts === 'object' && 'toDate' in ts && typeof ts.toDate === 'function') {
+      return (ts as { toDate: () => Date }).toDate();
+    }
     // Try to create Date from timestamp
     try {
-      return new Date(ts);
+      return new Date(String(ts));
     } catch {
       return undefined;
     }
@@ -99,9 +100,16 @@ export const getReviews = async (options?: {
         qWithOrder = query(qWithOrder, limit(options.limit));
       }
       querySnapshot = await getDocs(qWithOrder);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If error is about missing index, fall back to query without orderBy
-      if (error?.code === 'failed-precondition' || error?.message?.includes('index')) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'failed-precondition') {
+        console.warn('Firestore index missing for reviews query, falling back to in-memory sorting');
+        useOrderBy = false;
+        if (options?.limit) {
+          q = query(q, limit(options.limit));
+        }
+        querySnapshot = await getDocs(q);
+      } else if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message.includes('index')) {
         console.warn('Firestore index missing for reviews query, falling back to in-memory sorting');
         useOrderBy = false;
         if (options?.limit) {
@@ -114,16 +122,18 @@ export const getReviews = async (options?: {
     }
 
     // Convert Firestore Timestamps to JavaScript Dates
-    let reviews = querySnapshot.docs.map((docSnapshot) => {
+    const reviews = querySnapshot.docs.map((docSnapshot) => {
       const data = docSnapshot.data();
       // Helper function to convert Timestamp to Date
-      const convertTimestamp = (ts: any): Date | undefined => {
+      const convertTimestamp = (ts: unknown): Date | undefined => {
         if (!ts) return undefined;
         if (ts instanceof Date) return ts;
-        if (typeof ts?.toDate === 'function') return ts.toDate();
+        if (ts && typeof ts === 'object' && 'toDate' in ts && typeof ts.toDate === 'function') {
+          return (ts as { toDate: () => Date }).toDate();
+        }
         // Try to create Date from timestamp
         try {
-          return new Date(ts);
+          return new Date(String(ts));
         } catch {
           return undefined;
         }
@@ -143,10 +153,10 @@ export const getReviews = async (options?: {
       reviews.sort((a, b) => {
         const aTime = a.createdAt instanceof Date 
           ? a.createdAt.getTime() 
-          : (a.createdAt as any)?.toMillis?.() || (a.createdAt as any)?.seconds * 1000 || 0;
+          : (a.createdAt as { toMillis?: () => number; seconds?: number })?.toMillis?.() || ((a.createdAt as { seconds?: number })?.seconds ?? 0) * 1000 || 0;
         const bTime = b.createdAt instanceof Date 
           ? b.createdAt.getTime() 
-          : (b.createdAt as any)?.toMillis?.() || (b.createdAt as any)?.seconds * 1000 || 0;
+          : (b.createdAt as { toMillis?: () => number; seconds?: number })?.toMillis?.() || ((b.createdAt as { seconds?: number })?.seconds ?? 0) * 1000 || 0;
         return bTime - aTime; // Descending order
       });
     }
@@ -229,10 +239,11 @@ export const createReview = async (
   }
 
   // Automatically get businessId if not provided
-  let finalBusinessId = businessId || review.businessId;
+  let finalBusinessId: string | undefined = businessId || review.businessId;
   if (!finalBusinessId) {
     const { getBusinessId } = await import('@/lib/businesses/utils');
-    finalBusinessId = await getBusinessId();
+    const fetchedBusinessId = await getBusinessId();
+    finalBusinessId = fetchedBusinessId || undefined;
   }
 
   if (!finalBusinessId) {

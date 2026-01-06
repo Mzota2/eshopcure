@@ -80,7 +80,7 @@ export interface Notification extends BaseDocument {
   orderId?: string; // Related order
   bookingId?: string; // Related booking
   paymentId?: string; // Related payment
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   readAt?: Date | string; // When user read it (in-app)
   expiresAt?: Date | string; // Optional expiration
 }
@@ -97,7 +97,7 @@ export interface CreateNotificationInput {
   orderId?: string;
   bookingId?: string;
   paymentId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   expiresAt?: Date | string;
 }
 

@@ -10,8 +10,7 @@
 !.yarn/releases
 !.yarn/versions
 
-./firebase-service-account.json
-./firebase-service-account.json.json
+*account.json
 # testing
 /coverage
 

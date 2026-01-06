@@ -8,10 +8,10 @@ import {
   User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { createUser, getUserByUid, updateUserByUid } from '@/lib/users';
+import { getUserByUid, updateUserByUid } from '@/lib/users';
 import { UserRole, User } from '@/types/user';
-import { AuthenticationError, ValidationError } from '@/lib/utils/errors';
-import { extractNameFromDisplayName, combineNameToDisplayName } from '@/lib/utils/nameExtraction';
+import { AuthenticationError } from '@/lib/utils/errors';
+import { extractNameFromDisplayName } from '@/lib/utils/nameExtraction';
 
 export type SocialProvider = 'google' | 'facebook' | 'twitter' | 'apple';
 
@@ -44,11 +44,12 @@ export const signInWithGoogle = async (): Promise<{ firebaseUser: FirebaseUser; 
         emailVerified: true,
         role: UserRole.CUSTOMER,
       });
-      user = await getUserByUid(firebaseUser.uid);
+      const createdUser = await getUserByUid(firebaseUser.uid);
       
-      if (!user) {
+      if (!createdUser) {
         throw new Error('Failed to create user profile');
       }
+      user = createdUser;
     } else {
       // Update existing user if they don't have firstName/lastName but have displayName
       if ((!user.firstName || !user.lastName) && firebaseUser.displayName) {
@@ -59,20 +60,32 @@ export const signInWithGoogle = async (): Promise<{ firebaseUser: FirebaseUser; 
             lastName: user.lastName || lastName,
             displayName: user.displayName || firebaseUser.displayName,
           });
-          user = await getUserByUid(firebaseUser.uid);
+          const updatedUser = await getUserByUid(firebaseUser.uid);
+          if (updatedUser) {
+            user = updatedUser;
+          }
         }
       }
     }
 
+    if (!user) {
+      throw new Error('Failed to retrieve user');
+    }
+
     return { firebaseUser, user };
-  } catch (error: any) {
-    if (error.code === 'auth/popup-closed-by-user') {
-      throw new AuthenticationError('Sign in was cancelled');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        throw new AuthenticationError('Sign in was cancelled');
+      }
+      if (error.code === 'auth/popup-blocked') {
+        throw new AuthenticationError('Popup was blocked. Please allow popups for this site.');
+      }
     }
-    if (error.code === 'auth/popup-blocked') {
-      throw new AuthenticationError('Popup was blocked. Please allow popups for this site.');
-    }
-    throw new AuthenticationError(error.message || 'Failed to sign in with Google');
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to sign in with Google';
+    throw new AuthenticationError(message);
   }
 };
 

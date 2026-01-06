@@ -70,10 +70,14 @@ export default function AdminReportsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [reportType, setReportType] = useState<ReportType>('sales');
-  const [startDate, setStartDate] = useState<string>(
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  );
-  const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
 
   // Fetch data with React Query
@@ -114,14 +118,18 @@ export default function AdminReportsPage() {
     const filteredOrders = orders.filter((order) => {
       const orderDate = order.createdAt instanceof Date
         ? order.createdAt
-        : (order.createdAt as any)?.toDate?.() || new Date();
+        : (order.createdAt && typeof order.createdAt === 'object' && 'toDate' in order.createdAt && typeof order.createdAt.toDate === 'function')
+        ? order.createdAt.toDate()
+        : new Date();
       return orderDate >= start && orderDate <= end;
     });
 
     const filteredBookings = bookings.filter((booking) => {
       const bookingDate = booking.createdAt instanceof Date
         ? booking.createdAt
-        : (booking.createdAt as any)?.toDate?.() || new Date();
+        : (booking.createdAt && typeof booking.createdAt === 'object' && 'toDate' in booking.createdAt && typeof booking.createdAt.toDate === 'function')
+        ? booking.createdAt.toDate()
+        : new Date();
       return bookingDate >= start && bookingDate <= end;
     });
 
@@ -180,7 +188,9 @@ export default function AdminReportsPage() {
     const filteredOrders = orders.filter((order) => {
       const orderDate = order.createdAt instanceof Date
         ? order.createdAt
-        : (order.createdAt as any)?.toDate?.() || new Date();
+        : (order.createdAt && typeof order.createdAt === 'object' && 'toDate' in order.createdAt && typeof order.createdAt.toDate === 'function')
+        ? order.createdAt.toDate()
+        : new Date();
       return orderDate >= start && orderDate <= end && order.payment?.paidAt;
     });
 
@@ -188,9 +198,9 @@ export default function AdminReportsPage() {
 
     filteredOrders.forEach((order) => {
       order.items.forEach((item) => {
-        const existing = productMap.get(item.itemId) || {
-          productId: item.itemId,
-          productName: item.name,
+        const existing = productMap.get(item.productId) || {
+          productId: item.productId,
+          productName: item.productName,
           unitsSold: 0,
           revenue: 0,
           averagePrice: 0,
@@ -200,7 +210,7 @@ export default function AdminReportsPage() {
         existing.revenue += item.subtotal;
         existing.averagePrice = existing.unitsSold > 0 ? existing.revenue / existing.unitsSold : 0;
 
-        productMap.set(item.itemId, existing);
+        productMap.set(item.productId, existing);
       });
     });
 
@@ -217,7 +227,9 @@ export default function AdminReportsPage() {
     const filteredBookings = bookings.filter((booking) => {
       const bookingDate = booking.createdAt instanceof Date
         ? booking.createdAt
-        : (booking.createdAt as any)?.toDate?.() || new Date();
+        : (booking.createdAt && typeof booking.createdAt === 'object' && 'toDate' in booking.createdAt && typeof booking.createdAt.toDate === 'function')
+        ? booking.createdAt.toDate()
+        : new Date();
       return bookingDate >= start && bookingDate <= end && booking.payment?.paidAt;
     });
 
@@ -261,7 +273,9 @@ export default function AdminReportsPage() {
     const newCustomers = customers.filter((customer) => {
       const customerDate = customer.createdAt instanceof Date
         ? customer.createdAt
-        : (customer.createdAt as any)?.toDate?.() || new Date();
+        : (customer.createdAt && typeof customer.createdAt === 'object' && 'toDate' in customer.createdAt && typeof customer.createdAt.toDate === 'function')
+        ? customer.createdAt.toDate()
+        : new Date();
       return customerDate >= start && customerDate <= end;
     });
 

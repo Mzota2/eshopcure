@@ -83,10 +83,10 @@ export const getReports = async (options?: {
     reports = reports.filter((report) => {
       const periodStart = report.period.start instanceof Date
         ? report.period.start
-        : (report.period.start as any)?.toDate?.() || new Date(report.period.start);
+        : (report.period.start as { toDate?: () => Date })?.toDate?.() || new Date(String(report.period.start));
       const periodEnd = report.period.end instanceof Date
         ? report.period.end
-        : (report.period.end as any)?.toDate?.() || new Date(report.period.end);
+        : (report.period.end as { toDate?: () => Date })?.toDate?.() || new Date(String(report.period.end));
 
       if (options?.startDate && periodEnd < options.startDate) return false;
       if (options?.endDate && periodStart > options.endDate) return false;
@@ -126,7 +126,7 @@ export const createReport = async (
       start: input.period.start,
       end: input.period.end,
     },
-    generatedAt: serverTimestamp() as unknown as Timestamp,
+    generatedAt: serverTimestamp() as unknown as Date,
     data: {}, // Will be populated when report is generated
     currency: input.currency || 'MWK',
     notes: input.notes,

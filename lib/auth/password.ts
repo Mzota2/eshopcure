@@ -24,16 +24,21 @@ export const sendPasswordReset = async (email: string): Promise<void> => {
 
   try {
     await sendPasswordResetEmail(auth, email);
-  } catch (error: any) {
-    if (error.code === 'auth/user-not-found') {
-      // Don't reveal if user exists for security
-      // Still return success to prevent email enumeration
-      return;
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/user-not-found') {
+        // Don't reveal if user exists for security
+        // Still return success to prevent email enumeration
+        return;
+      }
+      if (error.code === 'auth/too-many-requests') {
+        throw new ValidationError('Too many requests. Please wait before trying again.');
+      }
     }
-    if (error.code === 'auth/too-many-requests') {
-      throw new ValidationError('Too many requests. Please wait before trying again.');
-    }
-    throw new ValidationError(error.message || 'Failed to send password reset email');
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to send password reset email';
+    throw new ValidationError(message);
   }
 };
 
@@ -52,17 +57,22 @@ export const resetPassword = async (oobCode: string, newPassword: string): Promi
   try {
     // Reset the password (confirmPasswordReset also verifies the code)
     await confirmPasswordReset(auth, oobCode, newPassword);
-  } catch (error: any) {
-    if (error.code === 'auth/invalid-action-code') {
-      throw new ValidationError('Invalid or expired reset link');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/invalid-action-code') {
+        throw new ValidationError('Invalid or expired reset link');
+      }
+      if (error.code === 'auth/expired-action-code') {
+        throw new ValidationError('Reset link has expired. Please request a new one.');
+      }
+      if (error.code === 'auth/weak-password') {
+        throw new ValidationError('Password is too weak');
+      }
     }
-    if (error.code === 'auth/expired-action-code') {
-      throw new ValidationError('Reset link has expired. Please request a new one.');
-    }
-    if (error.code === 'auth/weak-password') {
-      throw new ValidationError('Password is too weak');
-    }
-    throw new ValidationError(error.message || 'Failed to reset password');
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to reset password';
+    throw new ValidationError(message);
   }
 };
 
@@ -94,17 +104,22 @@ export const changePassword = async (
 
     // Update password
     await updatePassword(currentUser, newPassword);
-  } catch (error: any) {
-    if (error.code === 'auth/wrong-password') {
-      throw new ValidationError('Current password is incorrect');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'auth/wrong-password') {
+        throw new ValidationError('Current password is incorrect');
+      }
+      if (error.code === 'auth/weak-password') {
+        throw new ValidationError('New password is too weak');
+      }
+      if (error.code === 'auth/requires-recent-login') {
+        throw new AuthenticationError('Please sign in again before changing your password');
+      }
     }
-    if (error.code === 'auth/weak-password') {
-      throw new ValidationError('New password is too weak');
-    }
-    if (error.code === 'auth/requires-recent-login') {
-      throw new AuthenticationError('Please sign in again before changing your password');
-    }
-    throw new ValidationError(error.message || 'Failed to change password');
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to change password';
+    throw new ValidationError(message);
   }
 };
 

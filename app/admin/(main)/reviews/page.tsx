@@ -16,6 +16,18 @@ import { formatDate } from '@/lib/utils/formatting';
 import Link from 'next/link';
 import { useSettings } from '@/hooks/useSettings';
 import { useRouter } from 'next/navigation';
+import { Timestamp } from 'firebase/firestore';
+
+// Helper to convert date safely
+const getDate = (date: Date | string | Timestamp | { toDate?: () => Date } | undefined): Date => {
+  if (!date) return new Date(0);
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'object' && date !== null && 'toDate' in date && typeof (date as { toDate: () => Date }).toDate === 'function') {
+    return (date as { toDate: () => Date }).toDate();
+  }
+  return new Date(date as string);
+};
 
 export default function AdminReviewsPage() {
   const { currentBusiness } = useApp();
@@ -24,6 +36,85 @@ export default function AdminReviewsPage() {
   const router = useRouter();
   const toast = useToast();
   const { confirmDialog, showConfirm, hideConfirm } = useConfirmDialog();
+
+  // All hooks must be called before any early returns
+  const [selectedRating, setSelectedRating] = useState<number | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewingReview, setViewingReview] = useState<string | null>(null);
+
+  // Fetch reviews with React Query
+  const {
+    data: items = [],
+    isLoading: loading,
+    error,
+  } = useReviews({
+    businessId: currentBusiness?.id,
+    limit: 1000,
+    enabled: !!currentBusiness?.id && reviewsEnabled,
+  });
+
+  // Real-time updates
+  useRealtimeReviews({
+    businessId: currentBusiness?.id,
+    limit: 1000,
+    enabled: !!currentBusiness?.id && reviewsEnabled,
+  });
+
+  // Fetch products and services for reference
+  const { data: products = [] } = useProducts({
+    businessId: currentBusiness?.id,
+    enabled: !!currentBusiness?.id && reviewsEnabled,
+  });
+
+  const { data: services = [] } = useServices({
+    businessId: currentBusiness?.id,
+    enabled: !!currentBusiness?.id && reviewsEnabled,
+  });
+
+  // Delete mutation
+  const deleteReview = useDeleteReview();
+
+  // Get item name helper
+  const getItemName = (itemId?: string) => {
+    if (!itemId) return null;
+    if (Array.isArray(products) && products.length > 0) {
+      const product = (products as Array<{ id?: string; name: string }>).find((p) => p.id === itemId);
+      if (product && 'name' in product) return product.name;
+    }
+    if (Array.isArray(services) && services.length > 0) {
+      const service = (services as Array<{ id?: string; name: string }>).find((s) => s.id === itemId);
+      if (service && 'name' in service) return service.name;
+    }
+    return 'Unknown Item';
+  };
+
+  // Determine if review is for business or item
+  const isBusinessReview = (review: { reviewType?: string; itemId?: string }) => {
+    return review.reviewType === 'business' || !review.itemId;
+  };
+
+  const filteredReviews = useMemo(() => {
+    let filtered = items;
+
+    // Filter by rating
+    if (selectedRating !== 'all') {
+      filtered = filtered.filter((review) => review.rating === selectedRating);
+    }
+
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (review) =>
+          review.comment?.toLowerCase().includes(query) ||
+          review.userName?.toLowerCase().includes(query) ||
+          review.userEmail?.toLowerCase().includes(query) ||
+          getItemName(review.itemId)?.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [items, selectedRating, searchQuery, products, services, getItemName]);
 
   // Redirect if reviews are disabled
   React.useEffect(() => {
@@ -45,79 +136,6 @@ export default function AdminReviewsPage() {
       </div>
     );
   }
-  const [selectedRating, setSelectedRating] = useState<number | 'all'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewingReview, setViewingReview] = useState<string | null>(null);
-
-  // Fetch reviews with React Query
-  const {
-    data: items = [],
-    isLoading: loading,
-    error,
-  } = useReviews({
-    businessId: currentBusiness?.id,
-    limit: 1000,
-    enabled: !!currentBusiness?.id,
-  });
-
-  // Real-time updates
-  useRealtimeReviews({
-    businessId: currentBusiness?.id,
-    limit: 1000,
-    enabled: !!currentBusiness?.id,
-  });
-
-  // Fetch products and services for reference
-  const { data: products = [] } = useProducts({
-    businessId: currentBusiness?.id,
-    enabled: !!currentBusiness?.id,
-  });
-
-  const { data: services = [] } = useServices({
-    businessId: currentBusiness?.id,
-    enabled: !!currentBusiness?.id,
-  });
-
-  // Delete mutation
-  const deleteReview = useDeleteReview();
-
-  // Get item name helper
-  const getItemName = (itemId?: string) => {
-    if (!itemId) return null;
-    const product = products.find((p) => p.id === itemId);
-    if (product) return product.name;
-    const service = services.find((s) => s.id === itemId);
-    if (service) return service.name;
-    return 'Unknown Item';
-  };
-
-  // Determine if review is for business or item
-  const isBusinessReview = (review: any) => {
-    return review.reviewType === 'business' || !review.itemId;
-  };
-
-  const filteredReviews = useMemo(() => {
-    let filtered = items;
-
-    // Filter by rating
-    if (selectedRating !== 'all') {
-      filtered = filtered.filter((review) => review.rating === selectedRating);
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (review) =>
-          review.comment?.toLowerCase().includes(query) ||
-          review.userName?.toLowerCase().includes(query) ||
-          review.userEmail?.toLowerCase().includes(query) ||
-          getItemName(review.itemId).toLowerCase().includes(query)
-      );
-    }
-
-    return filtered;
-  }, [items, selectedRating, searchQuery, products, services]);
 
   const handleDelete = async (reviewId: string) => {
     showConfirm({
@@ -228,9 +246,7 @@ export default function AdminReviewsPage() {
         {filteredReviews.map((review) => {
           const isBusiness = isBusinessReview(review);
           const itemName = getItemName(review.itemId);
-          const reviewDate = review.createdAt instanceof Date 
-            ? review.createdAt 
-            : review.createdAt?.toDate?.() || new Date(review.createdAt as string);
+          const reviewDate = getDate(review.createdAt);
 
           return (
             <div
@@ -412,10 +428,7 @@ export default function AdminReviewsPage() {
               <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Date</label>
               <p className="text-sm sm:text-base text-foreground mt-1">
                 {formatDate(
-                  (selectedReview.createdAt instanceof Date
-                    ? selectedReview.createdAt
-                    : selectedReview.createdAt?.toDate?.() || new Date(selectedReview.createdAt as string)
-                  ).toISOString()
+                  getDate(selectedReview.createdAt).toISOString()
                 )}
               </p>
             </div>

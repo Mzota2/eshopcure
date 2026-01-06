@@ -49,6 +49,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
     return allItems.filter(item => item.id && itemIds.includes(item.id));
   };
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
 
   // Build carousel items: promotions first, then business details at the end
   const carouselItems: CarouselItem[] = [

@@ -49,7 +49,7 @@ interface AppContextType {
   // Preferences (can be extended)
   preferences: {
     theme?: 'light' | 'dark';
-    [key: string]: any;
+    [key: string]: string | number | boolean | undefined;
   };
   updatePreferences: (prefs: Partial<AppContextType['preferences']>) => void;
 }

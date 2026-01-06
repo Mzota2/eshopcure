@@ -150,8 +150,9 @@ export const AdminLoginModal: React.FC = () => {
           }
         }, 1000);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in. Please check your credentials.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in. Please check your credentials.';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };

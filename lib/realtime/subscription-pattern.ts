@@ -13,9 +13,9 @@ export async function createSubscription<T>(
   collectionName: string,
   query: Query,
   callback: (data: T[]) => void,
-  transform: (docs: any[]) => T[]
+  transform: (docs: unknown[]) => T[]
 ): Promise<Unsubscribe> {
-  const enabled = await isRealtimeEnabled(collectionName as any);
+  const enabled = await isRealtimeEnabled(collectionName as 'products' | 'services' | 'orders' | 'bookings' | 'notifications' | 'ledger' | 'payments');
   
   if (enabled) {
     return onSnapshot(

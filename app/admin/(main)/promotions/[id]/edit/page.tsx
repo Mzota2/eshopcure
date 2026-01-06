@@ -64,10 +64,14 @@ export default function EditPromotionPage() {
     if (promotion) {
       const startDate = promotion.startDate instanceof Date 
         ? promotion.startDate 
-        : (promotion.startDate as any)?.toDate?.() || new Date(promotion.startDate as string);
+        : (promotion.startDate && typeof promotion.startDate === 'object' && promotion.startDate !== null && 'toDate' in promotion.startDate)
+        ? (promotion.startDate as { toDate: () => Date }).toDate()
+        : new Date(promotion.startDate as string | number);
       const endDate = promotion.endDate instanceof Date 
         ? promotion.endDate 
-        : (promotion.endDate as any)?.toDate?.() || new Date(promotion.endDate as string);
+        : (promotion.endDate && typeof promotion.endDate === 'object' && promotion.endDate !== null && 'toDate' in promotion.endDate)
+        ? (promotion.endDate as { toDate: () => Date }).toDate()
+        : new Date(promotion.endDate as string | number);
       
       setFormData({
         name: promotion.name,
@@ -428,7 +432,7 @@ export default function EditPromotionPage() {
                 className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[120px]"
                 size={5}
               >
-                {services.map((service) => (
+                {Array.isArray(services) && services.map((service: { id: string; name: string }) => (
                   <option key={service.id} value={service.id}>
                     {service.name}
                   </option>

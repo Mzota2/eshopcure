@@ -7,7 +7,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { ProductImage } from '@/components/ui/OptimizedImage';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { Item, isService, ItemStatus } from '@/types';
@@ -22,17 +21,17 @@ export interface ServiceCardProps {
 }
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onBookNow }) => {
-  // Type guard to ensure it's a service
-  if (!isService(service)) {
-    return null;
-  }
-
   const [isHovered, setIsHovered] = useState(false);
   const mainImage = service.images[0]?.url || '/placeholder-service.jpg';
   const secondImage = service.images[1]?.url;
 
   // Check if service is on promotion from promotions collection
   const { promotion, isOnPromotion, discountPercentage } = useItemPromotion(service);
+
+  // Type guard to ensure it's a service
+  if (!isService(service)) {
+    return null;
+  }
 
   // Step 1: Calculate promotion price from base price (promotion applied first)
   const promotionPrice = promotion 
@@ -109,7 +108,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onBookNow }) 
             </div>
           )}
           {/* Dark overlay gradient for badge visibility */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
           
           {/* Promotion badge */}
           {showPromotion && discountPercentage > 0 && (

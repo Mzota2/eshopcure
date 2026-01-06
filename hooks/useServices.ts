@@ -31,8 +31,10 @@ export const useServices = (options?: {
   categoryId?: string;
   featured?: boolean;
   enabled?: boolean;
+  refetchInterval?: number | false | ((data: Item[] | undefined) => number | false);
+  staleTime?: number;
 }) => {
-  return useQuery({
+  return useQuery<Item[]>({
     queryKey: serviceKeys.list({
       businessId: options?.businessId,
       status: options?.status,
@@ -55,6 +57,8 @@ export const useServices = (options?: {
       return result.items;
     },
     enabled: options?.enabled !== false,
+    refetchInterval: options?.refetchInterval,
+    staleTime: options?.staleTime,
   });
 };
 

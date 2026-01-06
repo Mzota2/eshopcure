@@ -241,7 +241,7 @@ export const StoreTypeSelector: React.FC<StoreTypeSelectorProps> = ({ onComplete
                 Lean Manufacturing Principle
               </p>
               <p className="text-sm text-text-secondary">
-                We'll hide pages and features you don't need based on your selection. This keeps your admin dashboard clean and focused. You can change this anytime in Settings.
+                {`We'll hide pages and features you don't need based on your selection. This keeps your admin dashboard clean and focused. You can change this anytime in Settings.`}
               </p>
             </div>
           </div>

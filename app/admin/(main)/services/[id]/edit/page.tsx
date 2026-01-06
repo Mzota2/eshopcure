@@ -54,6 +54,9 @@ export default function EditServicePage() {
     images: [] as ItemImage[],
     tags: [] as string[],
     specifications: {} as Record<string, string>,
+    bookingFee: 0,
+    totalFee: 0,
+    allowPartialPayment: false,
   });
 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -101,9 +104,6 @@ export default function EditServicePage() {
           basePrice: service.pricing?.basePrice || 0,
           currency: service.pricing?.currency || 'MWK',
           taxIncluded: service.pricing?.taxIncluded || false,
-          bookingFee: service.bookingFee || 0,
-          totalFee: service.totalFee || 0,
-          allowPartialPayment: service.allowPartialPayment || false,
           includeTransactionFee: service.pricing?.includeTransactionFee || false,
           transactionFeeRate: service.pricing?.transactionFeeRate || 0.03,
         },
@@ -113,6 +113,9 @@ export default function EditServicePage() {
         images: service.images || [],
         tags: service.tags || [],
         specifications: service.specifications || {},
+        bookingFee: service.bookingFee || 0,
+        totalFee: service.totalFee || 0,
+        allowPartialPayment: service.allowPartialPayment || false,
       });
       setSlugManuallyEdited(!!service.slug); // If slug exists, consider it manually edited
       setInitialLoad(false);
@@ -180,11 +183,10 @@ export default function EditServicePage() {
 
     try {
       setIsSubmitting(true);
-      let uploadedImages: ItemImage[] = [];
+      const uploadedImages: ItemImage[] = [];
 
       // Step 1: Update Firebase first (without new image URLs)
       // This way we don't waste Cloudinary storage if Firebase fails
-      const { bookingFee, totalFee, allowPartialPayment, ...pricingWithoutBookingFields } = formData.pricing;
       const updatesWithoutNewImages: Partial<Item> = {
         name: formData.name,
         description: formData.description,
@@ -192,15 +194,15 @@ export default function EditServicePage() {
         status: formData.status,
         categoryIds: formData.categoryIds,
         images: formData.images, // Only existing images, not new uploads
-        pricing: pricingWithoutBookingFields,
+        pricing: formData.pricing,
         duration: formData.duration,
         bufferTime: formData.bufferTime,
         maxConcurrentBookings: formData.maxConcurrentBookings,
         tags: formData.tags,
         specifications: formData.specifications,
-        ...(bookingFee > 0 ? { bookingFee } : {}),
-        ...(totalFee > 0 ? { totalFee } : {}),
-        ...(allowPartialPayment ? { allowPartialPayment } : {}),
+        bookingFee: formData.bookingFee,
+        totalFee: formData.totalFee,
+        allowPartialPayment: formData.allowPartialPayment,
       };
 
       await updateService.mutateAsync({
@@ -417,11 +419,11 @@ export default function EditServicePage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.pricing.bookingFee || 0}
+                value={formData.bookingFee || 0}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    pricing: { ...prev.pricing, bookingFee: parseFloat(e.target.value) || 0 },
+                    bookingFee: parseFloat(e.target.value) || 0,
                   }))
                 }
                 placeholder="0.00"
@@ -432,11 +434,11 @@ export default function EditServicePage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={formData.pricing.totalFee || 0}
+                value={formData.totalFee || 0}
                 onChange={(e) =>
                   setFormData((prev) => ({
                     ...prev,
-                    pricing: { ...prev.pricing, totalFee: parseFloat(e.target.value) || 0 },
+                    totalFee: parseFloat(e.target.value) || 0,
                   }))
                 }
                 placeholder="0.00"
@@ -446,11 +448,11 @@ export default function EditServicePage() {
                 <input
                   type="checkbox"
                   id="allowPartialPayment"
-                  checked={formData.pricing.allowPartialPayment || false}
+                  checked={formData.allowPartialPayment || false}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      pricing: { ...prev.pricing, allowPartialPayment: e.target.checked },
+                      allowPartialPayment: e.target.checked,
                     }))
                   }
                   className="w-4 h-4 rounded border-border"
@@ -481,7 +483,7 @@ export default function EditServicePage() {
                     Include Transaction Fee in Selling Price
                   </span>
                   <p className="text-xs text-text-secondary mt-1">
-                    When enabled, the selling price will automatically include the payment provider's transaction fee (3% by default) so the business doesn't lose money. The displayed price will be calculated as: Base Price ÷ (1 - Fee Rate).
+                    When enabled, the selling price will automatically include the payment provider&apos;s transaction fee (3% by default) so the business doesn&apos;t lose money. The displayed price will be calculated as: Base Price ÷ (1 - Fee Rate).
                   </p>
                 </div>
               </label>
@@ -504,7 +506,7 @@ export default function EditServicePage() {
                       }))
                     }
                     placeholder="0.03"
-                    helperText="Enter as decimal (e.g., 0.03 for 3%)"
+                    helpText="Enter as decimal (e.g., 0.03 for 3%)"
                   />
                   {formData.pricing.basePrice > 0 && (
                     <div className="mt-2 p-3 bg-background-secondary rounded-lg">
@@ -522,7 +524,7 @@ export default function EditServicePage() {
                         ).toFixed(2)}
                       </p>
                       <p className="text-xs text-text-secondary mt-1">
-                        After {((formData.pricing.transactionFeeRate || 0.03) * 100).toFixed(1)}% fee, you'll receive:{' '}
+                        After {((formData.pricing.transactionFeeRate || 0.03) * 100).toFixed(1)}% fee, you&apos;ll receive:{' '}
                         {formData.pricing.currency} {formData.pricing.basePrice.toFixed(2)}
                       </p>
                     </div>

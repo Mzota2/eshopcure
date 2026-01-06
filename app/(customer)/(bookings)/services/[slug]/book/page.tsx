@@ -47,6 +47,7 @@ export default function ServiceBookingPage() {
 }
 
 function ServiceBookingPageContent() {
+  const { showError } = useToast();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -88,7 +89,7 @@ function ServiceBookingPageContent() {
       // The AuthContext will update and trigger a reload of userProfile
     } catch (error) {
       console.error('Error signing in with Google:', error);
-      toast.showError(getUserFriendlyMessage(error, 'Failed to sign in. Please try again.'));
+      showError(getUserFriendlyMessage(error, 'Failed to sign in. Please try again.'));
     } finally {
       setIsSigningIn(false);
     }
@@ -329,7 +330,7 @@ function ServiceBookingPageContent() {
       }
     } catch (error) {
       console.error('Error placing booking:', error);
-      toast.showError(getUserFriendlyMessage(error, 'Failed to place booking. Please try again.'));
+      showError(getUserFriendlyMessage(error, 'Failed to place booking. Please try again.'));
     } finally {
       setIsProcessing(false);
     }

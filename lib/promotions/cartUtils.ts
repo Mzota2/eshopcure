@@ -37,8 +37,8 @@ export const findItemPromotion = (
     if (date instanceof Date) {
       return date;
     }
-    if (date && typeof date === 'object' && 'toDate' in date && typeof (date as any).toDate === 'function') {
-      return (date as any).toDate();
+    if (date && typeof date === 'object' && 'toDate' in date && typeof (date as { toDate?: () => Date }).toDate === 'function') {
+      return (date as { toDate: () => Date }).toDate();
     }
     if (typeof date === 'string') {
       return new Date(date);
@@ -52,12 +52,12 @@ export const findItemPromotion = (
       const startDate = toDate(promo.startDate);
       const endDate = toDate(promo.endDate);
       
-      const isActive = promo.status === 'active' || promo.status === PromotionStatus.ACTIVE;
+      const isActive = promo.status === PromotionStatus.ACTIVE;
       const isStarted = startDate <= now;
       const isNotExpired = endDate >= now;
       
       return isActive && isStarted && isNotExpired;
-    } catch (error) {
+    } catch {
       return false;
     }
   });

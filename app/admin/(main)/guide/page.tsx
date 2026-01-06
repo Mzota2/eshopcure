@@ -85,7 +85,7 @@ export default function AdminGuidePage() {
           </p>
           <ul className="space-y-2 text-sm text-text-secondary list-disc list-inside">
             <li><strong>Revenue Metrics:</strong> Track net revenue, transaction fees, and revenue growth</li>
-            <li><strong>Order/Booking Stats:</strong> View today's orders, pending bookings, and low stock alerts</li>
+            <li><strong>Order/Booking Stats:</strong> {`View today's orders, pending bookings, and low stock alerts`}</li>
             <li><strong>Charts:</strong> Analyze revenue over time, top products/services, and earnings trends</li>
             <li><strong>Recent Activity:</strong> See the latest orders and bookings at a glance</li>
             <li><strong>Quick Actions:</strong> Fast access to commonly used features</li>
@@ -511,7 +511,7 @@ export default function AdminGuidePage() {
           <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
             <h3 className="font-semibold text-foreground mb-2 text-base">Notifications</h3>
             <ul className="space-y-2 text-sm text-text-secondary list-disc list-inside">
-              <li>You'll receive notifications for new orders and bookings</li>
+              <li>{`You'll receive notifications for new orders and bookings`}</li>
               <li>Check the notification bell icon in the top navigation for updates</li>
               <li>Notifications help you stay on top of customer requests</li>
             </ul>

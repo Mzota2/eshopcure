@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Button, Input, Textarea, useToast } from '@/components/ui';
 import { useBusinesses } from '@/hooks';
 import { Loading } from '@/components/ui/Loading';
-import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 import { MapPin, Navigation } from 'lucide-react';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
@@ -101,7 +101,7 @@ export default function ContactPageClient() {
             <div className="bg-card rounded-lg shadow-sm p-6">
               <h2 className="text-xl font-semibold text-foreground mb-2">Get in Touch</h2>
               <p className="text-sm text-text-secondary mb-6">
-                We're here to help with any questions about Storefront Management.
+                We&apos;re here to help with any questions about Storefront Management.
               </p>
 
               {submitted ? (
@@ -111,7 +111,7 @@ export default function ContactPageClient() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <p className="text-foreground mb-4">Thank you for contacting us! We'll get back to you soon.</p>
+                  <p className="text-foreground mb-4">Thank you for contacting us! We&apos;ll get back to you soon.</p>
                   <Button onClick={() => setSubmitted(false)}>Send Another Message</Button>
                 </div>
               ) : (
@@ -234,7 +234,7 @@ export default function ContactPageClient() {
               // Display address directions with proper styling
               <div className="bg-background-secondary rounded-lg p-6 border border-border">
                 <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 mt-1">
+                  <div className="shrink-0 mt-1">
                     <MapPin className="w-6 h-6 text-primary" />
                   </div>
                   <div className="flex-1">
@@ -273,7 +273,7 @@ export default function ContactPageClient() {
               // Fallback: Just show address if no map or directions
               <div className="bg-background-secondary rounded-lg p-6 border border-border">
                 <div className="flex items-start gap-4">
-                  <MapPin className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                  <MapPin className="w-6 h-6 text-primary shrink-0 mt-1" />
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">Our Address</h3>
                     <p className="text-foreground">{businessAddress}</p>

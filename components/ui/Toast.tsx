@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -48,19 +48,20 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const showToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = Math.random().toString(36).substring(2, 9);
+    const duration = toast.duration ?? 5000;
     const newToast: Toast = {
       ...toast,
       id,
-      duration: toast.duration ?? 5000,
+      duration,
     };
 
     setToasts((prev) => [...prev, newToast]);
 
     // Auto-remove after duration
-    if (newToast.duration > 0) {
+    if (duration > 0) {
       setTimeout(() => {
         removeToast(id);
-      }, newToast.duration);
+      }, duration);
     }
 
     return id;
@@ -123,12 +124,7 @@ interface ToastItemProps {
 }
 
 const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    // Trigger animation
-    setIsVisible(true);
-  }, []);
+  const [isVisible, setIsVisible] = useState(true);
 
   const handleRemove = () => {
     setIsVisible(false);
@@ -170,7 +166,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
+        <div className="shrink-0 mt-0.5">{getIcon()}</div>
         <div className="flex-1 min-w-0">
           {toast.title && (
             <h4 className="font-semibold text-sm mb-1">{toast.title}</h4>
@@ -179,7 +175,7 @@ const ToastItem: React.FC<ToastItemProps> = ({ toast, onRemove }) => {
         </div>
         <button
           onClick={handleRemove}
-          className="flex-shrink-0 text-text-secondary hover:text-foreground transition-colors p-1 -mt-1 -mr-1"
+          className="shrink-0 text-text-secondary hover:text-foreground transition-colors p-1 -mt-1 -mr-1"
           aria-label="Close"
         >
           <X className="w-4 h-4" />

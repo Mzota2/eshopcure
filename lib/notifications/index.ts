@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { COLLECTIONS } from '@/types/collections';
-import { Notification, NotificationType, NotificationChannel } from '@/types/notification';
+import { Notification, NotificationType } from '@/types/notification';
 import { NotFoundError } from '@/lib/utils/errors';
 import { createNotification } from './create';
 
@@ -33,7 +33,7 @@ export const getNotificationById = async (notificationId: string): Promise<Notif
   
   const data = notificationSnap.data();
   // Convert Firestore Timestamps to JavaScript Date objects
-  const notification: any = {
+  const notification: Record<string, unknown> = {
     id: notificationSnap.id,
     ...data,
   };
@@ -62,7 +62,7 @@ export const getNotificationById = async (notificationId: string): Promise<Notif
     notification.expiresAt = data.expiresAt.toDate();
   }
   
-  return notification as Notification;
+  return notification as unknown as Notification;
 };
 
 /**
@@ -93,7 +93,7 @@ export const getNotificationsByUserId = async (userId: string, options?: {
   let notifications = querySnapshot.docs.map(doc => {
     const data = doc.data();
     // Convert Firestore Timestamps to JavaScript Date objects
-    const notification: any = {
+    const notification: Record<string, unknown> = {
       id: doc.id,
       ...data,
     };
@@ -122,7 +122,7 @@ export const getNotificationsByUserId = async (userId: string, options?: {
       notification.expiresAt = data.expiresAt.toDate();
     }
     
-    return notification as Notification;
+    return notification as unknown as Notification;
   });
   
   // Filter unread if requested
@@ -154,36 +154,36 @@ export const getNotificationsByEmail = async (email: string, options?: {
   return querySnapshot.docs.map(doc => {
     const data = doc.data();
     // Convert Firestore Timestamps to JavaScript Date objects
-    const notification: any = {
+    const notification: Record<string, unknown> = {
       id: doc.id,
       ...data,
     };
     
-    if (data.createdAt?.toDate) {
+    if (data.createdAt && typeof data.createdAt === 'object' && 'toDate' in data.createdAt && typeof data.createdAt.toDate === 'function') {
       notification.createdAt = data.createdAt.toDate();
     } else if (data.createdAt instanceof Timestamp) {
       notification.createdAt = data.createdAt.toDate();
     }
     
-    if (data.updatedAt?.toDate) {
+    if (data.updatedAt && typeof data.updatedAt === 'object' && 'toDate' in data.updatedAt && typeof data.updatedAt.toDate === 'function') {
       notification.updatedAt = data.updatedAt.toDate();
     } else if (data.updatedAt instanceof Timestamp) {
       notification.updatedAt = data.updatedAt.toDate();
     }
     
-    if (data.readAt?.toDate) {
+    if (data.readAt && typeof data.readAt === 'object' && 'toDate' in data.readAt && typeof data.readAt.toDate === 'function') {
       notification.readAt = data.readAt.toDate();
     } else if (data.readAt instanceof Timestamp) {
       notification.readAt = data.readAt.toDate();
     }
     
-    if (data.expiresAt?.toDate) {
+    if (data.expiresAt && typeof data.expiresAt === 'object' && 'toDate' in data.expiresAt && typeof data.expiresAt.toDate === 'function') {
       notification.expiresAt = data.expiresAt.toDate();
     } else if (data.expiresAt instanceof Timestamp) {
       notification.expiresAt = data.expiresAt.toDate();
     }
     
-    return notification as Notification;
+    return notification as unknown as Notification;
   });
 };
 
@@ -226,36 +226,36 @@ export const getNotifications = async (options?: {
   return querySnapshot.docs.map(doc => {
     const data = doc.data();
     // Convert Firestore Timestamps to JavaScript Date objects
-    const notification: any = {
+    const notification: Record<string, unknown> = {
       id: doc.id,
       ...data,
     };
     
-    if (data.createdAt?.toDate) {
+    if (data.createdAt && typeof data.createdAt === 'object' && 'toDate' in data.createdAt && typeof data.createdAt.toDate === 'function') {
       notification.createdAt = data.createdAt.toDate();
     } else if (data.createdAt instanceof Timestamp) {
       notification.createdAt = data.createdAt.toDate();
     }
     
-    if (data.updatedAt?.toDate) {
+    if (data.updatedAt && typeof data.updatedAt === 'object' && 'toDate' in data.updatedAt && typeof data.updatedAt.toDate === 'function') {
       notification.updatedAt = data.updatedAt.toDate();
     } else if (data.updatedAt instanceof Timestamp) {
       notification.updatedAt = data.updatedAt.toDate();
     }
     
-    if (data.readAt?.toDate) {
+    if (data.readAt && typeof data.readAt === 'object' && 'toDate' in data.readAt && typeof data.readAt.toDate === 'function') {
       notification.readAt = data.readAt.toDate();
     } else if (data.readAt instanceof Timestamp) {
       notification.readAt = data.readAt.toDate();
     }
     
-    if (data.expiresAt?.toDate) {
+    if (data.expiresAt && typeof data.expiresAt === 'object' && 'toDate' in data.expiresAt && typeof data.expiresAt.toDate === 'function') {
       notification.expiresAt = data.expiresAt.toDate();
     } else if (data.expiresAt instanceof Timestamp) {
       notification.expiresAt = data.expiresAt.toDate();
     }
     
-    return notification as Notification;
+    return notification as unknown as Notification;
   });
 };
 

@@ -5,10 +5,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Clock, User, Phone, Mail, CreditCard, AlertCircle, ArrowLeft, Edit, Save } from 'lucide-react';
-import { Button, Loading, Input, Textarea, useToast, StatusBadge, CancellationDialog, statusUtils } from '@/components/ui';
+import { Calendar, Clock, User, CreditCard, AlertCircle, ArrowLeft, Save } from 'lucide-react';
+import { Button, Loading, Textarea, useToast, StatusBadge, CancellationDialog, statusUtils } from '@/components/ui';
 import { useBooking, useUpdateBooking, useCancelBooking } from '@/hooks/useBookings';
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod } from '@/lib/utils/formatting';
 import { BookingStatus } from '@/types/booking';
@@ -20,7 +20,6 @@ import { OptimizedImage } from '@/components/ui/OptimizedImage';
 export default function AdminBookingDetailPage() {
   const toast = useToast();
   const params = useParams();
-  const router = useRouter();
   const bookingId = params?.id as string;
   
   const { data: booking, isLoading, error } = useBooking(bookingId);
@@ -120,7 +119,7 @@ export default function AdminBookingDetailPage() {
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-error mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-4 text-foreground">Booking Not Found</h1>
-          <p className="text-text-secondary mb-6">The booking you're looking for doesn't exist.</p>
+          <p className="text-text-secondary mb-6">{`The booking you're looking for doesn't exist.`}</p>
           <Link href="/admin/bookings">
             <Button>Back to Bookings</Button>
           </Link>
@@ -173,7 +172,7 @@ export default function AdminBookingDetailPage() {
               <h2 className="text-xl font-semibold mb-4 text-foreground">Service Details</h2>
               <div className="flex gap-4">
                 {booking.serviceImage && (
-                  <div className="relative w-24 h-24 bg-background-secondary rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="relative w-24 h-24 bg-background-secondary rounded-lg overflow-hidden shrink-0">
                     <OptimizedImage
                       src={booking.serviceImage}
                       alt={booking.serviceName}
@@ -184,7 +183,7 @@ export default function AdminBookingDetailPage() {
                     />
                   </div>
                 )}
-                <div className="flex-grow">
+                <div className="grow">
                   <h3 className="font-semibold text-lg text-foreground mb-2">{booking.serviceName}</h3>
                   <Link href={`/admin/services/${booking.serviceId}`}>
                     <Button variant="outline" size="sm">View Service</Button>
@@ -456,7 +455,13 @@ export default function AdminBookingDetailPage() {
                 <div className="flex justify-between">
                   <span>Booking Date:</span>
                   <span className="text-foreground">
-                    {booking.createdAt ? formatDate(new Date(booking.createdAt)) : 'N/A'}
+                    {booking.createdAt ? formatDate(
+                      booking.createdAt instanceof Timestamp 
+                        ? booking.createdAt.toDate() 
+                        : booking.createdAt instanceof Date 
+                        ? booking.createdAt 
+                        : new Date(booking.createdAt)
+                    ) : 'N/A'}
                   </span>
                 </div>
                 {booking.canceledAt && (

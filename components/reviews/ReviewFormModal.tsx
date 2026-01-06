@@ -147,9 +147,9 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
       
       onSuccess?.();
       onClose();
-    } catch (error: any) {
-      console.error('Error submitting review:', error);
-      const errorMessage = error?.message || 'Failed to submit review. Please try again.';
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit review. Please try again.';
+      console.error('Error submitting review:', errorMessage);
       alert(errorMessage);
     }
   };

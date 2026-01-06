@@ -5,16 +5,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Package, MapPin, Calendar, CreditCard, Truck, AlertCircle } from 'lucide-react';
+import { MapPin, Calendar, CreditCard, Truck, AlertCircle } from 'lucide-react';
 import { Button, Loading, useToast, StatusBadge, CancellationDialog } from '@/components/ui';
 import { useOrder, useCancelOrder } from '@/hooks/useOrders';
 import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod } from '@/lib/utils/formatting';
 import { OrderStatus, FulfillmentMethod } from '@/types/order';
-import { MALAWI_DISTRICTS, MalawiRegion } from '@/types/delivery';
+import { MALAWI_DISTRICTS } from '@/types/delivery';
 import { OrderTimeline } from '@/components/timeline';
 import { Timestamp } from 'firebase/firestore';
 import { ProductImage } from '@/components/ui/OptimizedImage';
@@ -22,7 +22,6 @@ import { ProductImage } from '@/components/ui/OptimizedImage';
 export default function CustomerOrderDetailPage() {
   const toast = useToast();
   const params = useParams();
-  const router = useRouter();
   const orderId = params?.id as string;
   
   const { data: order, isLoading, error } = useOrder(orderId);
@@ -78,7 +77,7 @@ export default function CustomerOrderDetailPage() {
   }
 
   const canCancel = order.status === OrderStatus.PENDING || order.status === OrderStatus.PAID;
-  const deliveryAddress = order.delivery.address;
+  const deliveryAddress = order.delivery?.address;
   const districtName = deliveryAddress?.district 
     ? Object.values(MALAWI_DISTRICTS).flat().find(d => d === deliveryAddress.district) || deliveryAddress.district
     : null;
@@ -96,9 +95,9 @@ export default function CustomerOrderDetailPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Order Details</h1>
-              <p className="text-sm sm:text-base text-text-secondary break-words">Order #{order.orderNumber}</p>
+              <p className="text-sm sm:text-base text-text-secondary wrap-break-word">Order #{order.orderNumber}</p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
             <StatusBadge status={order.status} variant="pill" />
             </div>
           </div>
@@ -127,7 +126,7 @@ export default function CustomerOrderDetailPage() {
                       </div>
                     )}
                     <div className="grow min-w-0">
-                      <h3 className="font-semibold text-sm sm:text-base text-foreground mb-1 break-words">{item.productName}</h3>
+                      <h3 className="font-semibold text-sm sm:text-base text-foreground mb-1 wrap-break-word">{item.productName}</h3>
                       {item.sku && (
                         <p className="text-xs sm:text-sm text-text-secondary mb-2">SKU: {item.sku}</p>
                       )}
@@ -148,11 +147,11 @@ export default function CustomerOrderDetailPage() {
               <h2 className="text-lg sm:text-xl font-semibold mb-4 text-foreground">Order Status</h2>
               <OrderTimeline
                 status={order.status}
-                createdAt={order.createdAt}
+                createdAt={order.createdAt instanceof Timestamp ? order.createdAt.toDate() : order.createdAt}
                 paidAt={order.payment?.paidAt}
                 canceledAt={order.canceledAt}
                 refundedAt={order.refundedAt}
-                completedAt={order.status === OrderStatus.COMPLETED ? order.updatedAt : undefined}
+                completedAt={order.status === OrderStatus.COMPLETED ? order.updatedAt instanceof Timestamp ? order.updatedAt.toDate() : order.updatedAt : undefined}
               />
             </section>
 
@@ -166,11 +165,11 @@ export default function CustomerOrderDetailPage() {
                 <div>
                   <span className="text-sm font-medium text-text-secondary">Method:</span>
                   <span className="ml-2 text-foreground capitalize">
-                    {order.delivery.method === FulfillmentMethod.DELIVERY ? 'Delivery' : 'Pickup'}
+                    {order.delivery?.method === FulfillmentMethod.DELIVERY ? 'Delivery' : 'Pickup'}
                   </span>
                 </div>
                 
-                {order.delivery.method === FulfillmentMethod.DELIVERY && deliveryAddress && (
+                {order?.delivery?.method === FulfillmentMethod.DELIVERY && deliveryAddress && (
                   <div className="mt-4 p-4 bg-background-secondary rounded-lg">
                     <div className="flex items-start gap-2 mb-3">
                       <MapPin className="w-5 h-5 text-text-secondary mt-0.5" />
@@ -195,27 +194,27 @@ export default function CustomerOrderDetailPage() {
                   </div>
                 )}
 
-                {order.delivery.method === FulfillmentMethod.PICKUP && order.delivery.pickupLocationId && (
+                {order.delivery?.method === FulfillmentMethod.PICKUP && order.delivery?.pickupLocationId && (
                   <div className="mt-4 p-4 bg-background-secondary rounded-lg">
                     <p className="text-sm text-text-secondary">Pickup Location ID: {order.delivery.pickupLocationId}</p>
                   </div>
                 )}
 
-                {order.delivery.trackingNumber && (
+                {order.delivery?.trackingNumber && (
                   <div className="mt-4">
                     <span className="text-sm font-medium text-text-secondary">Tracking Number:</span>
                     <span className="ml-2 font-mono text-foreground">{order.delivery.trackingNumber}</span>
                   </div>
                 )}
 
-                {order.delivery.carrier && (
+                {order.delivery?.carrier && (
                   <div>
                     <span className="text-sm font-medium text-text-secondary">Carrier:</span>
                     <span className="ml-2 text-foreground">{order.delivery.carrier}</span>
                   </div>
                 )}
 
-                {order.delivery.estimatedDeliveryDate && (
+                {order.delivery?.estimatedDeliveryDate && (
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-text-secondary" />
                     <span className="text-sm text-text-secondary">Estimated Delivery:</span>
@@ -273,7 +272,7 @@ export default function CustomerOrderDetailPage() {
             {order.notes && (
               <section className="bg-card rounded-lg shadow-sm p-4 sm:p-6">
                 <h2 className="text-lg sm:text-xl font-semibold mb-4 text-foreground">Order Notes</h2>
-                <p className="text-sm sm:text-base text-text-secondary break-words">{order.notes}</p>
+                <p className="text-sm sm:text-base text-text-secondary wrap-break-word">{order.notes}</p>
               </section>
             )}
 

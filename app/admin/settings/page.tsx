@@ -11,12 +11,11 @@ import { Button, Input, Textarea, Loading } from '@/components/ui';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
 import { cn } from '@/lib/utils/cn';
-import { business, OpeningHours, DayOfWeek, DayHours } from '@/types/business';
+import { business, OpeningHours, DayOfWeek } from '@/types/business';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { X, Building2, Save, Settings as SettingsIcon, ArrowLeft, Menu } from 'lucide-react';
+import { X, Building2, Save, Settings as SettingsIcon, ArrowLeft, Menu, Upload } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
-import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
 import { getSettings, upsertSettings } from '@/lib/settings';
 import { Settings as SettingsType, DeliveryOptions, PaymentOptions, AnalyticsOptions, StoreType } from '@/types/settings';
 import { useStoreType } from '@/hooks/useStoreType';
@@ -118,10 +117,7 @@ export default function AdminSettingsPage() {
   });
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState('');
   const [bannerFile, setBannerFile] = useState<File | null>(null);
-  const [bannerPreview, setBannerPreview] = useState('');
-  const [mapImageFile, setMapImageFile] = useState<File | null>(null);
   const [uploadingMapImage, setUploadingMapImage] = useState(false);
 
   // Social media fields
@@ -197,9 +193,6 @@ export default function AdminSettingsPage() {
         mapImage: business.mapImage || '',
       }));
 
-      // Set logo and banner previews
-      if (business.logo) setLogoPreview(business.logo);
-      if (business.banner) setBannerPreview(business.banner);
 
       // Extract social media links
       if (business.contactInfo?.socialMedia) {
@@ -274,19 +267,6 @@ export default function AdminSettingsPage() {
     setFormData((prev) => ({ ...prev, banner: '' }));
   };
 
-  const handleLogoError = (error: string) => {
-    setErrors((prev) => ({ ...prev, logo: error }));
-  };
-
-  const handleBannerError = (error: string) => {
-    setErrors((prev) => ({ ...prev, banner: error }));
-  };
-
-  const handleRemoveBanner = () => {
-    setBannerFile(null);
-    setBannerPreview('');
-    setFormData((prev) => ({ ...prev, banner: '' }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -387,7 +367,7 @@ export default function AdminSettingsPage() {
           },
         }),
         days: formData.openingHours.days ? Object.fromEntries(
-          Object.entries(formData.openingHours.days).filter(([_, dayHours]) => 
+          Object.entries(formData.openingHours.days).filter(([, dayHours]) => 
             dayHours && (dayHours.isOpen !== undefined || dayHours.openTime || dayHours.closeTime)
           )
         ) : {},
@@ -751,13 +731,13 @@ export default function AdminSettingsPage() {
 
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 sm:p-4">
                 <div className="flex items-start gap-2 sm:gap-3">
-                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 shrink-0" />
                   <div>
                     <h3 className="font-medium text-foreground mb-1.5 sm:mb-2 text-sm sm:text-base">Lean Manufacturing Principle</h3>
                     <p className="text-xs sm:text-sm text-text-secondary">
-                      Based on your selection, we'll automatically hide pages and features you don't need. 
+                     {` Based on your selection, we'll automatically hide pages and features you don't need. 
                       This keeps your admin dashboard and customer-facing site clean and focused. 
-                      You can change this setting anytime.
+                      You can change this setting anytime.`}
                     </p>
                   </div>
                 </div>
@@ -967,7 +947,7 @@ export default function AdminSettingsPage() {
                                 },
                               });
                             }}
-                            label={<span className="capitalize font-medium">{day}</span>}
+                            label={`${day.charAt(0).toUpperCase()}${day.slice(1)}`}
                           />
                         </div>
                         {isOpen && (
@@ -1122,7 +1102,7 @@ export default function AdminSettingsPage() {
                     onChange={(e) => setFormData({ ...formData, returnDuration: parseInt(e.target.value) || 7 })}
                     min={1}
                     placeholder="7"
-                    helperText="Number of days customers have to return items after purchase"
+                    helpText="Number of days customers have to return items after purchase"
                   />
                 </div>
                 <div>
@@ -1133,7 +1113,7 @@ export default function AdminSettingsPage() {
                     onChange={(e) => setFormData({ ...formData, refundDuration: parseInt(e.target.value) || 3 })}
                     min={1}
                     placeholder="3"
-                    helperText="Number of days it takes to process refunds"
+                    helpText="Number of days it takes to process refunds"
                   />
                 </div>
                 <div>
@@ -1144,7 +1124,7 @@ export default function AdminSettingsPage() {
                     onChange={(e) => setFormData({ ...formData, cancellationTime: parseInt(e.target.value) || 24 })}
                     min={1}
                     placeholder="24"
-                    helperText="Hours before service/booking that cancellation is allowed"
+                    helpText="Hours before service/booking that cancellation is allowed"
                   />
                 </div>
                 <div>
@@ -1176,7 +1156,6 @@ export default function AdminSettingsPage() {
                     onChange={(e) => setFormData({ ...formData, googleMap: e.target.value })}
                     rows={6}
                     placeholder='<iframe src="https://www.google.com/maps/embed?pb=..." width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>'
-                    helperText="Paste the iframe code from Google Maps embed. This will be displayed on the contact page."
                   />
                 </div>
                 <div>
@@ -1211,7 +1190,6 @@ export default function AdminSettingsPage() {
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              setMapImageFile(file);
                               if (!isCloudinaryConfigured()) {
                                 setErrors({ mapImage: 'Cloudinary is not properly configured' });
                                 return;
@@ -1506,7 +1484,7 @@ export default function AdminSettingsPage() {
 
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 sm:p-4">
                 <div className="flex items-start gap-2 sm:gap-3">
-                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <h3 className="font-medium text-foreground mb-1.5 sm:mb-2 text-sm sm:text-base">How Payment Configuration Works</h3>
                     <div className="text-xs sm:text-sm text-text-secondary space-y-1.5 sm:space-y-2">
@@ -1594,7 +1572,7 @@ export default function AdminSettingsPage() {
 
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 sm:p-4">
                 <div className="flex items-start gap-2 sm:gap-3">
-                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <h3 className="font-medium text-foreground mb-1.5 sm:mb-2 text-sm sm:text-base">How Analytics Tracking Works</h3>
                     <div className="text-xs sm:text-sm text-text-secondary space-y-1.5 sm:space-y-2">
@@ -1639,7 +1617,7 @@ export default function AdminSettingsPage() {
 
             <div className="bg-card rounded-lg border border-destructive/20 p-4 sm:p-6">
               <div className="flex items-start gap-3 mb-4">
-                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive mt-0.5 flex-shrink-0" />
+                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-destructive mt-0.5 shrink-0" />
                 <div>
                   <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2">Warning: This Action Cannot Be Undone</h3>
                   <p className="text-xs sm:text-sm text-text-secondary mb-4">
@@ -1673,7 +1651,7 @@ export default function AdminSettingsPage() {
               {!showResetConfirm ? (
                 <div className="space-y-4">
                   <Button
-                    variant="destructive"
+                    variant="danger"
                     onClick={() => setShowResetConfirm(true)}
                     className="w-full sm:w-auto"
                   >
@@ -1688,7 +1666,7 @@ export default function AdminSettingsPage() {
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
-                      variant="destructive"
+                      variant="danger"
                       onClick={async () => {
                         setIsResetting(true);
                         try {
@@ -1697,9 +1675,10 @@ export default function AdminSettingsPage() {
                             `Business data reset successfully! Deleted: ${results.items} items, ${results.services} services, ${results.categories} categories, ${results.promotions} promotions.`
                           );
                           setShowResetConfirm(false);
-                        } catch (error: any) {
+                        } catch (error) {
                           console.error('Error resetting business data:', error);
-                          toast.showError(error.message || 'Failed to reset business data. Please try again.');
+                          const errorMessage = error instanceof Error ? error.message : 'Failed to reset business data. Please try again.';
+                          toast.showError(errorMessage);
                         } finally {
                           setIsResetting(false);
                         }

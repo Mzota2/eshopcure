@@ -6,7 +6,7 @@
 
 import { db } from '@/lib/firebase/config';
 import { COLLECTIONS } from '@/types/collections';
-import { collection, getDocs, deleteDoc, query, where, WriteBatch, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, query, where, writeBatch, doc } from 'firebase/firestore';
 import { getBusinessId } from '@/lib/businesses/utils';
 import { ValidationError, AuthenticationError } from '@/lib/utils/errors';
 import { getUserRole } from '@/lib/firebase/auth';
@@ -129,9 +129,9 @@ export const resetBusinessData = async (): Promise<{
     }
 
     return results;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error resetting business data:', error);
-    throw new ValidationError(error.message || 'Failed to reset business data');
+    throw new ValidationError(error instanceof Error ? error.message : 'Failed to reset business data');
   }
 };
 

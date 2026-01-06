@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { ProductCard } from '@/components/products';
 import { ServiceCard } from '@/components/services';
@@ -14,7 +15,6 @@ import {
   useServices,
   useCategories,
   usePromotions,
-  useDeliveryProviders,
   // Real-time hooks removed for non-critical data to save Firebase quota
   // Using polling instead via refetchInterval in hooks
 } from '@/hooks';
@@ -36,7 +36,6 @@ export default function HomePageClient() {
   } = useProducts({
     businessId: currentBusiness?.id,
     status: ItemStatus.ACTIVE,
-    limit: 10,
     enabled: !!currentBusiness?.id,
   });
 
@@ -46,7 +45,6 @@ export default function HomePageClient() {
   } = useServices({
     businessId: currentBusiness?.id,
     status: ItemStatus.ACTIVE,
-    limit: 10,
     enabled: !!currentBusiness?.id,
     refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
@@ -57,10 +55,7 @@ export default function HomePageClient() {
   } = useCategories({
     businessId: currentBusiness?.id,
     type: 'both',
-    limit: 6,
     enabled: !!currentBusiness?.id,
-    refetchInterval: 15 * 60 * 1000, // Poll every 15 minutes (categories change rarely)
-    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes
   });
 
   const {
@@ -70,27 +65,26 @@ export default function HomePageClient() {
     status: PromotionStatus.ACTIVE,
     limit: 10,
     enabled: !!currentBusiness?.id,
-    refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
-  const {
-    data: deliveryProviders = [],
-  } = useDeliveryProviders({
-    businessId: currentBusiness?.id,
-    isActive: true,
-    limit: 3,
-    enabled: !!currentBusiness?.id,
-    refetchInterval: 15 * 60 * 1000, // Poll every 15 minutes (delivery providers change rarely)
-    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes
-  });
+  // Delivery providers fetched but not used in this component
+  // const {
+  //   data: deliveryProviders = [],
+  // } = useDeliveryProviders({
+  //   businessId: currentBusiness?.id,
+  //   isActive: true,
+  //   limit: 3,
+  //   enabled: !!currentBusiness?.id,
+  // });
 
   // Note: Real-time updates removed for public data to save Firebase quota
   // Using polling instead (refetchInterval in hooks)
   // Real-time is only used for critical data (notifications, user orders/bookings)
   
   // Combine products and services into all items
-  const allItems = [...products, ...services];
+  const productsArray = Array.isArray(products) ? products : [];
+  const servicesArray = Array.isArray(services) ? services : [];
+  const allItems = [...productsArray, ...servicesArray];
   
   // Helper to convert createdAt to Date
   const getDate = (date: Date | Timestamp | string | undefined): Date => {
@@ -181,8 +175,8 @@ export default function HomePageClient() {
         <PromotionCarousel
           promotions={activePromotions}
           businessData={currentBusiness}
-          products={products}
-          services={services}
+          products={productsArray}
+          services={servicesArray}
           autoPlayInterval={10000}
         />
       )}
@@ -204,7 +198,7 @@ export default function HomePageClient() {
                     <Link
                       key={category.id}
                       href={`/products?category=${category.slug}`}
-                      className="flex-shrink-0 w-[140px] snap-start bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
+                      className="shrink-0 w-[140px] snap-start bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
                     >
                       <div className="relative aspect-square bg-background-secondary">
                         {category.image ? (
@@ -310,7 +304,7 @@ export default function HomePageClient() {
               <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
                 <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                   {newArrivals.map((item) => (
-                    <div key={item.id} className="flex-shrink-0 w-[280px] snap-start">
+                    <div key={item.id} className="shrink-0 w-[280px] snap-start">
                       {isProduct(item) ? (
                         <ProductCard
                           product={item}
@@ -365,7 +359,7 @@ export default function HomePageClient() {
               <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
                 <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                   {topPicks.map((item) => (
-                    <div key={item.id} className="flex-shrink-0 w-[280px] snap-start">
+                    <div key={item.id} className="shrink-0 w-[280px] snap-start">
                       {isProduct(item) ? (
                         <ProductCard
                           product={item}

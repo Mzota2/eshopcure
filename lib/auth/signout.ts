@@ -12,8 +12,11 @@ import { AuthenticationError } from '@/lib/utils/errors';
 export const signOut = async (): Promise<void> => {
   try {
     await firebaseSignOut(auth);
-  } catch (error: any) {
-    throw new AuthenticationError(error.message || 'Failed to sign out');
+  } catch (error: unknown) {
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Failed to sign out';
+    throw new AuthenticationError(message);
   }
 };
 

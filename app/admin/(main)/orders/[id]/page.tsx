@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Package, MapPin, Calendar, CreditCard, Truck, AlertCircle, ArrowLeft, Edit, Save } from 'lucide-react';
+import { MapPin, Calendar, CreditCard, Truck, AlertCircle, ArrowLeft, Edit, Save } from 'lucide-react';
 import { Button, Loading, Input, Textarea, useToast, StatusBadge, CancellationDialog, statusUtils } from '@/components/ui';
 import { useOrder, useUpdateOrder, useCancelOrder } from '@/hooks/useOrders';
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod } from '@/lib/utils/formatting';
@@ -40,8 +40,10 @@ export default function AdminOrderDetailPage() {
   React.useEffect(() => {
     if (order) {
       setStatus(order.status);
-      setTrackingNumber(order.delivery.trackingNumber || '');
-      setCarrier(order.delivery.carrier || '');
+      if (order.delivery) {
+        setTrackingNumber(order.delivery.trackingNumber || '');
+        setCarrier(order.delivery.carrier || '');
+      }
       setNotes(order.notes || '');
     }
   }, [order]);
@@ -76,11 +78,16 @@ export default function AdminOrderDetailPage() {
     }
 
     try {
+      if (!order.delivery) {
+        toast.showError('Delivery information is missing');
+        return;
+      }
       await updateOrderMutation.mutateAsync({
         orderId: order.id,
         updates: {
           delivery: {
             ...order.delivery,
+            method: order.delivery.method,
             trackingNumber: trackingNumber || undefined,
             carrier: carrier || undefined,
           },
@@ -165,12 +172,12 @@ export default function AdminOrderDetailPage() {
     );
   }
 
-  const deliveryAddress = order.delivery.address;
+  const deliveryAddress = order.delivery?.address;
   const districtName = deliveryAddress?.district 
     ? Object.values(MALAWI_DISTRICTS).flat().find(d => d === deliveryAddress.district) || deliveryAddress.district
     : null;
-  const deliveryProvider = order.delivery.providerId 
-    ? deliveryProviders?.find(p => p.id === order.delivery.providerId)
+  const deliveryProvider = order.delivery?.providerId 
+    ? deliveryProviders?.find(p => p.id === order.delivery?.providerId)
     : null;
   const canCancel = order.status === OrderStatus.PENDING || order.status === OrderStatus.PAID;
 
@@ -282,6 +289,8 @@ export default function AdminOrderDetailPage() {
               </div>
               
               <div className="space-y-4">
+                {order.delivery && (
+                  <>
                 <div>
                   <span className="text-sm font-medium text-text-secondary">Method:</span>
                   <span className="ml-2 text-foreground capitalize">
@@ -350,13 +359,13 @@ export default function AdminOrderDetailPage() {
                   </div>
                 ) : (
                   <>
-                    {order.delivery.trackingNumber && (
+                    {order.delivery?.trackingNumber && (
                       <div>
                         <span className="text-sm font-medium text-text-secondary">Tracking Number:</span>
                         <span className="ml-2 font-mono text-foreground">{order.delivery.trackingNumber}</span>
                       </div>
                     )}
-                    {order.delivery.carrier && (
+                    {order.delivery?.carrier && (
                       <div>
                         <span className="text-sm font-medium text-text-secondary">Carrier:</span>
                         <span className="ml-2 text-foreground">{order.delivery.carrier}</span>
@@ -365,7 +374,7 @@ export default function AdminOrderDetailPage() {
                   </>
                 )}
 
-                {order.delivery.estimatedDeliveryDate && (
+                {order.delivery?.estimatedDeliveryDate && (
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-text-secondary" />
                     <span className="text-sm text-text-secondary">Estimated Delivery:</span>
@@ -373,6 +382,8 @@ export default function AdminOrderDetailPage() {
                       {formatDate(new Date(order.delivery.estimatedDeliveryDate))}
                     </span>
                   </div>
+                )}
+                  </>
                 )}
               </div>
             </section>

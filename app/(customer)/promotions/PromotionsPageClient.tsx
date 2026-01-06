@@ -10,7 +10,7 @@ import { formatDate } from '@/lib/utils/formatting';
 import { Timestamp } from 'firebase/firestore';
 import { Calendar, ArrowRight } from 'lucide-react';
 import { Button, Loading, Badge } from '@/components/ui';
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { ProductImage } from '@/components/ui/OptimizedImage';
 import { isProduct, isService } from '@/types';
 
 export default function PromotionsPageClient() {
@@ -58,7 +58,9 @@ export default function PromotionsPageClient() {
 
   // Get item count for each promotion
   const promotionsWithItemCounts = useMemo(() => {
-    const allItems = [...products, ...services];
+    const productsArray = Array.isArray(products) ? products : [];
+    const servicesArray = Array.isArray(services) ? services : [];
+    const allItems = [...productsArray, ...servicesArray];
     return activePromotions.map((promo) => {
       const itemIds = [...(promo.productsIds || []), ...(promo.servicesIds || [])];
       const itemCount = allItems.filter(item => item.id && itemIds.includes(item.id)).length;
@@ -77,11 +79,11 @@ export default function PromotionsPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-background-secondary py-8">
+    <div className="min-h-screen bg-background-secondary py-4 sm:py-6 md:py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumbs */}
-        <nav className="mb-6 text-sm">
-          <ol className="flex items-center gap-2 text-text-secondary">
+        <nav className="mb-4 sm:mb-6 text-xs sm:text-sm">
+          <ol className="flex items-center gap-1.5 sm:gap-2 text-text-secondary">
             <li><Link href="/" className="hover:text-primary transition-colors">Home</Link></li>
             <li>/</li>
             <li className="text-foreground">Promotions</li>
@@ -89,23 +91,23 @@ export default function PromotionsPageClient() {
         </nav>
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-4">Active Promotions</h1>
-          <p className="text-lg text-text-secondary">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">Active Promotions</h1>
+          <p className="text-sm sm:text-base md:text-lg text-text-secondary">
             Discover amazing deals and special offers on our products and services.
           </p>
         </div>
 
         {/* Promotions Grid */}
         {promotionsWithItemCounts.length === 0 ? (
-          <div className="text-center py-12 bg-card rounded-lg">
-            <p className="text-text-secondary">No active promotions at the moment. Check back soon for exciting deals!</p>
+          <div className="text-center py-8 sm:py-10 md:py-12 bg-card rounded-lg px-4">
+            <p className="text-sm sm:text-base text-text-secondary mb-4 sm:mb-6">No active promotions at the moment. Check back soon for exciting deals!</p>
             <Link href="/" className="mt-4 inline-block">
-              <Button variant="outline">Back to Home</Button>
+              <Button variant="outline" size="sm" className="sm:size-default">Back to Home</Button>
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
             {promotionsWithItemCounts.map((promotion) => {
               const startDate = toDate(promotion.startDate);
               const endDate = toDate(promotion.endDate);
@@ -119,23 +121,22 @@ export default function PromotionsPageClient() {
                 >
                   {/* Promotion Image */}
                   {promotion.image && (
-                    <div className="relative w-full bg-background-secondary aspect-[8/3]">
-                      <OptimizedImage
+                    <div className="relative w-full h-40 sm:h-44 md:h-48 bg-background-secondary">
+                      <ProductImage
                         src={promotion.image}
                         alt={promotion.name}
                         fill
-                        context="banner"
-                        aspectRatio="landscape"
+                        context="card"
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       />
                     </div>
                   )}
 
-                  <div className="p-6">
+                  <div className="p-4 sm:p-5 md:p-6">
                     {/* Badge */}
-                    <div className="mb-3">
-                      <Badge variant="danger" className="text-lg px-3 py-1">
+                    <div className="mb-2 sm:mb-3">
+                      <Badge variant="danger" className="text-sm sm:text-base md:text-lg px-2 sm:px-3 py-0.5 sm:py-1">
                         {promotion.discountType === 'percentage'
                           ? `${promotion.discount}% OFF`
                           : `${promotion.discount} OFF`}
@@ -143,33 +144,33 @@ export default function PromotionsPageClient() {
                     </div>
 
                     {/* Title */}
-                    <h2 className="text-2xl font-bold text-foreground mb-3 group-hover:text-primary transition-colors">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground mb-2 sm:mb-3 group-hover:text-primary transition-colors leading-tight">
                       {promotion.name}
                     </h2>
 
                     {/* Dates */}
-                    <div className="flex items-center gap-2 text-text-secondary mb-3">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm">
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-text-secondary mb-2 sm:mb-3">
+                      <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm">
                         {formatDate(startDate)} - {formatDate(endDate)}
                       </span>
                     </div>
 
                     {/* Description */}
                     {promotion.description && (
-                      <p className="text-text-secondary mb-4 line-clamp-2">
+                      <p className="text-xs sm:text-sm text-text-secondary mb-3 sm:mb-4 line-clamp-2 leading-relaxed">
                         {promotion.description}
                       </p>
                     )}
 
                     {/* Item Count */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-secondary">
+                    <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                      <span className="text-xs sm:text-sm text-text-secondary">
                         {promotion.itemCount} {promotion.itemCount === 1 ? 'item' : 'items'}
                       </span>
-                      <div className="flex items-center gap-2 text-primary group-hover:gap-3 transition-all">
-                        <span className="text-sm font-medium">View Details</span>
-                        <ArrowRight className="w-4 h-4" />
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-primary group-hover:gap-2 sm:group-hover:gap-3 transition-all">
+                        <span className="text-xs sm:text-sm font-medium">View Details</span>
+                        <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </div>
                     </div>
                   </div>
@@ -180,9 +181,9 @@ export default function PromotionsPageClient() {
         )}
 
         {/* Back to Home */}
-        <div className="mt-8 text-center">
+        <div className="mt-6 sm:mt-8 text-center">
           <Link href="/">
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="sm" className="sm:size-lg">
               Back to Home
             </Button>
           </Link>

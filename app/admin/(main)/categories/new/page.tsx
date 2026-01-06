@@ -7,7 +7,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
-import { useCreateCategory } from '@/hooks';
+import { useCreateCategory, useDeleteCategory, useUpdateCategory } from '@/hooks';
 import { Button, Input, Textarea, Loading } from '@/components/ui';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
@@ -22,6 +22,8 @@ export default function NewCategoryPage() {
   const router = useRouter();
   const { currentBusiness } = useApp();
   const createCategory = useCreateCategory();
+  const deleteCategory = useDeleteCategory();
+  const updateCategory = useUpdateCategory();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -160,8 +162,6 @@ export default function NewCategoryPage() {
           // Cleanup: Delete the Firebase record if Cloudinary is not configured
           if (categoryId) {
             try {
-              const { useDeleteCategory } = await import('@/hooks');
-              const deleteCategory = useDeleteCategory();
               await deleteCategory.mutateAsync(categoryId);
             } catch (cleanupError) {
               console.error('Failed to cleanup Firebase record:', cleanupError);
@@ -179,8 +179,6 @@ export default function NewCategoryPage() {
 
           // Step 3: Update Firebase record with the Cloudinary image URL
           if (categoryId && uploadedImageUrl) {
-            const { useUpdateCategory } = await import('@/hooks');
-            const updateCategory = useUpdateCategory();
             await updateCategory.mutateAsync({
               categoryId,
               updates: { image: uploadedImageUrl },

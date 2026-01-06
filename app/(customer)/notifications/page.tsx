@@ -7,18 +7,17 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Bell, Check, CheckCheck, Package, Calendar, CreditCard, AlertCircle, X } from 'lucide-react';
+import { Bell, Check, CheckCheck, Package, Calendar, CreditCard } from 'lucide-react';
 import { Button, Loading } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotificationsByUserId, useNotificationsByEmail, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '@/hooks/useNotifications';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
-import { formatDate, formatRelativeTime } from '@/lib/utils/formatting';
+import { formatRelativeTime } from '@/lib/utils/formatting';
 import { NotificationType } from '@/types/notification';
+import { Timestamp } from 'firebase/firestore';
 
 export default function NotificationsPage() {
   const { user } = useAuth();
-  const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   // Fetch notifications based on user authentication
@@ -181,13 +180,13 @@ export default function NotificationsPage() {
                       : 'border-transparent hover:border-border'
                   }`}
                 >
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="flex-shrink-0 mt-0.5">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="shrink-0 mt-0.5">
                       {getNotificationIcon(notification.type)}
                     </div>
-                    <div className="flex-grow min-w-0">
+                    <div className="grow min-w-0">
                       <div className="flex items-start justify-between gap-2 sm:gap-4 mb-2">
-                        <div className="flex-grow min-w-0">
+                        <div className="grow min-w-0">
                           <h3 className={`font-semibold text-foreground mb-1 text-sm sm:text-base ${isUnread ? 'sm:text-lg' : ''}`}>
                             {notification.title}
                           </h3>
@@ -200,9 +199,11 @@ export default function NotificationsPage() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              notification.id && handleMarkAsRead(notification.id);
+                              if (notification.id) {
+                                handleMarkAsRead(notification.id);
+                              }
                             }}
-                            className="flex-shrink-0 p-1.5 hover:bg-background-secondary rounded-lg transition-colors"
+                            className="shrink-0 p-1.5 hover:bg-background-secondary rounded-lg transition-colors"
                             title="Mark as read"
                             disabled={markAsRead.isPending}
                           >
@@ -215,11 +216,18 @@ export default function NotificationsPage() {
                           {notification.createdAt 
                             ? (() => {
                                 try {
-                                  const date = notification.createdAt instanceof Date 
-                                    ? notification.createdAt 
-                                    : notification.createdAt?.toDate 
-                                    ? notification.createdAt.toDate() 
-                                    : new Date(notification.createdAt);
+                                  let date: Date;
+                                  const createdAt = notification.createdAt;
+                                  if (createdAt instanceof Date) {
+                                    date = createdAt;
+                                  } else if (createdAt instanceof Timestamp) {
+                                    date = createdAt.toDate();
+                                  } else if (createdAt && typeof createdAt === 'object' && 'toDate' in createdAt) {
+                                    const timestampLike = createdAt as { toDate: () => Date };
+                                    date = timestampLike.toDate();
+                                  } else {
+                                    date = new Date(createdAt as string | number);
+                                  }
                                   return formatRelativeTime(date);
                                 } catch {
                                   return 'Just now';

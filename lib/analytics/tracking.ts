@@ -31,7 +31,7 @@ export const isAnalyticsEnabled = (): boolean => {
 /**
  * Track a custom event
  */
-export const trackEvent = (eventName: string, properties?: Record<string, any>) => {
+export const trackEvent = (eventName: string, properties?: Record<string, unknown>) => {
   if (!isEnabled || !trackingId) return;
   
   // Analytics event tracking implementation

@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Star, User, MessageSquare } from 'lucide-react';
 import { useReviews } from '@/hooks/useReviews';
 import { Review } from '@/types/reviews';
@@ -162,7 +162,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
           <p className="text-sm text-text-secondary">{description}</p>
         </div>
         {showWriteReview && (
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <ReviewFormButton 
               itemId={itemId} 
               businessId={businessId} 
@@ -199,7 +199,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                   <span className="text-sm font-medium text-foreground">{rating}</span>
                   <Star className="w-4 h-4 text-warning fill-warning" />
                 </div>
-                <div className="flex-grow h-2 bg-background-secondary rounded-full overflow-hidden">
+                <div className="grow h-2 bg-background-secondary rounded-full overflow-hidden">
                   <div
                     className="h-full bg-warning transition-all duration-300"
                     style={{ width: `${percentage}%` }}
@@ -287,9 +287,9 @@ const ReviewItem: React.FC<ReviewItemProps> = ({ review }) => {
                     // createdAt should already be a Date from getReviews, but handle edge cases
                     const date = review.createdAt instanceof Date 
                       ? review.createdAt 
-                      : (review.createdAt as any)?.toDate 
-                        ? (review.createdAt as any).toDate() 
-                        : new Date(review.createdAt);
+                      : (review.createdAt as { toDate?: () => Date })?.toDate 
+                        ? (review.createdAt as { toDate: () => Date }).toDate() 
+                        : new Date(String(review.createdAt));
                     // Validate the date before formatting
                     if (isNaN(date.getTime())) {
                       console.error('Invalid date:', review.createdAt);

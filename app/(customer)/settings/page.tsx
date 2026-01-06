@@ -8,20 +8,19 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, useToast } from '@/components/ui';
 import { Loading } from '@/components/ui/Loading';
-import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
-import { User, CustomerAddress } from '@/types';
+import { getUserFriendlyMessage, ERROR_MESSAGES } from '@/lib/utils/user-messages';
+import { User } from '@/types';
 import { COLLECTIONS } from '@/types/collections';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Plus, Edit, Truck, Trash2 } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2 } from 'lucide-react';
 import { getLoginUrl, getReturnUrl } from '@/lib/utils/redirect';
 import { useDeliveryProviders } from '@/hooks/useDeliveryProviders';
 import { useApp } from '@/contexts/AppContext';
-import { deleteAccount } from '@/lib/auth';
+import { deleteAccount } from '@/lib/auth/delete-account';
 
 export default function SettingsPage() {
   const toast = useToast();
@@ -78,6 +77,7 @@ export default function SettingsPage() {
       const returnUrl = getReturnUrl(pathname, searchParams);
       router.push(getLoginUrl(returnUrl));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, router, pathname, searchParams]);
 
   const loadUserData = async () => {
@@ -190,9 +190,10 @@ export default function SettingsPage() {
       });
 
       toast.showSuccess('Password updated successfully!');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating password:', error);
-      toast.showError(getUserFriendlyMessage(error, 'Failed to update password. Please check your old password.'));
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update password. Please check your old password.';
+      toast.showError(getUserFriendlyMessage(error, errorMessage));
     }
   };
 
@@ -232,9 +233,9 @@ export default function SettingsPage() {
       
       toast.showSuccess('Your account has been successfully deleted');
       router.push('/');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting account:', error);
-      const errorMessage = error.message || 'Failed to delete account. Please try again.';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete account. Please try again.';
       toast.showError(errorMessage);
     } finally {
       setIsDeleting(false);
@@ -366,7 +367,7 @@ export default function SettingsPage() {
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
+                        <MapPin className="w-4 h-4 text-primary shrink-0" />
                         <h3 className="font-semibold text-sm sm:text-base text-foreground">{address.label}</h3>
                         {address.isDefault && (
                           <span className="px-2 py-0.5 text-xs bg-primary/20 text-primary rounded-full">
@@ -549,7 +550,7 @@ export default function SettingsPage() {
                 <strong>Warning:</strong> This action is permanent and cannot be reversed. All your account data, order history, and booking information will be permanently deleted.
               </div>
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full sm:w-auto"
               >
@@ -570,7 +571,7 @@ export default function SettingsPage() {
               />
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  variant="destructive"
+                  variant="danger"
                   onClick={handleDeleteAccount}
                   isLoading={isDeleting}
                   disabled={!deleteAccountPassword || isDeleting}

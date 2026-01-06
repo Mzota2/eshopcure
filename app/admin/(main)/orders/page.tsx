@@ -7,10 +7,22 @@
 import React, { useState } from 'react';
 import { useOrders, useUpdateOrder, useCancelOrder } from '@/hooks';
 import { Order, OrderStatus } from '@/types/order';
-import { Button, Modal, Loading, useToast, StatusBadge, statusUtils, useConfirmDialog, ConfirmDialog, CancellationDialog } from '@/components/ui';
+import { Button, Loading, useToast, StatusBadge, CancellationDialog } from '@/components/ui';
 import { Search, Eye, Package, Download, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils/formatting';
+import { formatCurrency, formatDateTime } from '@/lib/utils/formatting';
+import { Timestamp } from 'firebase/firestore';
+
+// Helper to convert date safely
+const getDate = (date: Date | string | Timestamp | { toDate?: () => Date } | undefined): Date => {
+  if (!date) return new Date(0);
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+    return date.toDate();
+  }
+  return new Date(date as string);
+};
 import { Input } from '@/components/ui';
 import Link from 'next/link';
 import { StoreTypeGuard } from '@/components/guards/StoreTypeGuard';
@@ -185,7 +197,7 @@ function AdminOrdersPageContent() {
               key={status}
               onClick={() => setSelectedStatus(status as OrderStatus | 'all')}
               className={cn(
-                'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors capitalize whitespace-nowrap flex-shrink-0',
+                'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors capitalize whitespace-nowrap shrink-0',
                 selectedStatus === status
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -234,7 +246,7 @@ function AdminOrdersPageContent() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-sm text-text-secondary">
-                      {order.createdAt ? formatDate(order.createdAt as string) : '-'}
+                      {order.createdAt ? formatDateTime(getDate(order.createdAt)) : '-'}
                     </td>
                     <td className="py-3 px-4 text-sm font-medium text-foreground">
                       {formatCurrency(order.pricing.total, order.pricing.currency)}
@@ -277,13 +289,13 @@ function AdminOrdersPageContent() {
                     <StatusBadge status={order.status} variant="badge" />
                   </div>
                   <p className="text-xs text-text-secondary mb-2">
-                    {order.createdAt ? formatDate(order.createdAt as string) : '-'}
+                    {order.createdAt ? formatDateTime(getDate(order.createdAt)) : '-'}
                   </p>
                 </div>
                 <Link
                   href={`/admin/orders/${order.id}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="p-1 text-text-secondary hover:text-foreground transition-colors flex-shrink-0"
+                  className="p-1 text-text-secondary hover:text-foreground transition-colors shrink-0"
                   title="View Details"
                 >
                   <Eye className="w-4 h-4" />
@@ -342,7 +354,7 @@ function AdminOrdersPageContent() {
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Date:</span>
                   <span className="text-foreground text-right">
-                    {selectedOrder.createdAt ? formatDateTime(selectedOrder.createdAt as string) : '-'}
+                    {selectedOrder.createdAt ? formatDateTime(getDate(selectedOrder.createdAt)) : '-'}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -412,7 +424,7 @@ function AdminOrdersPageContent() {
               <h3 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3">Customer Information</h3>
               <div className="text-xs sm:text-sm space-y-1">
                 <p className="text-foreground">{selectedOrder.customerName || 'Guest'}</p>
-                <p className="text-text-secondary break-words">{selectedOrder.customerEmail}</p>
+                <p className="text-text-secondary wrap-break-word">{selectedOrder.customerEmail}</p>
                 {selectedOrder.customerId && (
                   <Link href={`/admin/customers?customerId=${selectedOrder.customerId}`}>
                     <Button variant="outline" size="sm" className="mt-2 w-full">
@@ -424,26 +436,34 @@ function AdminOrdersPageContent() {
             </div>
 
             {/* Delivery Info */}
-            <div className="mb-4 sm:mb-6">
-              <h3 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3">Delivery Information</h3>
-              <div className="text-xs sm:text-sm space-y-1">
-                <p className="text-foreground capitalize">{selectedOrder.delivery.method}</p>
-                {selectedOrder.delivery.address && (
-                  <div className="text-text-secondary">
-                    <p>{selectedOrder.delivery.address.street}</p>
-                    <p>
-                      {selectedOrder.delivery.address.city}, {selectedOrder.delivery.address.state}
+            {selectedOrder.delivery && (
+              <div className="mb-4 sm:mb-6">
+                <h3 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3">Delivery Information</h3>
+                <div className="text-xs sm:text-sm space-y-1">
+                  <p className="text-foreground capitalize">{selectedOrder.delivery.method}</p>
+                  {selectedOrder.delivery.address && (
+                    <div className="text-text-secondary">
+                      <p>{selectedOrder.delivery.address.areaOrVillage}</p>
+                      {selectedOrder.delivery.address.traditionalAuthority && (
+                        <p>{selectedOrder.delivery.address.traditionalAuthority}</p>
+                      )}
+                      {selectedOrder.delivery.address.district && (
+                        <p>{selectedOrder.delivery.address.district}</p>
+                      )}
+                      {selectedOrder.delivery.address.nearestTownOrTradingCentre && (
+                        <p>{selectedOrder.delivery.address.nearestTownOrTradingCentre}</p>
+                      )}
+                      <p>{selectedOrder.delivery.address.region}, {selectedOrder.delivery.address.country}</p>
+                    </div>
+                  )}
+                  {selectedOrder.delivery.trackingNumber && (
+                    <p className="text-text-secondary wrap-break-word">
+                      Tracking: {selectedOrder.delivery.trackingNumber}
                     </p>
-                    <p>{selectedOrder.delivery.address.postalCode}</p>
-                  </div>
-                )}
-                {selectedOrder.delivery.trackingNumber && (
-                  <p className="text-text-secondary break-words">
-                    Tracking: {selectedOrder.delivery.trackingNumber}
-                  </p>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Order Items */}
             <div className="mb-4 sm:mb-6">
@@ -451,10 +471,10 @@ function AdminOrdersPageContent() {
               <div className="space-y-2 text-xs sm:text-sm">
                 {selectedOrder.items.map((item, idx) => (
                   <div key={idx} className="flex justify-between gap-2">
-                    <span className="text-foreground break-words flex-1">
+                    <span className="text-foreground wrap-break-word flex-1">
                       {item.productName} (×{item.quantity})
                     </span>
-                    <span className="text-foreground flex-shrink-0">
+                    <span className="text-foreground shrink-0">
                       {formatCurrency(item.subtotal, selectedOrder.pricing.currency)}
                     </span>
                   </div>

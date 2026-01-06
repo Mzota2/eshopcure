@@ -8,7 +8,7 @@ import { Timestamp } from 'firebase/firestore';
 import { ServiceCard } from '@/components/services';
 import { Button, Input } from '@/components/ui';
 import { Loading } from '@/components/ui/Loading';
-import { Item, ItemStatus, isService } from '@/types';
+import { Item, isService } from '@/types';
 import { useApp } from '@/contexts/AppContext';
 import { useServices, usePromotions } from '@/hooks';
 import { useCategories } from '@/hooks/useCategories';
@@ -67,7 +67,7 @@ function ServicesPageContent() {
   // Fetch services with React Query
   // Note: Don't filter by status initially - let client-side filtering handle it
   const {
-    data: services = [],
+    data: servicesData,
     isLoading: servicesLoading,
     error: servicesError,
   } = useServices({
@@ -78,6 +78,10 @@ function ServicesPageContent() {
     refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
+  // Memoize services to avoid dependency issues
+  const services = useMemo(() => {
+    return Array.isArray(servicesData) ? servicesData : [];
+  }, [servicesData]);
 
   // Calculate price range only when price filter is enabled (saves computation)
   const priceRange = useMemo(() => {
@@ -110,8 +114,6 @@ function ServicesPageContent() {
     type: 'service',
     businessId: currentBusiness?.id,
     enabled: !!currentBusiness?.id,
-    refetchInterval: 15 * 60 * 1000, // Poll every 15 minutes
-    staleTime: 10 * 60 * 1000, // Consider data fresh for 10 minutes
   });
 
   // Get service categories (service + both types)
@@ -139,16 +141,7 @@ function ServicesPageContent() {
     { id: 'group', label: 'Group Session' },
   ];
 
-  // Update price range filters when price filter is enabled and priceRange is calculated
-  useEffect(() => {
-    if (priceFilterEnabled && services.length > 0 && priceRange.min !== 0 && priceRange.max !== 10000) {
-      setLocalFilters(prev => ({
-        ...prev,
-        priceMin: priceRange.min,
-        priceMax: priceRange.max,
-      }));
-    }
-  }, [priceRange, services.length, priceFilterEnabled]);
+  // Update price range filters when price filter is enabled (handled in toggle handler)
 
   // Sync filters to AppContext after local state updates
   useEffect(() => {
@@ -177,7 +170,7 @@ function ServicesPageContent() {
         (s) =>
           s.name.toLowerCase().includes(queryLower) ||
           s.description?.toLowerCase().includes(queryLower) ||
-          s.tags?.some((tag) => tag.toLowerCase().includes(queryLower))
+          s.tags?.some((tag: string) => tag.toLowerCase().includes(queryLower))
       );
     }
 
@@ -226,7 +219,7 @@ function ServicesPageContent() {
     });
 
     return sorted;
-  }, [services, filters, searchQuery, sortBy, promotions]);
+  }, [services, filters, searchQuery, sortBy, promotions, priceFilterEnabled]);
 
   // Pagination
   const pageSize = 12;
@@ -264,12 +257,13 @@ function ServicesPageContent() {
   };
 
   const clearFilters = () => {
-    const defaultFilters = {
+    const defaultFilters: ServiceFilterState = {
       category: 'all',
       serviceType: ['online', 'in_person', 'group'],
       priceMin: 0,
       priceMax: 10000,
       availability: ['available_now', 'next_24_hours'],
+      onPromotion: false,
     };
     setLocalFilters(defaultFilters);
     setPriceFilterEnabled(false);
@@ -361,8 +355,9 @@ function ServicesPageContent() {
                   <button
                     type="button"
                     onClick={() => {
-                      setPriceFilterEnabled(!priceFilterEnabled);
-                      if (!priceFilterEnabled) {
+                      const newEnabled = !priceFilterEnabled;
+                      setPriceFilterEnabled(newEnabled);
+                      if (newEnabled && services.length > 0 && priceRange.min !== 0 && priceRange.max !== 10000) {
                         // When enabling, set to calculated range
                         setLocalFilters(prev => ({
                           ...prev,
@@ -528,7 +523,7 @@ function ServicesPageContent() {
                 <div className="md:hidden mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
                   <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                     {paginatedServices.map((service) => (
-                      <div key={service.id} className="flex-shrink-0 w-[280px] snap-start">
+                      <div key={service.id} className="shrink-0 w-[280px] snap-start">
                         <ServiceCard
                           service={service}
                           onBookNow={handleBookNow}
@@ -588,11 +583,11 @@ function ServicesPageContent() {
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/50 z-[200] lg:hidden"
+            className="fixed inset-0 bg-black/50 z-200 lg:hidden"
             onClick={() => setShowMobileFilters(false)}
           />
           {/* Filter Drawer */}
-          <div className="fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-card shadow-xl z-[201] lg:hidden transform transition-transform duration-300 ease-in-out overflow-y-auto">
+          <div className="fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-card shadow-xl z-201 lg:hidden transform transition-transform duration-300 ease-in-out overflow-y-auto">
             <div className="sticky top-0 bg-card border-b border-border p-4 flex items-center justify-between z-10">
               <h2 className="text-lg font-semibold text-foreground">Filters</h2>
               <button
@@ -657,8 +652,9 @@ function ServicesPageContent() {
                   <button
                     type="button"
                     onClick={() => {
-                      setPriceFilterEnabled(!priceFilterEnabled);
-                      if (!priceFilterEnabled) {
+                      const newEnabled = !priceFilterEnabled;
+                      setPriceFilterEnabled(newEnabled);
+                      if (newEnabled && services.length > 0 && priceRange.min !== 0 && priceRange.max !== 10000) {
                         setLocalFilters(prev => ({
                           ...prev,
                           priceMin: priceRange.min,

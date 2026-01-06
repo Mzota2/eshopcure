@@ -13,7 +13,18 @@ import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import { LedgerEntryType, LedgerEntryStatus, LedgerEntry } from '@/types/ledger';
 import Link from 'next/link';
 import { ExternalLink, AlertCircle, Download, X } from 'lucide-react';
-import { DerivedTransaction } from '@/lib/ledger';
+import { Timestamp } from 'firebase/firestore';
+
+// Helper to convert date safely
+const getDate = (date: Date | string | Timestamp | undefined): Date => {
+  if (!date) return new Date(0);
+  if (date instanceof Date) return date;
+  if (date instanceof Timestamp) return date.toDate();
+  if (typeof date === 'object' && date !== null && 'toDate' in date && typeof (date as { toDate: () => Date }).toDate === 'function') {
+    return (date as { toDate: () => Date }).toDate();
+  }
+  return new Date(date as string);
+};
 
 export default function AdminLedgerPage() {
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
@@ -81,21 +92,24 @@ export default function AdminLedgerPage() {
       return ledgerEntries;
     } else {
       // Convert DerivedTransaction to LedgerEntry-like format for display
-      return derivedTransactions.map((tx): LedgerEntry & { balance?: number; source?: 'order' | 'booking' } => ({
-        id: tx.id,
-        entryType: tx.entryType,
-        status: tx.status,
-        amount: tx.amount,
-        currency: tx.currency,
-        orderId: tx.orderId,
-        bookingId: tx.bookingId,
-        paymentId: tx.paymentId,
-        description: tx.description,
-        createdAt: tx.createdAt as Date | string,
-        metadata: tx.metadata,
-        source: tx.source,
-        businessId: '', // Not available in derived transactions
-      }));
+      return derivedTransactions.map((tx): LedgerEntry & { balance?: number; source?: 'order' | 'booking' } => {
+        const createdAt = getDate(tx.createdAt);
+        return {
+          id: tx.id,
+          entryType: tx.entryType,
+          status: tx.status,
+          amount: tx.amount,
+          currency: tx.currency,
+          orderId: tx.orderId,
+          bookingId: tx.bookingId,
+          paymentId: tx.paymentId,
+          description: tx.description,
+          createdAt,
+          updatedAt: createdAt, // Use createdAt as updatedAt for derived transactions
+          metadata: tx.metadata,
+          businessId: '', // Not available in derived transactions
+        };
+      });
     }
   }, [ledgerEnabled, ledgerEntries, derivedTransactions]);
 
@@ -109,9 +123,7 @@ export default function AdminLedgerPage() {
       .filter(e => {
         if (e.status !== LedgerEntryStatus.CONFIRMED) return false;
         // Use createdAt for ledger entries (which already use payment date when available)
-        const entryDate = e.createdAt instanceof Date 
-          ? e.createdAt 
-          : (e.createdAt as any)?.toDate?.() || new Date(e.createdAt as string);
+        const entryDate = getDate(e.createdAt);
         const now = new Date();
         return entryDate.getMonth() === now.getMonth() && entryDate.getFullYear() === now.getFullYear();
       })
@@ -133,28 +145,25 @@ export default function AdminLedgerPage() {
         return true;
       })
       .sort((a, b) => {
-        const aDate = a.createdAt instanceof Date 
-          ? a.createdAt 
-          : (a.createdAt as any)?.toDate?.() || new Date(a.createdAt as string);
-        const bDate = b.createdAt instanceof Date 
-          ? b.createdAt 
-          : (b.createdAt as any)?.toDate?.() || new Date(b.createdAt as string);
+        const aDate = getDate(a.createdAt);
+        const bDate = getDate(b.createdAt);
         return bDate.getTime() - aDate.getTime();
       });
   }, [allEntries, typeFilter, statusFilter]);
 
   // Calculate running balance
   const transactionsWithBalance = useMemo(() => {
-    let runningBalance = 0;
-    return filteredTransactions.map(entry => {
-      if (entry.status === LedgerEntryStatus.CONFIRMED) {
-        runningBalance += entry.amount;
-      }
-      return {
+    return filteredTransactions.reduce<Array<typeof filteredTransactions[0] & { balance: number }>>((acc, entry) => {
+      const previousBalance = acc.length > 0 ? acc[acc.length - 1].balance : 0;
+      const balance = entry.status === LedgerEntryStatus.CONFIRMED 
+        ? previousBalance + entry.amount
+        : previousBalance;
+      acc.push({
         ...entry,
-        balance: runningBalance,
-      };
-    });
+        balance,
+      });
+      return acc;
+    }, []);
   }, [filteredTransactions]);
 
   const getEntryTypeLabel = (type: LedgerEntryType) => {
@@ -219,7 +228,7 @@ export default function AdminLedgerPage() {
       {/* Warning banner when using derived data */}
       {isUsingDerivedData && !isBannerDismissed && (
         <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-warning/20 border border-warning/50 rounded-lg flex items-start gap-2 sm:gap-3 relative">
-          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-warning mt-0.5 flex-shrink-0" />
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-warning mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0 pr-6 sm:pr-8">
             <h3 className="text-sm sm:text-base font-semibold text-warning mb-1">Derived Transaction Data</h3>
             <p className="text-xs sm:text-sm text-text-secondary">
@@ -231,7 +240,7 @@ export default function AdminLedgerPage() {
           </div>
           <button
             onClick={() => setIsBannerDismissed(true)}
-            className="absolute top-3 right-3 p-1 text-warning hover:text-warning/80 hover:bg-warning/10 rounded transition-colors flex-shrink-0"
+            className="absolute top-3 right-3 p-1 text-warning hover:text-warning/80 hover:bg-warning/10 rounded transition-colors shrink-0"
             aria-label="Dismiss notification"
             title="Dismiss"
           >
@@ -328,9 +337,8 @@ export default function AdminLedgerPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {transactionsWithBalance.map((entry) => {
-                const entryDate = entry.createdAt instanceof Date 
-                  ? entry.createdAt 
-                  : (entry.createdAt as any)?.toDate?.() || new Date(entry.createdAt as string);
+                if (!entry.id) return null;
+                const entryDate = getDate(entry.createdAt);
                 
                 return (
                   <tr key={entry.id} className="hover:bg-background-secondary transition-colors">
@@ -394,9 +402,8 @@ export default function AdminLedgerPage() {
       {/* Transactions Cards - Mobile */}
       <div className="md:hidden space-y-4">
         {transactionsWithBalance.map((entry) => {
-          const entryDate = entry.createdAt instanceof Date 
-            ? entry.createdAt 
-            : (entry.createdAt as any)?.toDate?.() || new Date(entry.createdAt as string);
+          if (!entry.id) return null;
+          const entryDate = getDate(entry.createdAt);
           
           return (
             <div key={entry.id} className="bg-card rounded-lg border border-border p-4">
@@ -417,7 +424,7 @@ export default function AdminLedgerPage() {
                     {entry.id.substring(0, 12)}...
                   </code>
                 </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className={cn(
                     'text-base font-bold',
                     entry.amount >= 0 ? 'text-success' : 'text-destructive'

@@ -22,6 +22,7 @@ export const isReviewsEnabled = async (): Promise<boolean> => {
  * Uses React Query for caching
  */
 export const useReviewsEnabled = () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { useSettings } = require('@/hooks/useSettings');
   const { data: settings } = useSettings();
   return settings?.documentCreation?.enableReviews ?? false;

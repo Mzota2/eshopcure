@@ -5,12 +5,10 @@ import {
   getDocs, 
   addDoc, 
   updateDoc, 
-  deleteDoc,
   query,
   where,
   orderBy,
   limit,
-  startAfter,
   serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
@@ -122,7 +120,7 @@ export const getAdmins = async (businessId?: string): Promise<User[]> => {
   // If businessId is provided, filter by it; otherwise get all admins
   // Note: Firestore doesn't support OR queries easily, so we'll fetch all and filter client-side
   // if we want to include users without businessId
-  let q = query(usersRef, where('role', '==', 'admin'));
+  const q = query(usersRef, where('role', '==', 'admin'));
   
   const querySnapshot = await getDocs(q);
   let admins = querySnapshot.docs.map(doc => ({
@@ -140,7 +138,7 @@ export const getAdmins = async (businessId?: string): Promise<User[]> => {
 
 export const getStaff = async (businessId?: string): Promise<User[]> => {
   const usersRef = collection(db, COLLECTIONS.USERS);
-  let q = query(usersRef, where('role', '==', 'staff'));
+  const q = query(usersRef, where('role', '==', 'staff'));
   
   const querySnapshot = await getDocs(q);
   let staff = querySnapshot.docs.map(doc => ({
@@ -168,7 +166,7 @@ export const createUser = async (input: CreateUserInput, businessId?: string): P
   }
   
   // Automatically get businessId if not provided (for admin/staff users)
-  let finalBusinessId = businessId || input.businessId;
+  let finalBusinessId = businessId;
   if (!finalBusinessId && (input.role === 'admin' || input.role === 'staff')) {
     const { getBusinessId } = await import('@/lib/businesses/utils');
     finalBusinessId = await getBusinessId();

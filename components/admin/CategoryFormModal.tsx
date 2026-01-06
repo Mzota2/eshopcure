@@ -10,9 +10,6 @@ import { Modal, Input, Textarea, Button } from '@/components/ui';
 import { Category } from '@/types/category';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { X } from 'lucide-react';
-import { IMAGE_VARIANTS } from '@/lib/images/variants';
 import { ImageUploadWithCrop } from './ImageUploadWithCrop';
 
 interface CategoryFormModalProps {
@@ -39,6 +36,8 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
     type: 'product' as 'product' | 'service' | 'both',
   });
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -51,7 +50,6 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
         image: category.image || '',
         type: category.type || 'product',
       });
-      setImagePreview(category.image || '');
     } else {
       setFormData({
         name: '',
@@ -61,7 +59,6 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
         image: '',
         type: 'product',
       });
-      setImagePreview('');
       setImageFile(null);
     }
     setErrors({});
@@ -168,7 +165,6 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
         type: 'product',
       });
       setImageFile(null);
-      setImagePreview('');
       onClose();
     } catch (error) {
       console.error('Error submitting category:', error);
@@ -211,7 +207,7 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
           </label>
           <select
             value={formData.type}
-            onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value as any }))}
+            onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value as 'product' | 'service' | 'both' }))}
             className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
           >
             <option value="product">Product</option>

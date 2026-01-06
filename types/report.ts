@@ -78,7 +78,7 @@ export interface ReportData {
   netProfit?: number;
   
   // Additional data
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

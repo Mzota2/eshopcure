@@ -86,7 +86,7 @@ export interface PaychanguPaymentVerificationData {
   amount: number;
   charges: number;
   customization: PaychanguCustomization;
-  meta: Record<string, any> | null;
+  meta: Record<string, unknown> | null;
   authorization: PaychanguAuthorization;
   customer: PaychanguCustomer;
   logs: PaychanguLogEntry[];
@@ -155,7 +155,7 @@ export interface PaymentVerificationResult {
   customerName?: string;
   orderId?: string;
   bookingId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   charges?: number;
   completedAt?: string;
   createdAt: string;

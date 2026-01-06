@@ -5,8 +5,8 @@
 
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { subscribeToLedgerEntries, subscriptionManager } from './firebase-subscriptions';
-import { LedgerEntry, LedgerEntryType } from '@/types/ledger';
+import { subscribeToLedgerEntries, subscriptionManager } from '@/hooks/firebase-subscriptions';
+import { LedgerEntry, LedgerEntryType, LedgerEntryStatus } from '@/types/ledger';
 import { ledgerEntryKeys } from './useLedgerEntries';
 
 interface UseRealtimeLedgerEntriesOptions {
@@ -42,7 +42,7 @@ export const useRealtimeLedgerEntries = (options?: UseRealtimeLedgerEntriesOptio
         queryClient.setQueryData(
           ledgerEntryKeys.list({
             entryType: options?.entryType,
-            status: options?.status as any,
+            status: options?.status as LedgerEntryStatus | undefined,
             orderId: options?.orderId,
             bookingId: options?.bookingId,
             paymentId: options?.paymentId,
