@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useBookings, useUpdateBooking, useCancelBooking } from '@/hooks';
 import { Booking, BookingStatus } from '@/types/booking';
 import { Button, Loading, Input, useToast, StatusBadge, CancellationDialog } from '@/components/ui';

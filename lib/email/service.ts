@@ -122,29 +122,29 @@ async function sendViaSendGrid(config: EmailConfig, options: SendEmailOptions): 
  */
 async function sendViaSMTP(config: EmailConfig, options: SendEmailOptions): Promise<void> {
   // Dynamic import to avoid bundling nodemailer if not needed
-  const nodemailer = await import('nodemailer');
+  // const nodemailer = await import('nodemailer');
 
-  if (!config.smtpHost || !config.smtpUser || !config.smtpPassword) {
-    throw new Error('SMTP configuration is incomplete');
-  }
+  // if (!config.smtpHost || !config.smtpUser || !config.smtpPassword) {
+  //   throw new Error('SMTP configuration is incomplete');
+  // }
 
-  const transporter = nodemailer.createTransport({
-    host: config.smtpHost,
-    port: config.smtpPort || 587,
-    secure: config.smtpPort === 465,
-    auth: {
-      user: config.smtpUser,
-      pass: config.smtpPassword,
-    },
-  });
+  // const transporter = nodemailer.createTransport({
+  //   host: config.smtpHost,
+  //   port: config.smtpPort || 587,
+  //   secure: config.smtpPort === 465,
+  //   auth: {
+  //     user: config.smtpUser,
+  //     pass: config.smtpPassword,
+  //   },
+  // });
 
-  await transporter.sendMail({
-    from: `${config.fromName} <${config.fromEmail}>`,
-    to: options.to,
-    subject: options.subject,
-    html: options.html,
-    text: options.text || options.html.replace(/<[^>]*>/g, ''),
-  });
+  // await transporter.sendMail({
+  //   from: `${config.fromName} <${config.fromEmail}>`,
+  //   to: options.to,
+  //   subject: options.subject,
+  //   html: options.html,
+  //   text: options.text || options.html.replace(/<[^>]*>/g, ''),
+  // });
 }
 
 /**

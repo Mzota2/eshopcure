@@ -12,11 +12,10 @@ import { Promotion, PromotionStatus, DiscountType } from '@/types/promotion';
 import { Button, Input, Textarea, Loading } from '@/components/ui';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { X, ArrowLeft } from 'lucide-react';
+import {ArrowLeft } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
-import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
+import {IMAGE_VARIANTS } from '@/lib/images/variants';
 
 export default function EditPromotionPage() {
   const router = useRouter();
@@ -432,9 +431,9 @@ export default function EditPromotionPage() {
                 className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[120px]"
                 size={5}
               >
-                {Array.isArray(services) && services.map((service: { id: string; name: string }) => (
-                  <option key={service.id} value={service.id}>
-                    {service.name}
+                {Array.isArray(services) && services.map((service) => (
+                  <option key={service?.id || ''} value={service?.id || ''}>
+                    {service?.name}
                   </option>
                 ))}
               </select>

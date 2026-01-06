@@ -11,7 +11,7 @@ import { useCategories, useRealtimeCategories, useDeleteCategory } from '@/hooks
 import { Category } from '@/types/category';
 import { Button, Modal, useToast, useConfirmDialog, ConfirmDialog } from '@/components/ui';
 import { Loading } from '@/components/ui/Loading';
-import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
+import { getUserFriendlyMessage, ERROR_MESSAGES} from '@/lib/utils/user-messages';
 import { Plus, Edit, Trash2, Tag, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { CategoryImage } from '@/components/ui/OptimizedImage';
@@ -91,7 +91,7 @@ export default function AdminCategoriesPage() {
         <button
           onClick={() => setSelectedType('all')}
           className={cn(
-            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
             selectedType === 'all'
               ? 'bg-primary text-primary-foreground'
               : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -102,7 +102,7 @@ export default function AdminCategoriesPage() {
         <button
           onClick={() => setSelectedType('product')}
           className={cn(
-            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
             selectedType === 'product'
               ? 'bg-primary text-primary-foreground'
               : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -113,7 +113,7 @@ export default function AdminCategoriesPage() {
         <button
           onClick={() => setSelectedType('service')}
           className={cn(
-            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
             selectedType === 'service'
               ? 'bg-primary text-primary-foreground'
               : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -124,7 +124,7 @@ export default function AdminCategoriesPage() {
         <button
           onClick={() => setSelectedType('both')}
           className={cn(
-            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+            'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
             selectedType === 'both'
               ? 'bg-primary text-primary-foreground'
               : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -165,18 +165,18 @@ export default function AdminCategoriesPage() {
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                 {category.icon ? (
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                     <span className="text-xl sm:text-2xl">{category.icon}</span>
                   </div>
                 ) : (
-                  <Tag className="w-8 h-8 sm:w-10 sm:h-10 text-primary flex-shrink-0" />
+                  <Tag className="w-8 h-8 sm:w-10 sm:h-10 text-primary shrink-0" />
                 )}
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">{category.name}</h3>
                   <span className="text-[10px] sm:text-xs text-text-secondary capitalize">{category.type}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 <button
                   onClick={() => setViewingCategory(category)}
                   className="p-1.5 sm:p-2 text-text-secondary hover:text-foreground transition-colors"

@@ -12,11 +12,9 @@ import { Button, Input, Textarea, Loading } from '@/components/ui';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { X, Smile } from 'lucide-react';
+import {Smile } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
-import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
 
 export default function NewCategoryPage() {
   const router = useRouter();

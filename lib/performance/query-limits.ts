@@ -3,7 +3,7 @@
  * Ensures all queries have limits to prevent unlimited reads
  */
 
-import { Query, limit as firestoreLimit } from 'firebase/firestore';
+import { Query, limit as firestoreLimit, query as firestoreQuery } from 'firebase/firestore';
 import { getSettings } from '@/lib/settings';
 
 /**
@@ -64,11 +64,11 @@ export const applyDefaultLimit = async (query: Query, customLimit?: number): Pro
 
   // If custom limit is provided, use it
   if (customLimit !== undefined) {
-    return firestoreLimit(query, customLimit);
+    return firestoreQuery(query, firestoreLimit(customLimit));
   }
 
   // Otherwise, apply default limit
   const defaultLimit = await getDefaultQueryLimit();
-  return firestoreLimit(query, defaultLimit);
+  return firestoreQuery(query, firestoreLimit(defaultLimit));
 };
 

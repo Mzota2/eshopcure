@@ -1,11 +1,11 @@
 /**
  * Login page with SEO metadata
  */
-
 import type { Metadata } from 'next';
 import { generatePageMetadata } from '@/lib/metadata/utils';
 import { getBusiness } from '@/lib/businesses';
 import LoginPageClient from './LoginPageClient';
+import { Suspense } from 'react';
 
 /**
  * Generate metadata for login page (runs server-side)
@@ -31,5 +31,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function LoginPage() {
-  return <LoginPageClient />;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-sm text-text-secondary">Loading...</p>
+        </div>
+      }
+    >
+      <LoginPageClient />;
+    </Suspense>
+  );
+  
 }

@@ -57,7 +57,6 @@ export const useLedgerEntries = (options?: {
         orderId: options?.orderId,
         bookingId: options?.bookingId,
         paymentId: options?.paymentId,
-        businessId: options?.businessId,
         limit: options?.limit,
         startDate: options?.startDate,
         endDate: options?.endDate,

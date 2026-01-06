@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Switch } from '@/components/ui';
-import { Save, AlertCircle, Info, Zap, Bell, FileText, Database, TrendingUp } from 'lucide-react';
+import { Save, Info, Zap, Bell, FileText, Database, TrendingUp } from 'lucide-react';
 import { getSettings, upsertSettings } from '@/lib/settings';
 import { 
   Settings, 

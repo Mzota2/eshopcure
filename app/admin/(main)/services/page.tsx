@@ -172,9 +172,9 @@ function AdminServicesPageContent() {
               <p className="text-sm sm:text-base">No services found</p>
             </div>
           ) : (
-            filteredServices.map((service: { id: string; name: string; images?: Array<{ url: string }>; duration?: number; pricing: { basePrice: number; currency: string }; status: string }) => {
-              const mainImage = service.images?.[0]?.url;
-              const duration = service.duration ? `${service.duration} minutes` : 'N/A';
+            filteredServices.map((service) => {
+              const mainImage = service?.images?.[0]?.url;
+              const duration = service?.duration ? `${service?.duration} minutes` : 'N/A';
               
               return (
                 <div key={service.id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:bg-background-secondary transition-colors">

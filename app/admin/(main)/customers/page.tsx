@@ -6,14 +6,14 @@
 
 import React, { useState } from 'react';
 import { useCustomers, useRealtimeCustomers, useUpdateCustomer, useDeleteCustomer } from '@/hooks';
-import { User, UserRole } from '@/types/user';
-import { Button, Modal, Input, Loading, useToast, useConfirmDialog, ConfirmDialog } from '@/components/ui';
-import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
+import { User } from '@/types/user';
+import { Button, Modal, Input, Loading, useToast, useConfirmDialog, ConfirmDialog, OptimizedImage } from '@/components/ui';
+import { getUserFriendlyMessage, ERROR_MESSAGES } from '@/lib/utils/user-messages';
 import { Search, Edit, Trash2, Eye, Mail, Phone, User as UserIcon, Download } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { formatCurrency, formatDate } from '@/lib/utils/formatting';
-import Link from 'next/link';
+import {  formatDate } from '@/lib/utils/formatting';
 import { Timestamp } from 'firebase/firestore';
+import Link from 'next/link';
 
 export default function AdminCustomersPage() {
   const toast = useToast();
@@ -156,13 +156,13 @@ export default function AdminCustomersPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {filteredCustomers.map((customer) => {
-                const stats = getCustomerStats(customer);
+  
                 return (
                   <tr key={customer.id} className="hover:bg-background-secondary transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         {customer.photoURL ? (
-                          <img
+                          <OptimizedImage
                             src={customer.photoURL}
                             alt={customer.displayName || 'Customer'}
                             className="w-10 h-10 rounded-full"
@@ -178,23 +178,23 @@ export default function AdminCustomersPage() {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <a
+                      <Link
                         href={`mailto:${customer.email}`}
                         className="text-sm text-primary hover:text-primary-hover flex items-center gap-1"
                       >
                         <Mail className="w-4 h-4" />
                         {customer.email}
-                      </a>
+                      </Link>
                     </td>
                     <td className="py-3 px-4">
                       {customer.phone ? (
-                        <a
+                        <Link
                           href={`tel:${customer.phone}`}
                           className="text-sm text-primary hover:text-primary-hover flex items-center gap-1"
                         >
                           <Phone className="w-4 h-4" />
                           {customer.phone}
-                        </a>
+                        </Link>
                       ) : (
                         <span className="text-sm text-text-secondary">-</span>
                       )}
@@ -259,19 +259,21 @@ export default function AdminCustomersPage() {
       {/* Customers Cards - Mobile */}
       <div className="md:hidden space-y-4">
         {filteredCustomers.map((customer) => {
-          const stats = getCustomerStats(customer);
           return (
             <div key={customer.id} className="bg-card rounded-lg border border-border p-4">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   {customer.photoURL ? (
-                    <img
+                    <OptimizedImage
                       src={customer.photoURL}
                       alt={customer.displayName || 'Customer'}
-                      className="w-12 h-12 rounded-full flex-shrink-0"
+                      className="w-12 h-12 rounded-full shrink-0"
+                      context="listing"
+                      width={48}
+                      height={48}
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <UserIcon className="w-6 h-6 text-primary" />
                     </div>
                   )}
@@ -291,7 +293,7 @@ export default function AdminCustomersPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => handleViewCustomer(customer)}
                     className="p-2 text-text-secondary hover:text-foreground transition-colors"
@@ -319,23 +321,22 @@ export default function AdminCustomersPage() {
               
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-text-secondary flex-shrink-0" />
-                  <a
+                  <Mail className="w-4 h-4 text-text-secondary shrink-0" />
+                  <Link
                     href={`mailto:${customer.email}`}
-                    className="text-primary hover:text-primary-hover truncate"
-                  >
+                    className="text-primary hover:text-primary-hover truncate">
                     {customer.email}
-                  </a>
+                  </Link>
                 </div>
                 {customer.phone && (
                   <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-text-secondary flex-shrink-0" />
-                    <a
+                    <Phone className="w-4 h-4 text-text-secondary shrink-0" />
+                    <Link
                       href={`tel:${customer.phone}`}
-                      className="text-primary hover:text-primary-hover"
-                    >
+                      className="text-primary hover:text-primary-hover">
+                    
                       {customer.phone}
-                    </a>
+                    </Link>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-text-secondary">
@@ -379,10 +380,10 @@ export default function AdminCustomersPage() {
                 <img
                   src={viewingCustomer.photoURL}
                   alt={viewingCustomer.displayName || 'Customer'}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex-shrink-0"
+                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full shrink-0"
                 />
               ) : (
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <UserIcon className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
                 </div>
               )}

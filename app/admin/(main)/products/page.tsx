@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Button, Loading, useToast, useConfirmDialog, ConfirmDialog } from '@/components/ui';
 import { useApp } from '@/contexts/AppContext';
@@ -12,7 +12,7 @@ import { useProducts, useRealtimeProducts, useDeleteProduct } from '@/hooks';
 import { ItemStatus } from '@/types/item';
 import { cn } from '@/lib/utils/cn';
 import { ProductImage } from '@/components/ui/OptimizedImage';
-import { Trash2, Eye } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
 
 export default function AdminProductsPage() {

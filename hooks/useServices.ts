@@ -2,7 +2,7 @@
  * React Query hooks for Services
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { getItems, getItemById, createItem, updateItem, deleteItem } from '@/lib/items';
 import { Item, ItemStatus } from '@/types/item';
 
@@ -34,7 +34,7 @@ export const useServices = (options?: {
   refetchInterval?: number | false | ((data: Item[] | undefined) => number | false);
   staleTime?: number;
 }) => {
-  return useQuery<Item[]>({
+  return useQuery<Item[], Error>({
     queryKey: serviceKeys.list({
       businessId: options?.businessId,
       status: options?.status,
@@ -57,7 +57,6 @@ export const useServices = (options?: {
       return result.items;
     },
     enabled: options?.enabled !== false,
-    refetchInterval: options?.refetchInterval,
     staleTime: options?.staleTime,
   });
 };
@@ -66,7 +65,7 @@ export const useServices = (options?: {
  * Fetch single service by ID
  */
 export const useService = (serviceId: string | undefined, options?: { enabled?: boolean }) => {
-  return useQuery({
+  return useQuery<Item, Error>({
     queryKey: serviceKeys.detail(serviceId || ''),
     queryFn: async () => {
       if (!serviceId) throw new Error('Service ID is required');
@@ -87,7 +86,7 @@ export const useCreateService = () => {
       return await createItem({ ...serviceData, type: 'service' });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: serviceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.lists() as QueryKey });
     },
   });
 };
@@ -104,8 +103,8 @@ export const useUpdateService = () => {
       return { serviceId, updates };
     },
     onSuccess: ({ serviceId }) => {
-      queryClient.invalidateQueries({ queryKey: serviceKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.lists() as QueryKey });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.detail(serviceId) as QueryKey });
     },
   });
 };
@@ -122,8 +121,8 @@ export const useDeleteService = () => {
       return serviceId;
     },
     onSuccess: (serviceId) => {
-      queryClient.removeQueries({ queryKey: serviceKeys.detail(serviceId) });
-      queryClient.invalidateQueries({ queryKey: serviceKeys.lists() });
+      queryClient.removeQueries({ queryKey: serviceKeys.detail(serviceId) as QueryKey });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.lists() as QueryKey });
     },
   });
 };

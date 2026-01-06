@@ -4,7 +4,7 @@
 
 import { User as FirebaseUser } from 'firebase/auth';
 import { auth } from './config';
-import { UserRole, User } from '@/types/user';
+import { UserRole } from '@/types/user';
 import { getUserByUid } from '@/lib/users';
 
 /**

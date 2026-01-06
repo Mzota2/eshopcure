@@ -10,7 +10,7 @@ import { useApp } from '@/contexts/AppContext';
 import { usePromotions, useDeletePromotion } from '@/hooks';
 import { PromotionStatus, DiscountType } from '@/types/promotion';
 import { Button, Loading, useToast, useConfirmDialog, ConfirmDialog } from '@/components/ui';
-import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
+import { getUserFriendlyMessage, ERROR_MESSAGES} from '@/lib/utils/user-messages';
 import { Plus, Edit, Trash2, Percent, Search } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDate, formatCurrency } from '@/lib/utils/formatting';
@@ -134,7 +134,7 @@ export default function AdminPromotionsPage() {
           <button
             onClick={() => setSelectedStatus('all')}
             className={cn(
-              'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+              'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
               selectedStatus === 'all'
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -145,7 +145,7 @@ export default function AdminPromotionsPage() {
           <button
             onClick={() => setSelectedStatus(PromotionStatus.ACTIVE)}
             className={cn(
-              'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+              'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
               selectedStatus === PromotionStatus.ACTIVE
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -156,7 +156,7 @@ export default function AdminPromotionsPage() {
           <button
             onClick={() => setSelectedStatus(PromotionStatus.INACTIVE)}
             className={cn(
-              'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+              'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
               selectedStatus === PromotionStatus.INACTIVE
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -167,7 +167,7 @@ export default function AdminPromotionsPage() {
           <button
             onClick={() => setSelectedStatus(PromotionStatus.EXPIRED)}
             className={cn(
-              'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+              'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
               selectedStatus === PromotionStatus.EXPIRED
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
@@ -270,7 +270,7 @@ export default function AdminPromotionsPage() {
                   <p className="text-sm text-text-secondary line-clamp-2">{promotion.description}</p>
                 )}
               </div>
-              <span className={cn('px-2 py-1 rounded-full text-xs font-medium ml-2 flex-shrink-0', getStatusColor(promotion.status))}>
+              <span className={cn('px-2 py-1 rounded-full text-xs font-medium ml-2 shrink-0', getStatusColor(promotion.status))}>
                 {promotion.status}
               </span>
             </div>

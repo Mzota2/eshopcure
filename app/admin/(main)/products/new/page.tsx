@@ -13,9 +13,9 @@ import { Button, Input, Textarea, Loading } from '@/components/ui';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { Upload, X, Plus } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
+import {IMAGE_VARIANTS } from '@/lib/images/variants';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 
 export default function NewProductPage() {

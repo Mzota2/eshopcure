@@ -7,7 +7,6 @@ import {
   doc, 
   updateDoc, 
   getDoc, 
-  setDoc, 
   serverTimestamp, 
   collection, 
   addDoc, 
@@ -18,7 +17,7 @@ import {
 import { COLLECTIONS } from '@/types/collections';
 import { OrderStatus } from '@/types/order';
 import { BookingStatus } from '@/types/booking';
-import { LedgerEntryType, LedgerEntryStatus } from '@/types/ledger';
+import { LedgerEntryType } from '@/types/ledger';
 import { PaymentSessionStatus, PaymentMethod } from '@/types/payment';
 import { createLedgerEntry } from '@/lib/ledger/create';
 import { shouldCreatePaymentDocument } from '@/lib/payments/utils';

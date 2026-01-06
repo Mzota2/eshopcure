@@ -9,27 +9,29 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/contexts/AppContext';
 import { useCreatePromotion, useProducts, useServices } from '@/hooks';
 import { Promotion, PromotionStatus, DiscountType } from '@/types/promotion';
+import { Item } from '@/types/item';
 import { Button, Input, Textarea, Loading } from '@/components/ui';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { X, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
-import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
+import { IMAGE_VARIANTS } from '@/lib/images/variants';
 
 export default function NewPromotionPage() {
   const router = useRouter();
   const { currentBusiness } = useApp();
   const createPromotion = useCreatePromotion();
-  const { data: products = [] } = useProducts({
+  const { data: productsData } = useProducts({
     businessId: currentBusiness?.id,
     enabled: !!currentBusiness?.id,
   });
-  const { data: services = [] } = useServices({
+  const { data: servicesData } = useServices({
     businessId: currentBusiness?.id,
     enabled: !!currentBusiness?.id,
   });
+  const products = (productsData ?? []) as Item[];
+  const services = (servicesData ?? []) as Item[];
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -175,7 +177,7 @@ export default function NewPromotionPage() {
     }
   };
 
-  if (createPromotion.isPending || isSubmitting) {
+  if (createPromotion.status === 'pending' || isSubmitting) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loading size="lg" />
@@ -188,7 +190,7 @@ export default function NewPromotionPage() {
       <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
         <Link
           href="/admin/promotions"
-          className="p-1.5 sm:p-2 text-text-secondary hover:text-foreground transition-colors flex-shrink-0"
+          className="p-1.5 sm:p-2 text-text-secondary hover:text-foreground transition-colors shrink-0"
         >
           <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
         </Link>

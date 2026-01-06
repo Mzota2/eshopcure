@@ -7,17 +7,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useCategory, useUpdateCategory } from '@/hooks';
-import { Category } from '@/types/category';
 import { Button, Input, Textarea, Loading } from '@/components/ui';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { X, Smile } from 'lucide-react';
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { Smile } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
-import { getOptimizedImageUrl } from '@/lib/cloudinary/utils';
-import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
 
 export default function EditCategoryPage() {
   const router = useRouter();

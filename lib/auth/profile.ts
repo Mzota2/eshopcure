@@ -154,45 +154,45 @@ export const updateUserPhone = async (
  * Note: This should be done server-side with Firebase Admin SDK for security
  * This function marks the account as inactive in Firestore
  */
-export const deleteAccount = async (
-  password: string,
-  user?: FirebaseUser
-): Promise<void> => {
-  const currentUser = user || auth.currentUser;
+// export const deleteAccount = async (
+//   password: string,
+//   user?: FirebaseUser
+// ): Promise<void> => {
+//   const currentUser = user || auth.currentUser;
   
-  if (!currentUser || !currentUser.email) {
-    throw new AuthenticationError('No user signed in');
-  }
+//   if (!currentUser || !currentUser.email) {
+//     throw new AuthenticationError('No user signed in');
+//   }
 
-  try {
-    // Reauthenticate
-    const { reauthenticateWithCredential, EmailAuthProvider } = await import('firebase/auth');
-    const credential = EmailAuthProvider.credential(currentUser.email, password);
-    await reauthenticateWithCredential(currentUser, credential);
+//   try {
+//     // Reauthenticate
+//     const { reauthenticateWithCredential, EmailAuthProvider } = await import('firebase/auth');
+//     const credential = EmailAuthProvider.credential(currentUser.email, password);
+//     await reauthenticateWithCredential(currentUser, credential);
 
-    // Soft delete in Firestore
-    const firestoreUser = await getUserByUid(currentUser.uid);
-    if (firestoreUser?.id) {
-      await updateUser(firestoreUser.id, {
-        isActive: false,
-      });
-    }
+//     // Soft delete in Firestore
+//     const firestoreUser = await getUserByUid(currentUser.uid);
+//     if (firestoreUser?.id) {
+//       await updateUser(firestoreUser.id, {
+//         isActive: false,
+//       });
+//     }
 
-    // Note: Actual Firebase Auth user deletion should be done server-side
-    // via Firebase Admin SDK for security reasons
-  } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'code' in error) {
-      if (error.code === 'auth/wrong-password') {
-        throw new ValidationError('Incorrect password');
-      }
-      if (error.code === 'auth/requires-recent-login') {
-        throw new AuthenticationError('Please sign in again before deleting your account');
-      }
-    }
-    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
-      ? error.message
-      : 'Failed to delete account';
-    throw new ValidationError(message);
-  }
-};
+//     // Note: Actual Firebase Auth user deletion should be done server-side
+//     // via Firebase Admin SDK for security reasons
+//   } catch (error: unknown) {
+//     if (error && typeof error === 'object' && 'code' in error) {
+//       if (error.code === 'auth/wrong-password') {
+//         throw new ValidationError('Incorrect password');
+//       }
+//       if (error.code === 'auth/requires-recent-login') {
+//         throw new AuthenticationError('Please sign in again before deleting your account');
+//       }
+//     }
+//     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+//       ? error.message
+//       : 'Failed to delete account';
+//     throw new ValidationError(message);
+//   }
+// };
 

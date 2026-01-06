@@ -7,15 +7,15 @@
  */
 
 import { User } from 'firebase/auth';
-import { getUserClaims, getUserRole } from './auth';
-import { UserRole, CustomClaims } from '@/types/user';
+import { getUserRole } from './auth';
+import { UserRole} from '@/types/user';
 
 /**
  * Get user's custom claims (client-side)
  */
-export const getCustomClaims = async (user: User): Promise<CustomClaims | null> => {
-  return getUserClaims(user);
-};
+// export const getCustomClaims = async (user: User): Promise<CustomClaims | null> => {
+//   return getUserClaims(user);
+// };
 
 /**
  * Get user's role from claims

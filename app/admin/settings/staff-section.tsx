@@ -7,9 +7,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAdminsStaff, useRealtimeAdminsStaff, useUpdateAdminStaffUser } from '@/hooks';
-import { User, UserRole } from '@/types/user';
+import { UserRole } from '@/types/user';
 import { Button, Input, Modal, Loading } from '@/components/ui';
-import { Plus, Edit, Mail, User as UserIcon, Shield, UserCheck } from 'lucide-react';
+import { Plus,  Mail, User as UserIcon, Shield, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/formatting';
 
@@ -136,7 +136,7 @@ export function StaffSection({ businessId }: StaffSectionProps) {
               <div key={user.id} className="p-3 sm:p-4 hover:bg-background-secondary transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                   <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background-secondary flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-background-secondary flex items-center justify-center shrink-0">
                       {getRoleIcon(user.role)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -146,7 +146,7 @@ export function StaffSection({ businessId }: StaffSectionProps) {
                             ? `${user.firstName} ${user.lastName}` 
                             : user.firstName || user.lastName || user.displayName || user.email}
                         </h3>
-                        <span className={cn('px-2 py-0.5 sm:py-1 rounded text-xs font-medium flex items-center gap-1 flex-shrink-0', getRoleColor(user.role))}>
+                        <span className={cn('px-2 py-0.5 sm:py-1 rounded text-xs font-medium flex items-center gap-1 shrink-0', getRoleColor(user.role))}>
                           {getRoleIcon(user.role)}
                           {user.role.toUpperCase()}
                         </span>
@@ -159,7 +159,7 @@ export function StaffSection({ businessId }: StaffSectionProps) {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 sm:flex-shrink-0">
+                  <div className="flex items-center gap-2 sm:shrink-0">
                     <select
                       value={user.role}
                       onChange={(e) => user.id && handleUpdateRole(user.id, e.target.value as UserRole)}
@@ -233,7 +233,7 @@ export function StaffSection({ businessId }: StaffSectionProps) {
 
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 sm:p-4">
             <div className="flex items-start gap-2 sm:gap-3">
-              <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 flex-shrink-0" />
+              <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 shrink-0" />
               <div className="flex-1">
                 <p className="text-xs sm:text-sm font-medium text-foreground mb-1">Email Invitation</p>
                 <p className="text-xs text-text-secondary">

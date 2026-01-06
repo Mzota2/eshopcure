@@ -7,15 +7,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Loading, useToast } from '@/components/ui';
-import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
+import {SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { X, User as UserIcon, Save } from 'lucide-react';
+import {Save } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import { getUserByUid, updateUserByUid } from '@/lib/users';
 import { User } from '@/types/user';
-import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
+import { IMAGE_VARIANTS } from '@/lib/images/variants';
 
 export default function AdminProfilePage() {
   const toast = useToast();

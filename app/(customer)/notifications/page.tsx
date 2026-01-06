@@ -235,16 +235,25 @@ export default function NotificationsPage() {
                               })()
                             : 'Just now'}
                         </span>
-                        {notification.metadata && (
+                        {notification.metadata && (() => {
+                          const meta = notification.metadata as {
+                            orderNumber?: string | number;
+                            bookingNumber?: string | number;
+                          };
+                          const hasOrder = meta?.orderNumber !== undefined;
+                          const hasBooking = meta?.bookingNumber !== undefined;
+                          if (!hasOrder && !hasBooking) return null;
+                          return (
                           <div className="flex items-center gap-2 text-xs text-text-secondary flex-wrap">
-                            {notification.metadata.orderNumber && (
-                              <span className="truncate">Order #{notification.metadata.orderNumber as string}</span>
+                              {hasOrder && (
+                                <span className="truncate">Order #{String(meta.orderNumber)}</span>
                             )}
-                            {notification.metadata.bookingNumber && (
-                              <span className="truncate">Booking #{notification.metadata.bookingNumber as string}</span>
+                              {hasBooking && (
+                                <span className="truncate">Booking #{String(meta.bookingNumber)}</span>
                             )}
                           </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

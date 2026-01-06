@@ -9,7 +9,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useReviews, useRealtimeReviews, useDeleteReview, useProducts, useServices } from '@/hooks';
 import { Button, Modal, Loading, useToast, useConfirmDialog, ConfirmDialog } from '@/components/ui';
-import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
+import { getUserFriendlyMessage, ERROR_MESSAGES } from '@/lib/utils/user-messages';
 import { Star, Trash2, Eye, Search, Package, Calendar, Building2, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/formatting';
@@ -149,7 +149,7 @@ export default function AdminReviewsPage() {
           toast.showSuccess('Review deleted successfully');
         } catch (error) {
           console.error('Error deleting review:', error);
-          toast.showError(getUserFriendlyMessage(error, ERROR_MESSAGES.DELETE_FAILED));
+          toast.showError(getUserFriendlyMessage(error, ERROR_MESSAGES?.DELETE_FAILED));
         }
       },
     });

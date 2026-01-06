@@ -6,7 +6,7 @@
 
 import { db } from '@/lib/firebase/config';
 import { COLLECTIONS } from '@/types/collections';
-import { collection, getDocs, deleteDoc, query, where, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
 import { getBusinessId } from '@/lib/businesses/utils';
 import { ValidationError, AuthenticationError } from '@/lib/utils/errors';
 import { getUserRole } from '@/lib/firebase/auth';

@@ -16,7 +16,6 @@ import { formatCurrency, formatDate, formatPaymentMethod } from '@/lib/utils/for
 import Link from 'next/link';
 
 export default function AdminPaymentsPage() {
-  const { currentBusiness } = useApp();
   const [selectedStatus, setSelectedStatus] = useState<PaymentSessionStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingPayment, setViewingPayment] = useState<string | null>(null);

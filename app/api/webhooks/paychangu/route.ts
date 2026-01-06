@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { paychanguConfig, isPaychanguConfigured, getAuthHeader } from '@/lib/paychangu/config';
 import { db } from '@/lib/firebase/config';
-import { doc, updateDoc, getDoc, setDoc, serverTimestamp, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, serverTimestamp, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { COLLECTIONS } from '@/types/collections';
 import { OrderStatus } from '@/types/order';
 import { BookingStatus } from '@/types/booking';
-import { LedgerEntryType, LedgerEntryStatus } from '@/types/ledger';
+import { LedgerEntryType } from '@/types/ledger';
 import { PaymentSessionStatus, PaymentMethod } from '@/types/payment';
 import { createHmac } from 'crypto';
 import { createLedgerEntry } from '@/lib/ledger/create';
@@ -408,7 +408,7 @@ async function handlePaymentSuccess(data: WebhookPaymentData, source: string = '
     }
     
     console.log(`[${source.toUpperCase()}] Processing payment (ledger does not exist yet):`, {
-      txRef,
+      txRef: tx_ref,
       orderId: finalOrderId,
       bookingId: finalBookingId,
       transactionId
@@ -471,8 +471,8 @@ async function handlePaymentSuccess(data: WebhookPaymentData, source: string = '
     try {
       const ledgerEntryId = await createLedgerEntry({
         entryType: LedgerEntryType.ORDER_SALE,
-        amount,
-        currency,
+        amount: amount || 0,
+        currency: currency || 'MWK',
         orderId: finalOrderId,
         paymentId: transactionId,
         description: `Order payment: ${finalOrderId}`,
@@ -538,8 +538,8 @@ async function handlePaymentSuccess(data: WebhookPaymentData, source: string = '
     try {
       const ledgerEntryId = await createLedgerEntry({
         entryType: LedgerEntryType.BOOKING_PAYMENT,
-        amount,
-        currency,
+        amount :amount || 0,
+        currency: currency || 'MWK',
         bookingId: finalBookingId,
         paymentId: transactionId,
         description: `Booking payment: ${finalBookingId}`,

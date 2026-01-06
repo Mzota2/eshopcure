@@ -5,7 +5,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase/config';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { COLLECTIONS } from '@/types/collections';
 import { notifyCustomerSupportMessage } from '@/lib/notifications';
 
 export async function POST(request: NextRequest) {

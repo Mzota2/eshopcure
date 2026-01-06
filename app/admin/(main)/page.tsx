@@ -24,7 +24,7 @@ import {
 import { Loading } from '@/components/ui';
 import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
-import { calculateRevenueMetrics, calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
+import { calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
 import { Timestamp } from 'firebase/firestore';
 
 // Helper to convert date safely
@@ -47,7 +47,6 @@ import {
   Settings,
   FileText,
   Calendar,
-  Users,
   AlertTriangle,
   HelpCircle,
 } from 'lucide-react';
@@ -58,9 +57,6 @@ import {
   Bar,
   AreaChart,
   Area,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -75,7 +71,7 @@ import { StoreTypeSelector } from '@/components/admin/StoreTypeSelector';
 import { StoreTypeBanner } from '@/components/admin/StoreTypeBanner';
 import { getStoreTypeLabel, getStoreTypeBadgeColor } from '@/lib/store-type/utils';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+// const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 // Revenue-generating statuses (all statuses that represent confirmed payment)
 const ORDER_REVENUE_STATUSES = [
@@ -485,14 +481,14 @@ export default function AdminDashboardPage() {
   }, [orders, bookings, dateRange]);
 
   // Order status distribution
-  const orderStatusData = useMemo(() => {
-    const statusCounts: Record<string, number> = {};
-    orders.forEach((order) => {
-      const status = order.status || 'unknown';
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
-    });
-    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
-  }, [orders]);
+  // const orderStatusData = useMemo(() => {
+  //   const statusCounts: Record<string, number> = {};
+  //   orders.forEach((order) => {
+  //     const status = order.status || 'unknown';
+  //     statusCounts[status] = (statusCounts[status] || 0) + 1;
+  //   });
+  //   return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+  // }, [orders]);
 
   // Show store type selector if not set
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -557,19 +553,19 @@ export default function AdminDashboardPage() {
       <div className="overflow-x-auto mb-6 sm:mb-8 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="flex gap-3 sm:gap-4 md:gap-6 min-w-max">
         {/* Today's Orders */}
-        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
             <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Today&apos;s Orders</h3>
-            <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
+            <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-primary shrink-0" />
           </div>
           <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
             {metrics?.todayOrders || 0}
           </p>
           <div className="flex items-center gap-1 min-w-0">
             {metrics && metrics.todayOrders > 0 ? (
-              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success flex-shrink-0" />
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success shrink-0" />
             ) : (
-              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-secondary flex-shrink-0" />
+              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-secondary shrink-0" />
             )}
             <p className="text-xs sm:text-sm text-text-secondary">
               {metrics?.monthOrders || 0} this month
@@ -578,19 +574,19 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Total Revenue (Net) */}
-        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[240px]">
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[240px]">
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
             <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Net Revenue</h3>
-            <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
+            <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-primary shrink-0" />
           </div>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
             {formatCurrency(metrics?.totalRevenue || 0, 'MWK')}
           </p>
           <div className="flex items-center gap-1 min-w-0">
             {metrics && metrics.revenueGrowth >= 0 ? (
-              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success flex-shrink-0" />
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success shrink-0" />
             ) : (
-              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-destructive flex-shrink-0" />
+              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-destructive shrink-0" />
             )}
             <p className={cn('text-xs sm:text-sm', metrics && metrics.revenueGrowth >= 0 ? 'text-success' : 'text-destructive')}>
               {metrics && metrics.revenueGrowth >= 0 ? '+' : ''}
@@ -605,10 +601,10 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Transaction Fees (Costs) */}
-        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[240px]">
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[240px]">
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
             <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Transaction Fees</h3>
-            <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6 text-destructive flex-shrink-0" />
+            <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6 text-destructive shrink-0" />
           </div>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-destructive mb-1.5 sm:mb-2 whitespace-nowrap">
             {formatCurrency(metrics?.transactionFees || 0, 'MWK')}
@@ -621,27 +617,27 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Low Stock Items */}
-        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
             <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Low Stock Items</h3>
-            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-warning flex-shrink-0" />
+            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-warning shrink-0" />
           </div>
           <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
             {metrics?.lowStockProducts || 0}
           </p>
           {metrics && metrics.lowStockProducts > 0 && (
             <div className="flex items-center gap-1 min-w-0">
-              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warning flex-shrink-0" />
+              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warning shrink-0" />
               <p className="text-xs sm:text-sm text-warning">Action required</p>
             </div>
           )}
         </div>
 
         {/* Pending Bookings */}
-        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border flex-shrink-0 min-w-[200px] sm:min-w-[220px]">
+        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
             <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Pending Bookings</h3>
-            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-info flex-shrink-0" />
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-info shrink-0" />
           </div>
           <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
             {metrics?.pendingBookings || 0}
@@ -673,7 +669,7 @@ export default function AdminDashboardPage() {
                 className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
               >
                 <span className="text-sm sm:text-base text-foreground">Manage Products</span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted shrink-0" />
               </Link>
             )}
             {hasServices && (
@@ -682,7 +678,7 @@ export default function AdminDashboardPage() {
                 className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
               >
                 <span className="text-sm sm:text-base text-foreground">Manage Services</span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted shrink-0" />
               </Link>
             )}
             {hasProducts && (
@@ -691,7 +687,7 @@ export default function AdminDashboardPage() {
                 className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
               >
                 <span className="text-sm sm:text-base text-foreground">View All Orders</span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted shrink-0" />
               </Link>
             )}
             {hasServices && (
@@ -700,7 +696,7 @@ export default function AdminDashboardPage() {
                 className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
               >
                 <span className="text-sm sm:text-base text-foreground">View All Bookings</span>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted shrink-0" />
               </Link>
             )}
             <Link
@@ -708,21 +704,21 @@ export default function AdminDashboardPage() {
               className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
             >
               <span className="text-sm sm:text-base text-foreground">Configure Settings</span>
-              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted shrink-0" />
             </Link>
             <Link
               href="/admin/ledger"
               className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
             >
               <span className="text-sm sm:text-base text-foreground">Access Ledger</span>
-              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted shrink-0" />
             </Link>
             <Link
               href="/admin/analytics"
               className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-background-secondary hover:bg-background-tertiary rounded-lg transition-colors text-left"
             >
               <span className="text-sm sm:text-base text-foreground">View Analytics</span>
-              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted flex-shrink-0" />
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-text-muted shrink-0" />
             </Link>
           </div>
         </div>

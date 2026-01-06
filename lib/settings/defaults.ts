@@ -172,7 +172,7 @@ export const mergeSettingsWithDefaults = (existing: Partial<Settings>): Settings
       ...defaults.notifications, 
       ...existing.notifications,
       channels: { 
-        ...defaults.notifications.channels, 
+        ...defaults.notifications?.channels, 
         ...existing.notifications?.channels 
       },
     },
