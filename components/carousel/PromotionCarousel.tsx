@@ -322,7 +322,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                             <p className="text-xs sm:text-sm font-semibold text-white mb-3 sm:mb-4 drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] text-center">
                               Featured Items ({promotionItems.length})
                             </p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
+                            <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
                               {promotionItems.slice(0, 2).map((item, index) => (
                                 <motion.div
                                   key={item.id}
@@ -369,11 +369,11 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                   animate={{ opacity: 1, scale: 1 }}
                                   transition={{ delay: 1.2, duration: 0.4 }}
                                   whileHover={{ scale: 1.05 }}
-                                  className="group"
+                                  className="group h-full w-full"
                                 >
                                 <Link
                                   href={`/promotions/${promotionSlug}`}
-                                    className="relative bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-md rounded-xl overflow-hidden border-2 border-white/30 hover:border-white/50 transition-all duration-300 shadow-xl hover:shadow-2xl aspect-square flex flex-col items-center justify-center"
+                                    className="relative bg-gradient-to-br w-full h-full from-white/20 to-white/10 backdrop-blur-md rounded-xl overflow-hidden border-2 border-white/30 hover:border-white/50 transition-all duration-300 shadow-xl hover:shadow-2xl aspect-square flex flex-col items-center justify-center"
                                 >
                                     <div className="text-center p-4">
                                       <div className="text-2xl sm:text-3xl font-bold text-white mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
@@ -652,7 +652,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                             <p className="text-sm sm:text-base lg:text-lg font-semibold text-white mb-4 sm:mb-6 drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] text-center">
                               Featured Items ({promotionItems.length})
                             </p>
-                            <div className="flex items-center justify-center gap-4 max-w-3xl mx-auto">
+                            <div className="grid grid-cols-7 gap-4 max-w-4xl mx-auto">
                               {promotionItems.slice(0, 6).map((item, index) => (
                                 <motion.div
                                   key={item.id}
@@ -665,11 +665,11 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                     stiffness: 100
                                   }}
                                   whileHover={{ scale: 1.05, y: -5 }}
-                                  className="group"
+                                  className="group w-full h-full"
                                 >
                                   <Link
                                     href={item.type === 'product' ? `/products/${item.slug}` : `/services/${item.slug}`}
-                                    className="block relative bg-white/10 rounded-lg overflow-hidden border-2 border-white/20 hover:border-white/40 transition-all duration-300 shadow-lg hover:shadow-xl"
+                                    className="block h-full w-fullrelative bg-white/10 rounded-lg overflow-hidden border-2 border-white/20 hover:border-white/40 transition-all duration-300 shadow-lg hover:shadow-xl"
                                   >
                                     <div className="relative aspect-[4/3]">
                                       <ProductImage
@@ -699,11 +699,11 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                   animate={{ opacity: 1, scale: 1 }}
                                   transition={{ delay: 1.2, duration: 0.4 }}
                                   whileHover={{ scale: 1.05 }}
-                                  className="group"
+                                  className="group w-full h-full"
                                 >
                                   <Link
                                     href={`/promotions/${promotionSlug}`}
-                                    className="relative bg-gradient-to-br from-white/20 to-white/10 rounded-lg overflow-hidden border-2 border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg hover:shadow-xl aspect-[4/3] flex flex-col items-center justify-center"
+                                    className="relative bg-gradient-to-br h-full w-full from-white/20 to-white/10 rounded-lg overflow-hidden border-2 border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg hover:shadow-xl aspect-[4/3] flex flex-col items-center justify-center"
                                   >
                                     <div className="text-center p-3 sm:p-4">
                                       <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
