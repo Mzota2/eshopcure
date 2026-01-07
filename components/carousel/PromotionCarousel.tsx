@@ -323,7 +323,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                               Featured Items ({promotionItems.length})
                             </p>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
-                              {promotionItems.slice(0, 6).map((item, index) => (
+                              {promotionItems.slice(0, 2).map((item, index) => (
                                 <motion.div
                                   key={item.id}
                                   initial={{ opacity: 0, scale: 0.8, y: 20 }}
@@ -363,7 +363,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                 </Link>
                                 </motion.div>
                               ))}
-                              {promotionItems.length > 6 && (
+                              {promotionItems.length > 2 && (
                                 <motion.div
                                   initial={{ opacity: 0, scale: 0.8 }}
                                   animate={{ opacity: 1, scale: 1 }}
@@ -377,7 +377,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                 >
                                     <div className="text-center p-4">
                                       <div className="text-2xl sm:text-3xl font-bold text-white mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                                    +{promotionItems.length - 6}
+                                    +{promotionItems.length - 2}
                                       </div>
                                       <p className="text-[10px] sm:text-xs font-semibold text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                                         More Items
