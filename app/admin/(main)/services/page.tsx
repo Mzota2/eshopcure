@@ -199,7 +199,7 @@ function AdminServicesPageContent() {
                       <h3 className="font-medium text-foreground text-sm sm:text-base truncate">{service.name}</h3>
                       <p className="text-xs sm:text-sm text-text-secondary">Duration: {duration}</p>
                       <p className="text-xs sm:text-sm font-medium text-foreground mt-0.5 sm:mt-1">
-                        ${service.pricing.basePrice} {service.pricing.currency}
+                      {service.pricing.currency || 'MWK'}{service.pricing.basePrice} 
                       </p>
                       <p className="text-xs sm:text-sm text-text-secondary">
                         Status: <span className="capitalize">{service.status}</span>

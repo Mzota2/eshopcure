@@ -167,11 +167,9 @@ export const createUser = async (input: CreateUserInput, businessId?: string): P
   
   // Automatically get businessId if not provided (for admin/staff users)
   let finalBusinessId = businessId;
-  if (!finalBusinessId && (input.role === 'admin' || input.role === 'staff')) {
-    const { getBusinessId } = await import('@/lib/businesses/utils');
-    finalBusinessId = await getBusinessId();
-  }
-  
+  const { getBusinessId } = await import('@/lib/businesses/utils');
+  finalBusinessId = await getBusinessId();
+  console.log(finalBusinessId);
   const userData: Omit<User, 'id'> = {
     ...input,
     businessId: finalBusinessId,

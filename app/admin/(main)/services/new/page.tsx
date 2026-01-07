@@ -247,7 +247,7 @@ export default function NewServicePage() {
         }
       }
 
-      router.push(`/admin/services/${serviceId}/edit`);
+      router.push(`/admin/services/`);
     } catch (error) {
       console.error('Error creating service:', error);
       setErrors({ submit: error instanceof Error ? error.message : 'Failed to create service' });

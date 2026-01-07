@@ -69,6 +69,7 @@ export default function SignUpPageClient() {
       router.push('/verify?from=signup');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
+      console.log(errorMessage);
       setError(errorMessage);
     } finally {
       setIsLoading(false);

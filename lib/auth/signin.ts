@@ -90,11 +90,14 @@ export const signIn = async (input: SignInInput): Promise<SignInResult> => {
       if (error.code === 'auth/too-many-requests') {
         throw new AuthenticationError('Too many failed attempts. Please try again later');
       }
+      if (error.code === 'auth/invalid-credential'){
+        throw new AuthenticationError("Password and email do not match")
+      }
     }
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to sign in';
-    throw new AuthenticationError(message);
+    throw new AuthenticationError('Failed to sign in');
   }
 
   const firebaseUser = userCredential.user;

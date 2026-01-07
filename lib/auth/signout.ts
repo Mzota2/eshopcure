@@ -16,7 +16,7 @@ export const signOut = async (): Promise<void> => {
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to sign out';
-    throw new AuthenticationError(message);
+    throw new AuthenticationError('Failed to sign out');
   }
 };
 

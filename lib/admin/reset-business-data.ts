@@ -131,7 +131,8 @@ export const resetBusinessData = async (): Promise<{
     return results;
   } catch (error) {
     console.error('Error resetting business data:', error);
-    throw new ValidationError(error instanceof Error ? error.message : 'Failed to reset business data');
+    const errorMessage = error instanceof Error ? error.message : 'Failed to reset business data';
+    throw new ValidationError('Failed to reset business data');
   }
 };
 

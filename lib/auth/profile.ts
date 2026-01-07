@@ -57,7 +57,7 @@ export const updateUserProfile = async (
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to update profile';
-    throw new ValidationError(message);
+    throw new ValidationError('Failed to update profile');
   }
 };
 
@@ -115,7 +115,7 @@ export const updateUserEmail = async (
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to update email';
-    throw new ValidationError(message);
+    throw new ValidationError('Failed to update email');
   }
 };
 

@@ -254,7 +254,7 @@ export default function NewProductPage() {
         }
       }
 
-      router.push(`/admin/products/${productId}/edit`);
+      router.push(`/admin/products`);
     } catch (error) {
       console.error('Error creating product:', error);
       setErrors({ submit: error instanceof Error ? error.message : 'Failed to create product' });
@@ -655,6 +655,63 @@ export default function NewProductPage() {
                 }}
               >
                 + Add Tag
+              </Button>
+            </div>
+          </div>
+
+           {/* Product Specifications */}
+           <div>
+            <h2 className="text-xl font-bold text-foreground mb-4">Product Specifications</h2>
+            <p className="text-sm text-text-secondary mb-3">
+              Add key-value pairs for product specifications (e.g., &quot;RAM: 4GB&quot;)
+            </p>
+            <div className="space-y-3">
+              {Object.entries(formData.specifications).map(([key, value], index) => (
+                <div key={index} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
+                  <Input
+                    placeholder="Key (e.g., RAM)"
+                    value={key}
+                    onChange={(e) => {
+                      const newSpecs = { ...formData.specifications };
+                      delete newSpecs[key];
+                      newSpecs[e.target.value] = value;
+                      setFormData((prev) => ({ ...prev, specifications: newSpecs }));
+                    }}
+                  />
+                  <Input
+                    placeholder="Value (e.g., 4GB)"
+                    value={value}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        specifications: { ...prev.specifications, [key]: e.target.value },
+                      }));
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const newSpecs = { ...formData.specifications };
+                      delete newSpecs[key];
+                      setFormData((prev) => ({ ...prev, specifications: newSpecs }));
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    specifications: { ...prev.specifications, ['']: '' },
+                  }));
+                }}
+              >
+                + Add Specification
               </Button>
             </div>
           </div>

@@ -389,8 +389,8 @@ export default function AdminSettingsPage() {
         refundDuration: formData.refundDuration,
         cancellationTime: formData.cancellationTime,
         returnShippingPayer: formData.returnShippingPayer,
-        googleMap: formData.googleMap || undefined,
-        mapImage: formData.mapImage || undefined,
+        googleMap: formData.googleMap || '',
+        mapImage: formData.mapImage || '',
       };
 
       if (businessId) {
@@ -416,7 +416,8 @@ export default function AdminSettingsPage() {
     } catch (error) {
       console.error('Error saving business:', error);
       console.error('Error details:', error instanceof Error ? error.stack : error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to save business' });
+      //submit: error instanceof Error ? error.message : 'Failed to save business'
+      setErrors({submit:'Failed to save business' });
     } finally {
       setIsSubmitting(false);
     }

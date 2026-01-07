@@ -38,7 +38,7 @@ export const sendPasswordReset = async (email: string): Promise<void> => {
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to send password reset email';
-    throw new ValidationError(message);
+    throw new ValidationError('Failed to send password reset email');
   }
 };
 
@@ -72,7 +72,7 @@ export const resetPassword = async (oobCode: string, newPassword: string): Promi
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to reset password';
-    throw new ValidationError(message);
+    throw new ValidationError('Failed to reset password');
   }
 };
 
@@ -119,7 +119,7 @@ export const changePassword = async (
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to change password';
-    throw new ValidationError(message);
+    throw new ValidationError('Failed to change password');
   }
 };
 

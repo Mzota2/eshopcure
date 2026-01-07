@@ -17,26 +17,26 @@ type ImageVariantDefinition = {
 export const IMAGE_VARIANTS: Record<ImageVariantKey, ImageVariantDefinition> = {
   category: {
     label: 'Category image',
-    minWidth: 800,
-    minHeight: 800,
+    minWidth: 250,
+    minHeight: 250,
     aspectRatio: 'square',
   },
   productGallery: {
     label: 'Product image',
-    minWidth: 800,
-    minHeight: 800,
+    minWidth: 400,
+    minHeight: 400,
     aspectRatio: 'square',
   },
   serviceGallery: {
     label: 'Service image',
-    minWidth: 800,
-    minHeight: 800,
+    minWidth: 400,
+    minHeight: 400,
     aspectRatio: 'square',
   },
   businessLogo: {
     label: 'Logo image',
-    minWidth: 300,
-    minHeight: 300,
+    minWidth: 250,
+    minHeight: 250,
     aspectRatio: 'square',
   },
   businessBanner: {
@@ -53,8 +53,8 @@ export const IMAGE_VARIANTS: Record<ImageVariantKey, ImageVariantDefinition> = {
   },
   adminProfile: {
     label: 'Profile image',
-    minWidth: 400,
-    minHeight: 400,
+    minWidth: 250,
+    minHeight: 250,
     aspectRatio: 'square',
   },
 };

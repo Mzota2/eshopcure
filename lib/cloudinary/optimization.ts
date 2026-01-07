@@ -25,7 +25,7 @@ export const IMAGE_SIZES = {
   thumbnail: { width: 100, height: 100 },
   
   // Small - for category cards, small product cards
-  small: { width: 300, height: 300 },
+  small: { width: 250, height: 250 },
   
   // Medium - for product listings, category grids
   medium: { width: 400, height: 400 },
@@ -40,7 +40,7 @@ export const IMAGE_SIZES = {
   banner: { width: 1200, height: 600 },
   
   // Square variants (for consistent aspect ratios)
-  squareSmall: { width: 300, height: 300 },
+  squareSmall: { width: 250, height: 250 },
   squareMedium: { width: 400, height: 400 },
   squareLarge: { width: 600, height: 600 },
   

@@ -12,7 +12,6 @@ import { getUserByUid, updateUserByUid } from '@/lib/users';
 import { UserRole, User } from '@/types/user';
 import { AuthenticationError } from '@/lib/utils/errors';
 import { extractNameFromDisplayName } from '@/lib/utils/nameExtraction';
-
 export type SocialProvider = 'google' | 'facebook' | 'twitter' | 'apple';
 
 /**
@@ -43,7 +42,8 @@ export const signInWithGoogle = async (): Promise<{ firebaseUser: FirebaseUser; 
         photoURL: firebaseUser.photoURL || undefined,
         emailVerified: true,
         role: UserRole.CUSTOMER,
-      });
+        
+      }, );
       const createdUser = await getUserByUid(firebaseUser.uid);
       
       if (!createdUser) {
@@ -85,7 +85,7 @@ export const signInWithGoogle = async (): Promise<{ firebaseUser: FirebaseUser; 
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to sign in with Google';
-    throw new AuthenticationError(message);
+    throw new AuthenticationError('Failed to sign in with Google');
   }
 };
 

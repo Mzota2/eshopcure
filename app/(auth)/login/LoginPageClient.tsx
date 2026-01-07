@@ -30,22 +30,22 @@ export default function LoginPageClient() {
   const [checkingRateLimit, setCheckingRateLimit] = useState(false);
 
   // Redirect if already logged in
-  useEffect(() => {
-    if (user && !isLoading) {
-      if (fromAdmin) {
-        // If coming from admin, check role
-        if (userRole === UserRole.ADMIN || userRole === UserRole.STAFF) {
-          router.push('/admin');
-        }
-        // If not admin/staff, stay on login page (error will be shown)
-      } else if (returnUrl && isValidReturnUrl(returnUrl)) {
-        // Redirect to the returnUrl if valid
-        router.push(returnUrl);
-      } else {
-        router.push('/');
-      }
-    }
-  }, [user, userRole, fromAdmin, returnUrl, router, isLoading]);
+  // useEffect(() => {
+  //   if (user && !isLoading) {
+  //     if (fromAdmin) {
+  //       // If coming from admin, check role
+  //       if (userRole === UserRole.ADMIN || userRole === UserRole.STAFF) {
+  //         router.push('/admin');
+  //       }
+  //       // If not admin/staff, stay on login page (error will be shown)
+  //     } else if (returnUrl && isValidReturnUrl(returnUrl)) {
+  //       // Redirect to the returnUrl if valid
+  //       router.push(returnUrl);
+  //     } else {
+  //       router.push('/');
+  //     }
+  //   }
+  // }, [user, userRole, fromAdmin, returnUrl, router, isLoading]);
 
   // Check rate limit when email changes
   useEffect(() => {
@@ -125,7 +125,6 @@ export default function LoginPageClient() {
       
       // After sign in, check if email is verified
       const currentUser = auth.currentUser;
-      console.log(currentUser);
       if (currentUser && !currentUser.emailVerified) {
         // Email not verified - send verification email and redirect to verify page
         try {
@@ -172,7 +171,7 @@ export default function LoginPageClient() {
         router.push('/');
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with Google.';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign up with Google.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);

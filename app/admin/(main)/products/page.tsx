@@ -198,7 +198,7 @@ export default function AdminProductsPage() {
                         <p className="text-xs sm:text-sm text-text-secondary truncate">SKU: {product.sku}</p>
                       )}
                       <p className="text-xs sm:text-sm font-medium text-foreground mt-0.5 sm:mt-1">
-                        ${product.pricing.basePrice} {product.pricing.currency}
+                      {product.pricing.currency || 'MWK'}{product.pricing.basePrice} 
                       </p>
                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
                         <p className="text-xs sm:text-sm text-text-secondary">

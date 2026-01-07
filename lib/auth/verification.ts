@@ -75,7 +75,7 @@ export const sendVerificationEmail = async (user?: FirebaseUser): Promise<void> 
     if (authError.code === 'auth/too-many-requests') {
       throw new ValidationError('Too many verification emails sent. Please wait before requesting another.');
     }
-    throw new ValidationError(authError.message || 'Failed to send verification email');
+    throw new ValidationError('Failed to send verification email');
   }
 };
 

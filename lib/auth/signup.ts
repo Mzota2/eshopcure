@@ -69,7 +69,7 @@ export const signUp = async (input: SignUpInput): Promise<SignUpResult> => {
     const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
       ? error.message
       : 'Failed to create account';
-    throw new ValidationError(message);
+    throw new ValidationError('Failed to create account');
   }
 
   const firebaseUser = userCredential.user;
