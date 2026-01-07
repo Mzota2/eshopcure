@@ -7,8 +7,25 @@ import { AppProvider } from "@/contexts/AppContext";
 import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
-  title: "E-Commerce Store",
+  title: "eShopCure",
   description: "Your trusted online shopping destination for quality products and services",
+  openGraph: {
+    images: [
+      {
+        url: 'https://eshopcure.vercel.app/logo.png', // Must be an absolute URL
+        width: 1200,
+        height: 630,
+        alt: 'eShopCure',
+      },
+    ],
+  },
+  // Also add Twitter-specific tags for better control on X (Twitter)
+  twitter: {
+    card: 'summary_large_image', // Use summary_large_image for a prominent image
+    title: 'eShopCure',
+    description: 'Your trusted online shopping destination for quality products and services',
+    images: ['https://eshopcure.vercel.app/logo.png'], // Must be an absolute URL
+  },
 };
 
 export default function RootLayout({
