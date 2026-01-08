@@ -1,23 +1,22 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import { ChevronDown, AlertCircle } from 'lucide-react';
 import { Policy, PolicyType } from '@/types/policy';
 import { COLLECTIONS } from '@/types/collections';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Loading } from '@/components/ui/Loading';
 import { useBusinesses, useProducts } from '@/hooks';
 import { business } from '@/types/business';
 import { ItemStatus, isProduct } from '@/types/item';
-import { formatCurrency } from '@/lib/utils/formatting';
-import { PolicyLinksSection } from '@/components/policies/PolicyLinksSection';
+import { formatCurrency, formatDate } from '@/lib/utils/formatting';
+import Link from 'next/link';
 
-export default function ReturnsPageClient() {
+export default function RefundPageClient() {
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['introduction']));
   
   // Fetch business data
   const { data: businesses = [], isLoading: businessLoading } = useBusinesses({ limit: 1 });
@@ -91,13 +90,12 @@ export default function ReturnsPageClient() {
   const returnShippingPayer = business?.returnShippingPayer || 'customer';
 
   const sections = [
-    { id: 'overview', title: 'OVERVIEW' },
-    { id: 'eligibility', title: 'ELIGIBILITY FOR RETURNS' },
+    { id: 'introduction', title: 'INTRODUCTION' },
     { id: 'returnPolicy', title: 'RETURN POLICY' },
-    { id: 'refundProcess', title: 'REFUND PROCESS' },
+    { id: 'refundPolicy', title: 'REFUND POLICY' },
+    { id: 'cancellationPolicy', title: 'CANCELLATION POLICY' },
     { id: 'returnableProducts', title: 'RETURNABLE PRODUCTS' },
-    { id: 'nonReturnable', title: 'NON-RETURNABLE ITEMS' },
-    { id: 'serviceBookings', title: 'SERVICE BOOKINGS / CANCELLATION POLICY' },
+    { id: 'nonReturnableProducts', title: 'NON-RETURNABLE PRODUCTS' },
     { id: 'returnShipping', title: 'RETURN SHIPPING' },
     { id: 'contact', title: 'CONTACT INFORMATION' },
   ];
@@ -105,16 +103,10 @@ export default function ReturnsPageClient() {
   return (
     <div className="min-h-screen bg-background-secondary py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">RETURNS & REFUND POLICY</h1>
-        {policy ? (
-          <p className="text-sm text-text-secondary mb-8">
-            Last Updated: {new Date(policy.updatedAt as Date | string).toLocaleDateString()}
-          </p>
-        ) : (
-          <p className="text-sm text-text-secondary mb-8">
-            Last Updated: [Auto-generated per business]
-          </p>
-        )}
+        <h1 className="text-3xl font-bold text-foreground mb-2">REFUND & RETURN POLICY</h1>
+        <p className="text-sm text-text-secondary mb-8">
+          Last Updated: {formatDate((business?.updatedAt as Timestamp).toDate())}
+        </p>
 
         <div className="bg-card rounded-lg shadow-sm divide-y divide-border">
           {sections.map((section) => (
@@ -136,28 +128,17 @@ export default function ReturnsPageClient() {
                     <div dangerouslySetInnerHTML={{ __html: policy.content }} />
                   ) : (
                     <div className="prose prose-sm max-w-none">
-                      {section.id === 'overview' && (
+                      {section.id === 'introduction' && (
                         <div>
                           <p className="mb-4">
-                            This Returns & Refund Policy applies to purchases made from {businessName}.
+                            Welcome to {businessName}. This Refund & Return Policy explains our policies regarding returns, refunds, and cancellations.
                           </p>
                           <p>
                             We want you to be completely satisfied with your purchase. Please read this policy carefully to understand your rights and our procedures.
                           </p>
                         </div>
                       )}
-                      {section.id === 'eligibility' && (
-                        <div>
-                          <p className="mb-2">Conditions for accepted returns:</p>
-                          <ul className="list-disc list-inside space-y-2 ml-4">
-                            <li>The product is defective, damaged, or incorrect</li>
-                            <li>The return request is made within <strong>{returnDuration} days</strong> from the date of purchase</li>
-                            <li>The product is unused and in original packaging (where applicable)</li>
-                            <li>Include proof of purchase (order confirmation or receipt)</li>
-                            <li>Be a returnable product (see Returnable Products section below)</li>
-                          </ul>
-                        </div>
-                      )}
+                      
                       {section.id === 'returnPolicy' && (
                         <div className="space-y-4">
                           <p>
@@ -175,7 +156,8 @@ export default function ReturnsPageClient() {
                           </p>
                         </div>
                       )}
-                      {section.id === 'refundProcess' && (
+                      
+                      {section.id === 'refundPolicy' && (
                         <div className="space-y-4">
                           <p>
                             Once we receive and inspect your returned item, we will process your refund within <strong>{refundDuration} business days</strong>.
@@ -189,6 +171,24 @@ export default function ReturnsPageClient() {
                           </ul>
                         </div>
                       )}
+                      
+                      {section.id === 'cancellationPolicy' && (
+                        <div className="space-y-4">
+                          <p>
+                            For service bookings, you may cancel your booking up to <strong>{cancellationTime} hours</strong> before the scheduled service time to receive a full refund.
+                          </p>
+                          <p>Cancellation policies:</p>
+                          <ul className="list-disc list-inside space-y-2 ml-4">
+                            <li>Cancellations made more than {cancellationTime} hours in advance: Full refund</li>
+                            <li>Cancellations made less than {cancellationTime} hours in advance: No refund (unless under exceptional circumstances)</li>
+                            <li>No-show appointments: No refund</li>
+                          </ul>
+                          <p className="mt-4">
+                            To cancel a booking, please contact us using the contact information provided below or through your account profile when the booking is selected.
+                          </p>
+                        </div>
+                      )}
+                      
                       {section.id === 'returnableProducts' && (
                         <div className="space-y-4">
                           <p>The following products are eligible for return:</p>
@@ -221,11 +221,12 @@ export default function ReturnsPageClient() {
                             <p className="text-text-secondary">No returnable products are currently listed.</p>
                           )}
                           <p className="text-sm text-text-secondary">
-                            All returnable products are subject to our standard return conditions (see Eligibility for Returns section above).
+                            All returnable products are subject to our standard return conditions (see Return Policy section above).
                           </p>
                         </div>
                       )}
-                      {section.id === 'nonReturnable' && (
+                      
+                      {section.id === 'nonReturnableProducts' && (
                         <div className="space-y-4">
                           <div className="bg-warning/20 border border-warning/50 rounded-lg p-4 flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
@@ -264,22 +265,7 @@ export default function ReturnsPageClient() {
                           )}
                         </div>
                       )}
-                      {section.id === 'serviceBookings' && (
-                        <div className="space-y-4">
-                          <p>
-                            For service bookings, you may cancel your booking up to <strong>{cancellationTime} hours</strong> before the scheduled service time to receive a full refund.
-                          </p>
-                          <p>Cancellation policies:</p>
-                          <ul className="list-disc list-inside space-y-2 ml-4">
-                            <li>Cancellations made more than {cancellationTime} hours in advance: Full refund</li>
-                            <li>Cancellations made less than {cancellationTime} hours in advance: No refund (unless under exceptional circumstances)</li>
-                            <li>No-show appointments: No refund</li>
-                          </ul>
-                          <p className="mt-4">
-                            To cancel a booking, please contact us using the contact information provided below or through your account profile when the booking is selected.
-                          </p>
-                        </div>
-                      )}
+                      
                       {section.id === 'returnShipping' && (
                         <div className="space-y-4">
                           <p>
@@ -300,6 +286,7 @@ export default function ReturnsPageClient() {
                           </p>
                         </div>
                       )}
+                      
                       {section.id === 'contact' && (
                         <div className="space-y-4">
                           <p>
@@ -326,9 +313,6 @@ export default function ReturnsPageClient() {
             </div>
           ))}
         </div>
-
-        {/* Other Policies Section */}
-        <PolicyLinksSection currentPath="/returns" />
       </div>
     </div>
   );

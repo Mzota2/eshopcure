@@ -14,6 +14,7 @@ import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { Smile } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function EditCategoryPage() {
   const router = useRouter();
@@ -208,7 +209,8 @@ export default function EditCategoryPage() {
       router.push('/admin/categories');
     } catch (error) {
       console.error('Error updating category:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to update category' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update category';
+      setErrors({ submit: getUserFriendlyMessage(errorMessage, 'Failed to update category') });
     } finally {
       setIsSubmitting(false);
     }

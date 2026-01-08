@@ -11,6 +11,7 @@ import { Category } from '@/types/category';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
 import { ImageUploadWithCrop } from './ImageUploadWithCrop';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 interface CategoryFormModalProps {
   isOpen: boolean;
@@ -168,7 +169,8 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Error submitting category:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to save category' });
+      const errorMessage = getUserFriendlyMessage(error instanceof Error ? error.message : 'Failed to save category');
+      setErrors({ submit: errorMessage });
     }
   };
 

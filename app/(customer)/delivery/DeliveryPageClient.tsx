@@ -5,13 +5,14 @@ import { ChevronDown } from 'lucide-react';
 import { Policy, PolicyType } from '@/types/policy';
 import { PolicyLinksSection } from '@/components/policies/PolicyLinksSection';
 import { COLLECTIONS } from '@/types/collections';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Loading } from '@/components/ui/Loading';
 import { useBusinesses } from '@/hooks';
 import { useDeliveryProviders } from '@/hooks/useDeliveryProviders';
 import { business, OpeningHours } from '@/types/business';
 import { DeliveryProvider } from '@/types/delivery';
+import { formatDate } from '@/lib/utils/formatting';
 
 export default function DeliveryPageClient() {
   const [policy, setPolicy] = useState<Policy | null>(null);
@@ -135,15 +136,9 @@ export default function DeliveryPageClient() {
     <div className="min-h-screen bg-background-secondary py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">DELIVERY POLICY</h1>
-        {policy ? (
-          <p className="text-sm text-text-secondary mb-8">
-            Last Updated: {new Date(policy.updatedAt as Date | string).toLocaleDateString()}
-          </p>
-        ) : (
-          <p className="text-sm text-text-secondary mb-8">
-            Last Updated: [Auto-generated per business]
-          </p>
-        )}
+        <p className="text-sm text-text-secondary mb-8">
+          Last Updated: {formatDate((business?.updatedAt as Timestamp).toDate())}
+        </p>
 
         <div className="bg-card rounded-lg shadow-sm divide-y divide-border">
           {sections.map((section) => (

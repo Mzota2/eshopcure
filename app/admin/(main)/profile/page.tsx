@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Loading, useToast } from '@/components/ui';
-import {SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
+import {getUserFriendlyMessage, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
 import { uploadImage } from '@/lib/cloudinary/utils';
 import { isCloudinaryConfigured } from '@/lib/cloudinary/config';
 import {Save } from 'lucide-react';
@@ -155,8 +155,9 @@ export default function AdminProfilePage() {
       toast.showSuccess(SUCCESS_MESSAGES.PROFILE_UPDATED);
     } catch (error) {
       console.error('Error updating profile:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
       setErrors({
-        general: error instanceof Error ? error.message : 'Failed to update profile',
+        general: getUserFriendlyMessage(errorMessage, 'Failed to update profile. Please try again.'),
       });
     } finally {
       setSubmitting(false);

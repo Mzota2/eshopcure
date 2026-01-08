@@ -17,6 +17,7 @@ import { X, Plus } from 'lucide-react';
 import Link from 'next/link';
 import {IMAGE_VARIANTS } from '@/lib/images/variants';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
+import { ERROR_MESSAGES, getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -257,7 +258,8 @@ export default function NewProductPage() {
       router.push(`/admin/products`);
     } catch (error) {
       console.error('Error creating product:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to create product' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create product';
+      setErrors({ submit: getUserFriendlyMessage(errorMessage, 'Failed to create product. Please try again.') });
     } finally {
       setIsSubmitting(false);
       setIsUploadingImage(false);

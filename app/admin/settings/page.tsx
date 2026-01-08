@@ -26,6 +26,7 @@ import { Switch } from '@/components/ui/Switch';
 import { CreditCard, BarChart3, AlertCircle, Package, Calendar, ShoppingBag, Trash2, RotateCcw } from 'lucide-react';
 import { resetBusinessData } from '@/lib/admin/reset-business-data';
 import { useToast } from '@/components/ui';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function AdminSettingsPage() {
   const toast = useToast();
@@ -485,7 +486,8 @@ export default function AdminSettingsPage() {
       setTimeout(() => setSettingsSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving store type:', error);
-      setSettingsError(error instanceof Error ? error.message : 'Failed to save store type. Please try again.');
+      const errorMessage = getUserFriendlyMessage(error instanceof Error ? error.message :' Failed to save store type. Please try again.')
+      setSettingsError(errorMessage);
     } finally {
       setSettingsSaving(false);
     }
@@ -508,7 +510,8 @@ export default function AdminSettingsPage() {
       setTimeout(() => setSettingsSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving settings:', error);
-      setSettingsError(error instanceof Error ? error.message : 'Failed to save settings. Please try again.');
+      const errorMessage = getUserFriendlyMessage(error instanceof Error ? error.message :' Failed to save settings. Please try again.')
+      setSettingsError(errorMessage);
     } finally {
       setSettingsSaving(false);
     }
@@ -1364,6 +1367,12 @@ export default function AdminSettingsPage() {
                 {isSubmitting ? 'Saving...' : 'Save Branding'}
               </Button>
             </div>
+
+            {errors.submit && (
+              <div className="bg-destructive/10 border border-destructive rounded-lg p-3 sm:p-4">
+                <p className="text-xs sm:text-sm text-destructive">{errors.submit}</p>
+              </div>
+            )}
           </form>
         )}
 

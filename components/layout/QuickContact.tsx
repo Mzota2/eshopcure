@@ -8,12 +8,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, Mail, Phone, X } from 'lucide-react';
-
+import { useBusinesses } from '@/hooks';
 // Store contact information - can be moved to env variable or settings
 const CONTACT_INFO = {
-  whatsapp: '265981819389', // Format: country code + number (no + or spaces)
-  email: 'info@techcure.tech',
-  phone: '+265981819389', // Format: +country code + number
+  whatsapp: '', // Format: country code + number (no + or spaces)
+  email: '',
+  phone: '', // Format: +country code + number
 };
 
 interface QuickContactProps {
@@ -22,14 +22,15 @@ interface QuickContactProps {
   phoneNumber?: string;
 }
 
-export const QuickContact: React.FC<QuickContactProps> = ({
-  whatsappNumber = CONTACT_INFO.whatsapp,
-  email = CONTACT_INFO.email,
-  phoneNumber = CONTACT_INFO.phone,
-}) => {
+export const QuickContact: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { data: businesses = [], isLoading: businessLoading } = useBusinesses({ limit: 1 });
 
+  const business = businesses.length > 0 ? businesses[0] : null;
+  const phoneNumber = business?.contactInfo?.phone || '';
+  const email = business?.contactInfo?.email || '';
+  const whatsappNumber = business?.contactInfo?.phone || '';
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

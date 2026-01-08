@@ -16,6 +16,7 @@ import {ArrowLeft } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
 import {IMAGE_VARIANTS } from '@/lib/images/variants';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function EditPromotionPage() {
   const router = useRouter();
@@ -206,7 +207,8 @@ export default function EditPromotionPage() {
       router.push('/admin/promotions');
     } catch (error) {
       console.error('Error updating promotion:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to update promotion' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update promotion';
+      setErrors({ submit: getUserFriendlyMessage(errorMessage, 'Failed to update promotion. Please try again.') });
     } finally {
       setIsSubmitting(false);
     }

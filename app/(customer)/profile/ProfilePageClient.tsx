@@ -509,6 +509,17 @@ export default function ProfilePageClient() {
                         >
                           {isExpanded ? 'Hide Details' : 'View Details'}
                         </Button>
+
+                        {isExpanded && (<Button
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            router.push(`/orders/${order.id}`);
+                          }}
+                          className="w-full sm:w-auto"
+                        >
+                          View Full Details
+                        </Button>)}
                         {order.status === OrderStatus.COMPLETED && (
                           <Button variant="outline" size="sm" className="w-full sm:w-auto">
                             Reorder

@@ -12,6 +12,7 @@ import { Button, Input, Modal, Loading } from '@/components/ui';
 import { Plus,  Mail, User as UserIcon, Shield, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/formatting';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 interface StaffSectionProps {
   businessId?: string;
@@ -69,7 +70,8 @@ export function StaffSection({ businessId }: StaffSectionProps) {
       setFormData({ email: '', firstName: '', lastName: '', role: UserRole.STAFF });
     } catch (error) {
       console.error('Error inviting staff:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to send invitation' });
+      const errorMessage = getUserFriendlyMessage(error instanceof Error ? error.message : 'Failed to send invitation');
+      setErrors({ submit: errorMessage });
     } finally {
       setSendingInvite(false);
     }

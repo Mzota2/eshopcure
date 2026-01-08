@@ -6,7 +6,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Input, Textarea } from '@/components/ui';
+import { Modal, Button, Input, Textarea, useToast } from '@/components/ui';
 import { Star, AlertCircle } from 'lucide-react';
 import { useCreateReview } from '@/hooks/useReviews';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,7 @@ import { useApp } from '@/contexts/AppContext';
 import { Review } from '@/types/reviews';
 import { hasUserReviewed } from '@/lib/reviews';
 import { useSettings } from '@/hooks/useSettings';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 interface ReviewFormModalProps {
   isOpen: boolean;
@@ -50,7 +51,7 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
   const [hasExistingReview, setHasExistingReview] = useState(false);
 
   const finalBusinessId = businessId || currentBusiness?.id || '';
-
+  const toast = useToast();
   // Check if user has already reviewed when modal opens or user/item changes
   useEffect(() => {
     if (isOpen && finalBusinessId) {
@@ -95,7 +96,8 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
 
     // Prevent submission if user has already reviewed
     if (hasExistingReview) {
-      alert('You have already submitted a review for this item. Each customer can only submit one review.');
+      
+      toast.showWarning('Review Already Submitted', 'You have already submitted a review for this item. Each customer can only submit one review.');
       return;
     }
 
@@ -148,9 +150,9 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
       onSuccess?.();
       onClose();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to submit review. Please try again.';
+      const errorMessage = getUserFriendlyMessage(error instanceof Error ? error.message:'Failed to submit review. Please try again.', 'Failed to submit review. Please try again.');
       console.error('Error submitting review:', errorMessage);
-      alert(errorMessage);
+      toast.showError(errorMessage);
     }
   };
 

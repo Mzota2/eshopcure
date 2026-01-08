@@ -15,6 +15,7 @@ import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import {Smile } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function NewCategoryPage() {
   const router = useRouter();
@@ -193,7 +194,8 @@ export default function NewCategoryPage() {
       router.push('/admin/categories');
     } catch (error) {
       console.error('Error creating category:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to create category' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create category';
+      setErrors({ submit:getUserFriendlyMessage(errorMessage, 'Failed to create category') });
     } finally {
       setIsSubmitting(false);
     }

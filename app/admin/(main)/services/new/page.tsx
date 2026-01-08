@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function NewServicePage() {
   const router = useRouter();
@@ -250,7 +251,8 @@ export default function NewServicePage() {
       router.push(`/admin/services/`);
     } catch (error) {
       console.error('Error creating service:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to create service' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create service';
+      setErrors({ submit: getUserFriendlyMessage(errorMessage, 'Failed to create service. Please try again.')});
     } finally {
       setIsSubmitting(false);
       setUploadingImages(false);

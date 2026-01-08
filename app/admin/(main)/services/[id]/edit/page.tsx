@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { validateImageFileForVariant, IMAGE_VARIANTS } from '@/lib/images/variants';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function EditServicePage() {
   const router = useRouter();
@@ -265,7 +266,8 @@ export default function EditServicePage() {
       router.push('/admin/services');
     } catch (error) {
       console.error('Error updating service:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to update service' });
+      const errorMessage = getUserFriendlyMessage(error instanceof Error ? error.message : 'Failed to update service', 'Failed to update service. Please try again.');
+      setErrors({ submit: errorMessage });
     } finally {
       setIsSubmitting(false);
       setUploadingImages(false);

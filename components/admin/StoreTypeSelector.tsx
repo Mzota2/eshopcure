@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Package, Calendar, ShoppingBag, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 interface StoreTypeSelectorProps {
   onComplete?: () => void;
@@ -63,7 +64,8 @@ export const StoreTypeSelector: React.FC<StoreTypeSelectorProps> = ({ onComplete
       }
     } catch (err) {
       console.error('Error saving store type:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save store type');
+      const errorMessage = getUserFriendlyMessage(err instanceof Error ? err.message : 'Failed to save store type');
+      setError(errorMessage);
     } finally {
       setIsSaving(false);
     }

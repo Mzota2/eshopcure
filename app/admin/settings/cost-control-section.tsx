@@ -18,6 +18,7 @@ import {
   PerformanceOptions 
 } from '@/types/settings';
 import { getDefaultSettings } from '@/lib/settings/defaults';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 interface CostControlSectionProps {
   onSave?: () => void;
@@ -77,7 +78,8 @@ export const CostControlSection: React.FC<CostControlSectionProps> = ({ onSave }
       onSave?.();
     } catch (err) {
       console.error('Error saving cost control settings:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save settings');
+      const errorMessage = getUserFriendlyMessage(err instanceof Error ? err?.message : 'Error saving cost control settings');
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }

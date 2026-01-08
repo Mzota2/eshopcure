@@ -17,6 +17,7 @@ import { Upload, X } from 'lucide-react';
 import Link from 'next/link';
 import {IMAGE_VARIANTS } from '@/lib/images/variants';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -278,7 +279,8 @@ export default function EditProductPage() {
       router.push('/admin/products');
     } catch (error) {
       console.error('Error updating product:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to update product' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update product';
+      setErrors({ submit: getUserFriendlyMessage(errorMessage, 'Failed to update product. Please try again.') });
     } finally {
       setIsSubmitting(false);
       setIsUploadingImage(false);

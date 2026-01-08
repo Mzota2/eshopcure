@@ -17,6 +17,7 @@ import { ArrowLeft } from 'lucide-react';
 import { ImageUploadWithCrop } from '@/components/admin/ImageUploadWithCrop';
 import Link from 'next/link';
 import { IMAGE_VARIANTS } from '@/lib/images/variants';
+import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 export default function NewPromotionPage() {
   const router = useRouter();
@@ -171,7 +172,8 @@ export default function NewPromotionPage() {
       router.push('/admin/promotions');
     } catch (error) {
       console.error('Error creating promotion:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to create promotion' });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create promotion';
+      setErrors({ submit: getUserFriendlyMessage(errorMessage, 'Failed to create promotion. Please try again.') });
     } finally {
       setIsSubmitting(false);
     }
