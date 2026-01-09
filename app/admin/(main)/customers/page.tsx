@@ -166,6 +166,8 @@ export default function AdminCustomersPage() {
                             src={customer.photoURL}
                             alt={customer.displayName || 'Customer'}
                             className="w-10 h-10 rounded-full"
+                            width={250}
+                            height={250}
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
