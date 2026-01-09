@@ -67,8 +67,9 @@ export const createPaymentSession = async (
     
     // Prepare Paychangu API request payload
     // According to Paychangu API: tx_ref should be our transaction_id
+    //make sure amount is to 2 decimal places
     const payload = {
-      amount: input.amount,
+      amount: input.amount?.toFixed(2),
       currency: input.currency || 'MWK',
       tx_ref: transactionId, // Use transactionId as tx_ref (as per Paychangu API)
       callback_url: callbackUrl,
