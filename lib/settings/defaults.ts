@@ -60,8 +60,8 @@ export const defaultNotificationOptions: NotificationOptions = {
   bookingConfirmed: false,
   bookingCanceled: false,
   bookingReminder: false,
-  customerSupport: false,
-  adminSupport: false,
+  customerSupport: true,
+  adminSupport: true,
   systemAlert: false,
   channels: {
     inApp: true, // Always enabled
