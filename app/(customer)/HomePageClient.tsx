@@ -90,7 +90,7 @@ export default function HomePageClient() {
   const getDate = (date: Date | Timestamp | string | undefined): Date => {
     if (!date) return new Date(0);
     if (date instanceof Date) return date;
-    if (date instanceof Timestamp) return date.toDate();
+    if (date instanceof Timestamp) return date?.toDate();
     return new Date(date);
   };
 
@@ -116,7 +116,7 @@ export default function HomePageClient() {
     if (!date) return new Date(0);
     if (date instanceof Date) return date;
     if (date && typeof date === 'object' && 'toDate' in date) {
-      return (date as Timestamp).toDate();
+      return (date as Timestamp)?.toDate();
     }
     return new Date(date as string | number);
   };

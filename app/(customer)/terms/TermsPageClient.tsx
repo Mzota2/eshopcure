@@ -45,9 +45,10 @@ export default function TermsPageClient() {
   };
 
   const business = currentBusiness;
-  const businessName = business?.name || 'E-Commerce Store';
-  const businessEmail = business?.contactInfo?.email || 'info@e-commercestore.com';
-  const businessPhone = business?.contactInfo?.phone || '+1 (123) 456-7890';
+  const businessName = business?.name || 'eshopcure';
+  const businessEmail = business?.contactInfo?.email || 'info@eshopcure.tech';
+  const businessPhone = business?.contactInfo?.phone || '';
+  
 
   const sections = [
     {
@@ -131,7 +132,7 @@ export default function TermsPageClient() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">TERMS & CONDITIONS</h1>
         <p className="text-sm text-text-secondary mb-8">
-          Last Updated: {formatDate((business?.updatedAt as Timestamp).toDate())}
+          Last Updated: {business?.updatedAt ? formatDate((business.updatedAt as Timestamp).toDate()) : 'N/A'}
         </p>
 
         <div className="bg-card rounded-lg shadow-sm divide-y divide-border">

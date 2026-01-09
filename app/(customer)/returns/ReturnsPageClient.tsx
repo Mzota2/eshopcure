@@ -105,7 +105,7 @@ export default function RefundPageClient() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">REFUND & RETURN POLICY</h1>
         <p className="text-sm text-text-secondary mb-8">
-          Last Updated: {formatDate((business?.updatedAt as Timestamp).toDate())}
+        Last Updated: {formatDate((business?.updatedAt as Timestamp)?.toDate() || new Date())}
         </p>
 
         <div className="bg-card rounded-lg shadow-sm divide-y divide-border">
