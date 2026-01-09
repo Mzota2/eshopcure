@@ -55,7 +55,7 @@ export default function ContactPageClient() {
     { question: 'How do i sign up ?', answer: 'You can sign up by clicking the "Sign Up" button in the header or visiting /signup page.' },
     { question: 'What payment methods are supported?', answer: 'We support Airtel Money, TNM Mpamba, and Credit/Debit Cards (Visa, Mastercard, Amex) via Paychangu.' },
     { question: 'Where can I find billing information?', answer: 'You can find billing information in your Account Settings page under the Billing Information section.' },
-    { question: 'I need technical support, what should I do?', answer: 'Please fill out the contact form below or email us at info@e-commercestore.com for technical support.' },
+    { question: 'I need technical support, what should I do?', answer: `Please fill out the contact form below or email us at ${business?.contactInfo?.email} for technical support.` },
     { question: 'Can I customize my store\'s appearance?', answer: 'Store customization features are available in the admin dashboard for business owners.' },
   ];
 
