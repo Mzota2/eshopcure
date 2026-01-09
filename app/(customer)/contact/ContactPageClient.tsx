@@ -21,6 +21,7 @@ export default function ContactPageClient() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +66,8 @@ export default function ContactPageClient() {
     const parts: string[] = [];
     if (addr.areaOrVillage) parts.push(addr.areaOrVillage);
     if (addr.traditionalAuthority) parts.push(addr.traditionalAuthority);
-    if (addr.district) parts.push(addr.district);
     if (addr.nearestTownOrTradingCentre) parts.push(addr.nearestTownOrTradingCentre);
+    if (addr.district) parts.push(addr.district);
     if (addr.region) parts.push(addr.region);
     if (addr.country) parts.push(addr.country);
     return parts.join(', ');
@@ -192,13 +193,37 @@ export default function ContactPageClient() {
               <h2 className="text-xl font-semibold text-foreground mb-4">Frequently Asked Questions</h2>
               <div className="space-y-3">
                 {faqs.map((faq, index) => (
-                  <a
-                    key={index}
-                    href="#"
-                    className="block text-primary hover:text-primary-hover text-sm transition-colors"
+                  <div 
+                    key={index} 
+                    className="border-b border-border last:border-b-0"
                   >
-                    {faq.question}
-                  </a>
+                    <div 
+                      className="flex items-center justify-between py-3 cursor-pointer"
+                      onClick={() => setActiveFaqIndex(activeFaqIndex === index ? null : index)}
+                    >
+                      <h3 className="font-medium text-foreground">{faq.question}</h3>
+                      <svg
+                        className={`w-5 h-5 text-foreground/70 transition-transform duration-200 ${
+                          activeFaqIndex === index ? 'transform rotate-180' : ''
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                    {activeFaqIndex === index && (
+                      <div className="pb-4 text-sm text-foreground/80">
+                        {faq.answer}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
