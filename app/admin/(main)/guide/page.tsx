@@ -57,6 +57,13 @@ export default function AdminGuidePage() {
     },
     {
       step: 5,
+      title: 'Create Categories',
+      description: 'Organize your products and services into categories to help customers find what they need.',
+      link: '/admin/categories/new',
+      linkText: 'Create Category'
+    },
+    {
+      step: 6,
       title: hasProducts ? 'Add Your First Product' : 'Add Your First Service',
       description: hasProducts 
         ? 'Start adding products to your store. Include descriptions, prices, images, and inventory levels.'
@@ -64,13 +71,7 @@ export default function AdminGuidePage() {
       link: hasProducts ? '/admin/products/new' : '/admin/services/new',
       linkText: hasProducts ? 'Add Product' : 'Add Service'
     },
-    {
-      step: 6,
-      title: 'Create Categories',
-      description: 'Organize your products and services into categories to help customers find what they need.',
-      link: '/admin/categories/new',
-      linkText: 'Create Category'
-    },
+    
   ];
 
   const keyFeatures: GuideSection[] = [

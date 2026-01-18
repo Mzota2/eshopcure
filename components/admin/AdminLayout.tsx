@@ -203,6 +203,13 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
 
             <div className="flex items-center gap-4">
+               <Link
+                  href="/admin/guide"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm text-primary hover:text-primary-hover hover:bg-primary/10 rounded-lg transition-colors"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  <span className="hidden sm:inline">Guide</span>
+                </Link>
               {/* Notifications */}
               <Link
                 href="/admin/notifications"
