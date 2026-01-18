@@ -97,7 +97,7 @@ export default function AboutPageClient() {
             <div className="relative aspect-video bg-background-secondary rounded-lg overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
                 <OptimizedImage
-                  src="/eshopcure.jpg"
+                  src={currentBusiness?.banner? currentBusiness?.banner : '/images/banner.jpg'}
                   alt="About eShopCure"
                   fill
                   context="banner"
