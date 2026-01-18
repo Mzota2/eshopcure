@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -18,6 +18,7 @@ import { useApp } from '@/contexts/AppContext';
 import { User } from 'firebase/auth';
 import { PaymentConfirmation } from '@/components/confirmation';
 import { useCart } from '@/contexts/CartContext';
+import { exportHtmlElement } from '@/lib/exports/htmlExport';
 
 export default function BookConfirmedPageClient() {
   const searchParams = useSearchParams();
@@ -38,6 +39,8 @@ export default function BookConfirmedPageClient() {
   const currentBusiness = appContext.currentBusiness;
   const user = 'user' in appContext ? (appContext as any).user : null;
   const { clearCart } = useCart();
+  const receiptRef = useRef<HTMLDivElement | null>(null);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
 
   // Calculate payment success status
   const isPaymentSuccessful = paymentStatus === 'success' || (!txRef && booking?.status === 'paid');
@@ -160,6 +163,15 @@ export default function BookConfirmedPageClient() {
     ? booking.pricing.totalFee - (booking.pricing.bookingFee || 0) + (booking.pricing.totalFee * 0.08)
     : 0;
 
+  const handleExportReceipt = async () => {
+    if (!booking || !receiptRef.current) return;
+    const fileName = `booking-${booking.bookingNumber || booking.id}`;
+    await exportHtmlElement(receiptRef.current, {
+      format: exportFormat,
+      fileName,
+    });
+  };
+
 
   return (
     <>
@@ -190,146 +202,165 @@ export default function BookConfirmedPageClient() {
     >
       {booking && (
         <>
-          {/* Booking Details */}
-          <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
-              <span className="text-sm sm:text-base text-text-secondary">Booking Number</span>
-              <span className="text-base sm:text-lg font-semibold text-foreground break-all">{booking.bookingNumber}</span>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
+            <div className="flex items-center gap-2">
+              <span className="text-sm sm:text-base text-text-secondary">Export receipt as</span>
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
+                className="border border-border bg-background text-foreground text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="pdf">PDF</option>
+                <option value="image">Image (PNG)</option>
+              </select>
             </div>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pt-3 sm:pt-4 border-t border-border">
-              <span className="text-sm sm:text-base text-text-secondary">Amount Paid</span>
-              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary">
-                {formatCurrency(booking.pricing.total, booking.pricing.currency)}
-              </span>
-            </div>
-            {isPartialPayment && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
-                  <span className="text-sm sm:text-base text-text-secondary">Remaining Balance</span>
-                  <span className="text-base sm:text-lg font-semibold text-foreground">
-                    {formatCurrency(remainingBalance, booking.pricing.currency)}
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-text-secondary">
-                  You can pay the remaining balance when the service is completed or contact us to pay in advance.
-                </p>
-              </div>
-            )}
+            <Button
+              variant="outline"
+              onClick={handleExportReceipt}
+              disabled={!isPaymentSuccessful}
+              className="w-full sm:w-auto"
+            >
+              Download Receipt
+            </Button>
           </div>
-
-          {/* Service Details */}
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground mb-3 sm:mb-4">Service Details</h2>
-            <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6">
-              <div className="flex gap-3 sm:gap-4 mb-3 sm:mb-4">
-                {booking.serviceImage && (
-                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 bg-background rounded-lg sm:rounded-xl overflow-hidden flex-shrink-0">
-                    <Image
-                      src={getOptimizedImageUrl(booking.serviceImage, { width: 200, height: 200, format: 'webp' })}
-                      alt={booking.serviceName}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, 112px"
-                    />
+          <div ref={receiptRef}>
+            <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
+                <span className="text-sm sm:text-base text-text-secondary">Booking Number</span>
+                <span className="text-base sm:text-lg font-semibold text-foreground break-all">{booking.bookingNumber}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pt-3 sm:pt-4 border-t border-border">
+                <span className="text-sm sm:text-base text-text-secondary">Amount Paid</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary">
+                  {formatCurrency(booking.pricing.total, booking.pricing.currency)}
+                </span>
+              </div>
+              {isPartialPayment && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
+                    <span className="text-sm sm:text-base text-text-secondary">Remaining Balance</span>
+                    <span className="text-base sm:text-lg font-semibold text-foreground">
+                      {formatCurrency(remainingBalance, booking.pricing.currency)}
+                    </span>
                   </div>
-                )}
-                <div className="flex-grow min-w-0">
-                  <h3 className="font-semibold text-base sm:text-lg text-foreground mb-2 line-clamp-2">{booking.serviceName}</h3>
-                  <div className="space-y-2 text-xs sm:text-sm text-text-secondary">
-                    {startTime && (
+                  <p className="text-xs sm:text-sm text-text-secondary">
+                    You can pay the remaining balance when the service is completed or contact us to pay in advance.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground mb-3 sm:mb-4">Service Details</h2>
+              <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6">
+                <div className="flex gap-3 sm:gap-4 mb-3 sm:mb-4">
+                  {booking.serviceImage && (
+                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 bg-background rounded-lg sm:rounded-xl overflow-hidden flex-shrink-0">
+                      <Image
+                        src={getOptimizedImageUrl(booking.serviceImage, { width: 200, height: 200, format: 'webp' })}
+                        alt={booking.serviceName}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, 112px"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-grow min-w-0">
+                    <h3 className="font-semibold text-base sm:text-lg text-foreground mb-2 line-clamp-2">{booking.serviceName}</h3>
+                    <div className="space-y-2 text-xs sm:text-sm text-text-secondary">
+                      {startTime && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <span>{formatDate(startTime)}</span>
+                        </div>
+                      )}
+                      {startTime && endTime && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <span className="break-words">
+                            {formatDateTime(startTime)} - {formatDateTime(endTime)}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span>{formatDate(startTime)}</span>
+                        <span>Duration: {booking.timeSlot.duration} minutes</span>
                       </div>
-                    )}
-                    {startTime && endTime && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span className="break-words">
-                          {formatDateTime(startTime)} - {formatDateTime(endTime)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <span>Duration: {booking.timeSlot.duration} minutes</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Customer Information */}
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground mb-3 sm:mb-4">Your Information</h2>
-            <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6">
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex items-center gap-2 sm:gap-3">
-<UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary flex-shrink-0" />
-                  <span className="text-sm sm:text-base text-foreground break-all">{booking.customerName || 'N/A'}</span>
-                </div>
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary flex-shrink-0" />
-                  <span className="text-sm sm:text-base text-foreground break-all">{booking.customerEmail}</span>
-                </div>
-                {booking.customerPhone && (
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground mb-3 sm:mb-4">Your Information</h2>
+              <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6">
+                <div className="space-y-2 sm:space-y-3">
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary flex-shrink-0" />
-                    <span className="text-sm sm:text-base text-foreground break-all">{booking.customerPhone}</span>
+<UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary flex-shrink-0" />
+                    <span className="text-sm sm:text-base text-foreground break-all">{booking.customerName || 'N/A'}</span>
                   </div>
-                )}
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary flex-shrink-0" />
+                    <span className="text-sm sm:text-base text-foreground break-all">{booking.customerEmail}</span>
+                  </div>
+                  {booking.customerPhone && (
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary flex-shrink-0" />
+                      <span className="text-sm sm:text-base text-foreground break-all">{booking.customerPhone}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Payment Breakdown */}
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground mb-3 sm:mb-4">Payment Breakdown</h2>
-            <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6">
-              <div className="space-y-2 sm:space-y-3">
-                {isPartialPayment && booking.pricing.bookingFee ? (
-                  <>
-                    <div className="flex justify-between text-xs sm:text-sm text-foreground">
-                      <span>Booking Fee</span>
-                      <span className="font-medium">{formatCurrency(booking.pricing.bookingFee, booking.pricing.currency)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs sm:text-sm text-foreground">
-                      <span>Tax (8%)</span>
-                      <span className="font-medium">{formatCurrency(booking.pricing.tax || 0, booking.pricing.currency)}</span>
-                    </div>
-                    <div className="border-t border-border pt-3">
-                      <div className="flex justify-between text-base sm:text-lg font-semibold text-foreground">
-                        <span>Amount Paid</span>
-                        <span>{formatCurrency(booking.pricing.total, booking.pricing.currency)}</span>
-                      </div>
-                    </div>
-                    <div className="pt-3 border-t border-border">
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground mb-3 sm:mb-4">Payment Breakdown</h2>
+              <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6">
+                <div className="space-y-2 sm:space-y-3">
+                  {isPartialPayment && booking.pricing.bookingFee ? (
+                    <>
                       <div className="flex justify-between text-xs sm:text-sm text-foreground">
-                        <span>Remaining Balance</span>
-                        <span className="font-semibold">{formatCurrency(remainingBalance, booking.pricing.currency)}</span>
+                        <span>Booking Fee</span>
+                        <span className="font-medium">{formatCurrency(booking.pricing.bookingFee, booking.pricing.currency)}</span>
                       </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between text-xs sm:text-sm text-foreground">
-                      <span>Service Fee</span>
-                      <span className="font-medium">{formatCurrency(booking.pricing.basePrice, booking.pricing.currency)}</span>
-                    </div>
-                    {booking.pricing.tax && (
                       <div className="flex justify-between text-xs sm:text-sm text-foreground">
-                        <span>Tax</span>
-                        <span className="font-medium">{formatCurrency(booking.pricing.tax, booking.pricing.currency)}</span>
+                        <span>Tax (8%)</span>
+                        <span className="font-medium">{formatCurrency(booking.pricing.tax || 0, booking.pricing.currency)}</span>
                       </div>
-                    )}
-                    <div className="border-t border-border pt-3">
-                      <div className="flex justify-between text-base sm:text-lg lg:text-xl font-bold text-primary">
-                        <span>Total Paid</span>
-                        <span>{formatCurrency(booking.pricing.total, booking.pricing.currency)}</span>
+                      <div className="border-t border-border pt-3">
+                        <div className="flex justify-between text-base sm:text-lg font-semibold text-foreground">
+                          <span>Amount Paid</span>
+                          <span>{formatCurrency(booking.pricing.total, booking.pricing.currency)}</span>
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
+                      <div className="pt-3 border-t border-border">
+                        <div className="flex justify-between text-xs sm:text-sm text-foreground">
+                          <span>Remaining Balance</span>
+                          <span className="font-semibold">{formatCurrency(remainingBalance, booking.pricing.currency)}</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-xs sm:text-sm text-foreground">
+                        <span>Service Fee</span>
+                        <span className="font-medium">{formatCurrency(booking.pricing.basePrice, booking.pricing.currency)}</span>
+                      </div>
+                      {booking.pricing.tax && (
+                        <div className="flex justify-between text-xs sm:text-sm text-foreground">
+                          <span>Tax</span>
+                          <span className="font-medium">{formatCurrency(booking.pricing.tax, booking.pricing.currency)}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-border pt-3">
+                        <div className="flex justify-between text-base sm:text-lg lg:text-xl font-bold text-primary">
+                          <span>Total Paid</span>
+                          <span>{formatCurrency(booking.pricing.total, booking.pricing.currency)}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>

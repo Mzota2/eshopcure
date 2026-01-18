@@ -7,8 +7,10 @@ import { ServiceCard } from '@/components/services';
 import { Button, Loading, Badge } from '@/components/ui';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { usePromotions, useProducts, useServices } from '@/hooks';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/components/ui';
 import { PromotionStatus } from '@/types/promotion';
-import { ItemStatus } from '@/types/item';
+import { ItemStatus, Item } from '@/types/item';
 import { useApp } from '@/contexts/AppContext';
 import { formatDate } from '@/lib/utils/formatting';
 import { Timestamp } from 'firebase/firestore';
@@ -17,6 +19,14 @@ import { isProduct, isService } from '@/types';
 
 export default function PromotionDetailPageClient({ slug }: { slug: string }) {
   const { currentBusiness } = useApp();
+  const { addItem } = useCart();
+  const toast = useToast();
+
+  // Handle add to cart
+  const handleAddToCart = (product: Item) => {
+    addItem(product, 1);
+    toast.showSuccess('Cart', `${product.name} added to cart`);
+  };
 
   // Fetch promotions
   const { data: promotions = [], isLoading: promotionsLoading } = usePromotions({
@@ -161,7 +171,11 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
                   <h2 className="text-2xl font-bold text-foreground mb-6">Products ({productItems.length})</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {productItems.map((product) => (
-                      <ProductCard key={product.id} product={product} />
+                      <ProductCard 
+                        key={product.id} 
+                        product={product} 
+                        onAddToCart={handleAddToCart}
+                      />
                     ))}
                   </div>
                 </div>

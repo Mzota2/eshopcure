@@ -49,7 +49,7 @@ export function ThemeToggle(): React.ReactNode {
       type="button"
       variant="outline"
       size="sm"
-      className="h-9 w-9 p-0 relative overflow-hidden"
+      className="rounded-full p-1 relative overflow-hidden"
       onClick={toggleTheme}
       disabled={isLoading}
       aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}

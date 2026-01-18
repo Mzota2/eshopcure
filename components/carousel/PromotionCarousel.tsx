@@ -182,8 +182,8 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                       }}
                       className={`h-2 rounded-full transition-all focus:outline-none
                         ${index === currentIndex
-                          ? `w-8 ${isDark ? 'bg-white border-white/90' : 'bg-white border-white/80'} border shadow-md`
-                          : `w-2 ${isDark ? 'bg-white/40 border-white/60 hover:bg-white/70' : 'bg-white/60 border-white/80 hover:bg-white/80'} border`
+                          ? `w-8 ${isDark ? 'bg-white border-white/90' : 'bg-white !border-white/80'} border shadow-md`
+                          : `w-2 ${isDark ? 'bg-white/40 !border-white/60 hover:bg-white/70' : 'bg-white/60 !border-white/80 hover:bg-white/80'} border`
                         }`}
                       aria-label={`Go to slide ${index + 1}`}
                     />

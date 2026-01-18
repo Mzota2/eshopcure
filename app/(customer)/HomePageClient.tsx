@@ -199,7 +199,10 @@ export default function HomePageClient() {
                     key={category.id}
                     className="shrink-0 w-[160px] snap-start bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
                   >
-                    <Link href={`/products?category=${category.slug}`}>
+                    <Link href={category.type === 'service' 
+                      ? `/services?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                      : `/products?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                    }>
                       <div className="relative aspect-square bg-background-secondary">
                         {category.image ? (
                           <CategoryImage 
@@ -232,7 +235,7 @@ export default function HomePageClient() {
                               key={item.id} 
                               href={`/${isProduct(item) ? 'products' : 'services'}/${item.slug}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="relative aspect-square rounded-sm overflow-hidden border border-white/80 shadow-sm hover:border-primary hover:z-10 hover:scale-105 transition-all duration-200"
+                              className="relative aspect-square rounded-sm overflow-hidden border !border-white/80 shadow-sm hover:border-primary hover:z-10 hover:scale-105 transition-all duration-200"
                             >
                               <OptimizedImage
                                 src={item.images?.[0]?.url || '/placeholder-product.jpg'}
@@ -271,7 +274,10 @@ export default function HomePageClient() {
                   key={category.id} 
                   className="bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
                 >
-                  <Link href={`/products?category=${category.slug}`}>
+                  <Link href={category.type === 'service' 
+                    ? `/services?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                    : `/products?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                  }>
                     <div className="relative aspect-square bg-background-secondary">
                       {category.image ? (
                         <CategoryImage 
@@ -304,7 +310,7 @@ export default function HomePageClient() {
                             key={item.id} 
                             href={`/${isProduct(item) ? 'products' : 'services'}/${item.slug}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="relative aspect-square rounded-md overflow-hidden border-2 border-white/90 shadow-md hover:border-primary hover:z-10 hover:scale-105 transition-all duration-200"
+                            className="relative aspect-square rounded-md overflow-hidden border-2 !border-white/90 shadow-md hover:border-primary hover:z-10 hover:scale-105 transition-all duration-200"
                           >
                             <OptimizedImage
                               src={item.images?.[0]?.url || '/placeholder-product.jpg'}

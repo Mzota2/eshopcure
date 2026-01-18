@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useOrders, useBookings, useProducts, useServices, useCustomers, useLedgerEntries } from '@/hooks';
 import { Button, Input, useToast } from '@/components/ui';
@@ -13,6 +13,7 @@ import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
 import { OrderStatus } from '@/types/order';
 import { BookingStatus } from '@/types/booking';
+import { exportHtmlElement } from '@/lib/exports/htmlExport';
 
 type ReportType = 'sales' | 'products' | 'services' | 'customers';
 
@@ -78,6 +79,8 @@ export default function AdminReportsPage() {
     return new Date().toISOString().split('T')[0];
   });
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
+  const reportRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch data with React Query
   const { data: orders = [], isLoading: ordersLoading } = useOrders({
@@ -318,10 +321,22 @@ export default function AdminReportsPage() {
     setGeneratedReport(reportType);
     setError(null);
   };
-
-  const handleExport = () => {
-    // Export functionality would go here
-    toast.showInfo('Export functionality coming soon');
+  
+  const handleExport = async () => {
+    if (!generatedReport || !reportRef.current) {
+      toast.showWarning('Generate a report before exporting');
+      return;
+    }
+    try {
+      const fileNameBase = `report-${generatedReport}-${startDate}-to-${endDate}`;
+      await exportHtmlElement(reportRef.current, {
+        format: exportFormat,
+        fileName: fileNameBase,
+      });
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      toast.showError('Failed to export report');
+    }
   };
 
   const handleClear = () => {
@@ -335,6 +350,17 @@ export default function AdminReportsPage() {
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Reports</h1>
         {generatedReport && (
           <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm text-text-secondary">Export as</span>
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
+                className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="pdf">PDF</option>
+                <option value="image">Image (PNG)</option>
+              </select>
+            </div>
             <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -414,6 +440,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
+      <div ref={reportRef}>
       {/* Sales Report */}
       {generatedReport === 'sales' && currentReport && (
         <div className="bg-card rounded-lg border border-border p-4 sm:p-6">
@@ -662,6 +689,7 @@ export default function AdminReportsPage() {
           <p className="text-sm sm:text-base">No data found for the selected period</p>
         </div>
       )}
+      </div>
     </div>
   );
 }

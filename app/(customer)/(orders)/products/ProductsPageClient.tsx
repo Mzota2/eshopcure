@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Search, Filter, X } from 'lucide-react';
 import { ProductCard } from '@/components/products';
@@ -36,6 +36,7 @@ export default function ProductsPageClient() {
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { addItem } = useCart();
   const { currentBusiness, filters: appFilters, updateProductFilters, resetProductFilters } = useApp();
   
@@ -48,7 +49,7 @@ function ProductsPageContent() {
 
   // Initialize filters from URL params or use AppContext filters (without priceRange initially)
   const [localFilters, setLocalFilters] = useState<FilterState>({
-    category: searchParams.get('category') || appFilters.products.category || 'all',
+    category: 'all',
     condition: appFilters.products.condition || [],
     priceMin: appFilters.products.priceMin ?? 0,
     priceMax: appFilters.products.priceMax ?? 10000,
@@ -141,6 +142,30 @@ function ProductsPageContent() {
 
   // Initialize price range when enabling price filter (handled in button click handler)
   // No useEffect needed - initialization happens on user interaction
+
+  // Sync URL params with local filters
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get('category');
+    if (categoryFromUrl) {
+      // Find the category by slug
+      const category = categoriesWithAll.find(cat => 
+        cat.id === categoryFromUrl || // Check by ID
+        cat.name.toLowerCase().replace(/\s+/g, '-') === categoryFromUrl // Or by slug
+      );
+      
+      if (category && category.id !== localFilters.category) {
+        setLocalFilters(prev => ({
+          ...prev,
+          category: category.id
+        }));
+      }
+    } else if (localFilters.category !== 'all') {
+      setLocalFilters(prev => ({
+        ...prev,
+        category: 'all'
+      }));
+    }
+  }, [searchParams, categoriesWithAll]);
 
   // Sync filters to AppContext after local state updates
   useEffect(() => {
@@ -235,6 +260,30 @@ function ProductsPageContent() {
     return sorted;
   }, [products, filters, searchQuery, sortBy, promotions, priceFilterEnabled]);
 
+  const productsByCategory = useMemo(() => {
+    const map: Record<string, Item[]> = {};
+
+    productCategories.forEach((category) => {
+      if (category.id) {
+        map[category.id] = [];
+      }
+    });
+
+    filteredAndSortedProducts.forEach((product) => {
+      if (!product.categoryIds || product.categoryIds.length === 0) {
+        return;
+      }
+
+      product.categoryIds.forEach((categoryId) => {
+        if (map[categoryId]) {
+          map[categoryId].push(product);
+        }
+      });
+    });
+
+    return map;
+  }, [filteredAndSortedProducts, productCategories]);
+
   // Pagination
   const pageSize = 12;
   const totalProducts = filteredAndSortedProducts.length;
@@ -246,8 +295,30 @@ function ProductsPageContent() {
   const loading = productsLoading || categoriesLoading;
 
   const handleFilterChange = (key: keyof FilterState, value: FilterState[keyof FilterState]) => {
-    setLocalFilters((prev) => ({ ...prev, [key]: value }));
+    const newFilters = { ...localFilters, [key]: value };
+    setLocalFilters(newFilters);
     setCurrentPage(1);
+
+    // Update URL when category changes
+    if (key === 'category') {
+      const params = new URLSearchParams(searchParams.toString());
+      const category = categoriesWithAll.find(cat => cat.id === value);
+      
+      if (value === 'all') {
+        params.delete('category');
+      } else if (category) {
+        // Use the category name as a slug in the URL
+        const slug = category.name.toLowerCase().replace(/\s+/g, '-');
+        params.set('category', slug);
+      } else {
+        // Fallback to ID if category not found (shouldn't normally happen)
+        params.set('category', value as string);
+      }
+      
+      // Update URL without page reload
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.pushState({}, '', newUrl);
+    }
   };
 
   const toggleCondition = (condition: string) => {
@@ -306,7 +377,9 @@ function ProductsPageContent() {
             {filters.category !== 'all' && (
               <>
                 <li>/</li>
-                <li className="text-primary capitalize">{filters.category}</li>
+                <li className="text-primary capitalize">
+                  {categoriesWithAll.find(cat => cat.id === filters.category)?.name || filters.category}
+                </li>
               </>
             )}
           </ol>
@@ -556,57 +629,98 @@ function ProductsPageContent() {
                 <p className="text-text-secondary text-lg">Error loading products.</p>
                 <p className="text-text-muted text-sm mt-2">{productsError.message}</p>
               </div>
-            ) : paginatedProducts.length > 0 ? (
-              <>
-                {/* Mobile: Horizontal Scroll, Desktop: Grid */}
-                <div className="md:hidden mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-                  <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            ) : filteredAndSortedProducts.length > 0 ? (
+              filters.category === 'all' && productCategories.length > 0 ? (
+                <div className="space-y-10">
+                  {productCategories.map((category) => {
+                    const categoryProducts = productsByCategory[category.id!] || [];
+                    if (categoryProducts.length === 0) {
+                      return null;
+                    }
+                    return (
+                      <section key={category.id}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-xl font-semibold text-foreground">
+                            {category.name}
+                          </h2>
+                        </div>
+                        <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+                          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                            {categoryProducts.map((product) => (
+                              <div key={product.id} className="shrink-0 w-[280px] snap-start">
+                                <ProductCard
+                                  product={product}
+                                  onAddToCart={handleAddToCart}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                          {categoryProducts.map((product) => (
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              onAddToCart={handleAddToCart}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                <>
+                  {/* Mobile: Horizontal Scroll, Desktop: Grid */}
+                  <div className="md:hidden mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+                    <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                      {paginatedProducts.map((product) => (
+                        <div key={product.id} className="shrink-0 w-[280px] snap-start">
+                          <ProductCard
+                            product={product}
+                            onAddToCart={handleAddToCart}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Desktop: Grid Layout */}
+                  <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                     {paginatedProducts.map((product) => (
-                      <div key={product.id} className="shrink-0 w-[280px] snap-start">
-                        <ProductCard
-                          product={product}
-                          onAddToCart={handleAddToCart}
-                        />
-                      </div>
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onAddToCart={handleAddToCart}
+                      />
                     ))}
                   </div>
-                </div>
-                {/* Desktop: Grid Layout */}
-                <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                  {paginatedProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onAddToCart={handleAddToCart}
-                    />
-                  ))}
-                </div>
 
-                {/* Pagination */}
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-text-secondary">
-                    Showing {startIndex + 1}-{Math.min(endIndex, totalProducts)} of {totalProducts} products
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage >= totalPages}
-                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    >
-                      Next
-                    </Button>
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-text-secondary">
+                      Showing {startIndex + 1}-{Math.min(endIndex, totalProducts)} of {totalProducts} products
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </>
+                </>
+              )
             ) : (
               <div className="text-center py-12">
                 <p className="text-text-secondary text-lg">No products found.</p>

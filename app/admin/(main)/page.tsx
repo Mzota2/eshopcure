@@ -205,16 +205,37 @@ export default function AdminDashboardPage() {
     const totalServices = Array.isArray(services) ? services.length : 0;
     const totalCustomers = customers.length;
 
-    // Calculate low stock products (assuming stock threshold of 10)
-    const lowStockProducts = products.filter((p) => {
-      if (p.type !== 'product') return false;
-      const stock = 'inventory' in p && p.inventory && typeof p.inventory === 'object' && 'quantity' in p.inventory
-        ? (p.inventory as { quantity: number }).quantity
-        : 0;
-      return stock > 0 && stock <= 10;
-    }).length;
+    // Calculate low stock and out of stock products
+    const stockCounts = products.reduce<{ lowStockProducts: number; outOfStockProducts: number }>(
+      (acc, p) => {
+        if (p.type !== 'product') return acc;
+        
+        const inventory = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
+          ? p.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
+          : null;
+        
+        if (inventory?.trackInventory === false) return acc;
+        
+        const stock = typeof inventory?.available === 'number' 
+          ? inventory.available 
+          : typeof inventory?.quantity === 'number' 
+            ? inventory.quantity 
+            : 0;
+        
+        if (stock === 0) {
+          acc.outOfStockProducts++;
+        } else if (stock > 0 && stock <= 10) {
+          acc.lowStockProducts++;
+        }
+        
+        return acc;
+      }, 
+      { lowStockProducts: 0, outOfStockProducts: 0 }
+    );
+    
+    const { lowStockProducts, outOfStockProducts } = stockCounts;
 
-    // Calculate today's orders
+    // Calculate today's orders and bookings
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
     const todayOrders = orders.filter((o) => {
@@ -222,11 +243,21 @@ export default function AdminDashboardPage() {
       return orderDate >= todayStart;
     }).length;
 
-    // Calculate this month's orders
+    const todayBookings = bookings.filter((b) => {
+      const bookingDate = b.createdAt instanceof Date ? b.createdAt : b.createdAt?.toDate?.() || new Date(0);
+      return bookingDate >= todayStart;
+    }).length;
+
+    // Calculate this month's orders and bookings
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthOrders = orders.filter((o) => {
       const orderDate = o.createdAt instanceof Date ? o.createdAt : o.createdAt?.toDate?.() || new Date(0);
       return orderDate >= monthStart;
+    }).length;
+
+    const monthBookings = bookings.filter((b) => {
+      const bookingDate = b.createdAt instanceof Date ? b.createdAt : b.createdAt?.toDate?.() || new Date(0);
+      return bookingDate >= monthStart;
     }).length;
 
     // Calculate pending bookings
@@ -266,8 +297,11 @@ export default function AdminDashboardPage() {
         : 0,
       revenueGrowth,
       lowStockProducts,
+      outOfStockProducts,
       todayOrders,
       monthOrders,
+      todayBookings,
+      monthBookings,
       pendingBookings,
     };
   }, [orders, bookings, products, services, customers, dateRange]);
@@ -572,6 +606,29 @@ export default function AdminDashboardPage() {
             </p>
           </div>
         </div>
+
+        {/* Today's Bookings - Only show if business has services */}
+        {hasServices && (
+          <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
+            <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+              <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Today&apos;s Bookings</h3>
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500 shrink-0" />
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
+              {metrics?.todayBookings || 0}
+            </p>
+            <div className="flex items-center gap-1 min-w-0">
+              {metrics && metrics.todayBookings > 0 ? (
+                <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success shrink-0" />
+              ) : (
+                <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-secondary shrink-0" />
+              )}
+              <p className="text-xs sm:text-sm text-text-secondary">
+                {metrics?.monthBookings || 0} this month
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Total Revenue (Net) */}
         <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[240px]">
@@ -909,6 +966,158 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Items Needing Restock */}
+      {metrics?.lowStockProducts > 0 && (
+        <div className="bg-card rounded-lg border border-warning/20 p-4 sm:p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="space-y-1">
+              <h2 className="text-lg sm:text-xl font-semibold text-foreground flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+                Items Needing Attention ({metrics.lowStockProducts + (metrics.outOfStockProducts || 0)})
+              </h2>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {metrics.outOfStockProducts > 0 && (
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-destructive"></span>
+                    {metrics.outOfStockProducts} Out of Stock
+                  </span>
+                )}
+                {metrics.lowStockProducts > 0 && (
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-warning"></span>
+                    {metrics.lowStockProducts} Low Stock
+                  </span>
+                )}
+              </div>
+            </div>
+            <Link 
+              href="/admin/products" 
+              className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+            >
+              View All Products
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs text-text-secondary border-b border-border">
+                  <th className="pb-2 font-medium">Product</th>
+                  <th className="pb-2 font-medium text-right">Available</th>
+                  <th className="pb-2 font-medium text-right">In Stock</th>
+                  <th className="pb-2 font-medium text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {products
+                  .filter((p) => {
+                    if (p.type !== 'product') return false;
+                    const inventory = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
+                      ? p.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
+                      : null;
+                    
+                    if (inventory?.trackInventory === false) return false;
+                    
+                    const available = typeof inventory?.available === 'number' 
+                      ? inventory.available 
+                      : typeof inventory?.quantity === 'number' 
+                        ? inventory.quantity 
+                        : 0;
+                    
+                    const quantity = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
+                    
+                    // Show items that are out of stock or low stock
+                    return available <= 10 || quantity === 0;
+                  })
+                  .sort((a, b) => {
+                    // Sort by status (out of stock first) then by available quantity
+                    const getAvailable = (p: any) => {
+                      const inv = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
+                        ? p.inventory as { available?: number; quantity?: number }
+                        : null;
+                      return typeof inv?.available === 'number' 
+                        ? inv.available 
+                        : typeof inv?.quantity === 'number' 
+                          ? inv.quantity 
+                          : 0;
+                    };
+                    
+                    const aAvailable = getAvailable(a);
+                    const bAvailable = getAvailable(b);
+                    
+                    // Out of stock items first, then sort by available quantity (lowest first)
+                    if (aAvailable === 0 && bAvailable > 0) return -1;
+                    if (aAvailable > 0 && bAvailable === 0) return 1;
+                    return aAvailable - bAvailable;
+                  })
+                  .slice(0, 8) // Show top 8 items (increased from 5 to show more critical items)
+                  .map((product) => {
+                    const inventory = 'inventory' in product && product.inventory && typeof product.inventory === 'object' 
+                      ? product.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
+                      : null;
+                    
+                    const available = typeof inventory?.available === 'number' 
+                      ? inventory.available 
+                      : typeof inventory?.quantity === 'number' 
+                        ? inventory.quantity 
+                        : 0;
+                        
+                    const inStock = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
+                    const isOutOfStock = available <= 0;
+                    const isCritical = !isOutOfStock && available <= 3;
+                    const isLow = !isOutOfStock && available <= 10;
+                    
+                    return (
+                      <tr key={product.id} className="hover:bg-muted/50">
+                        <td className="py-3 pr-4">
+                          <Link 
+                            href={`/admin/products/${product.id}/edit`}
+                            className={cn(
+                              "font-medium hover:underline flex items-center gap-2",
+                              isOutOfStock ? "text-destructive" : "text-foreground hover:text-primary"
+                            )}
+                          >
+                            {product.name}
+                            {isOutOfStock && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">OUT OF STOCK</span>}
+                          </Link>
+                        </td>
+                        <td className="py-3 text-right">
+                          <span className={cn(
+                            "font-medium",
+                            isOutOfStock 
+                              ? "text-destructive" 
+                              : isCritical 
+                                ? "text-destructive" 
+                                : "text-warning"
+                          )}>
+                            {available} {available === 1 ? 'unit' : 'units'}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right text-muted-foreground">
+                          {inStock} {inStock === 1 ? 'unit' : 'units'}
+                        </td>
+                        <td className="py-3 text-right">
+                          <span className={cn(
+                            "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
+                            isOutOfStock
+                              ? "bg-destructive/10 text-destructive"
+                              : isCritical 
+                                ? "bg-destructive/10 text-destructive" 
+                                : "bg-warning/10 text-warning"
+                          )}>
+                            {isOutOfStock ? 'Out of Stock' : isCritical ? 'Critical' : 'Low Stock'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Net Earnings Over Time */}

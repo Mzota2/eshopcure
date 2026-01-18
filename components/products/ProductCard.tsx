@@ -7,6 +7,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { cn } from '@/lib/utils/cn';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { Item, isProduct, ItemStatus } from '@/types';
 import { formatCurrency } from '@/lib/utils/formatting';
@@ -14,6 +16,8 @@ import { ProductImage, useToast } from '../ui';
 import { useItemPromotion } from '@/hooks/useItemPromotion';
 import { calculatePromotionPrice } from '@/lib/promotions/utils';
 import { getEffectivePrice, getFinalPrice } from '@/lib/utils/pricing';
+import { useCart } from '@/contexts/CartContext';
+import { CartItem } from '@/contexts/CartContext';
 
 export interface ProductCardProps {
   product: Item;
@@ -22,9 +26,29 @@ export interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';
   const secondImage = product.images[1]?.url;
   const toast = useToast();
+  const { items } = useCart();
+  
+  // Check if product is already in cart
+  const isInCart = items.some((item: CartItem) => item.product.id === product.id);
+  
+  // Handle add to cart with visual feedback
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isOutOfStock && !isInCart) {
+      onAddToCart?.(product);
+      setIsAdded(true);
+      toast.showSuccess('Cart', 'Product added to cart');
+      
+      // Reset the added state after 2 seconds
+      setTimeout(() => {
+        setIsAdded(false);
+      }, 2000);
+    }
+  };
 
   // Check if product is on promotion from promotions collection
   const { promotion, isOnPromotion, discountPercentage } = useItemPromotion(product);
@@ -69,8 +93,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
   // Show promotion if item is in promotions collection OR has compareAtPrice discount
   const showPromotion = isOnPromotion || hasCompareAtPriceDiscount;
 
-  const inventory = product.inventory;
-  const available = inventory?.available || 0;
+  const inventory = product.inventory || { available: 0, trackInventory: false };
+  const available = inventory.available || 0;
+  const isOutOfStock = inventory.trackInventory && available <= 0;
 
   // Generate share URL
   const shareUrl = typeof window !== 'undefined' 
@@ -122,11 +147,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           
          
           
-          {product.status === ItemStatus.OUT_OF_STOCK && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-              <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-base shadow-xl backdrop-blur-sm !border-2 !border-white/20">
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+              <div className="bg-destructive text-white px-4 py-2 rounded-lg font-bold text-base sm:text-lg shadow-xl backdrop-blur-sm !border-2 !border-white/20">
                 Out of Stock
               </div>
+            </div>
+          )}
+          {!isOutOfStock && available > 0 && available <= 10 && (
+            <div className="absolute bottom-2 left-2 z-10">
+              <Badge variant="warning" className="font-bold text-xs sm:text-sm">
+                Only {available} left!
+              </Badge>
             </div>
           )}
           
@@ -190,12 +222,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
               {product.name}
             </h3>
           </Link>
-          <span className="text-xs text-text-muted">
-            {available > 0 
-              ? `In Stock`
-              : 'Out of Stock'
-            }
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className={cn(
+              'w-2 h-2 rounded-full',
+              available > 10 ? 'bg-green-500' : available > 0 ? 'bg-yellow-500' : 'bg-destructive'
+            )} />
+            <span className={cn(
+              'text-xs',
+              available > 10 ? 'text-text-secondary' : 
+              available > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-destructive font-medium'
+            )}>
+              {available > 0 ? `In Stock${available <= 10 ? ` (${available} left)` : ''}` : 'Out of Stock'}
+            </span>
+          </div>
         </div>
         
         {/* Pricing with promotion display */}
@@ -226,28 +265,39 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
          
           <Button
             size="sm"
-            className="w-full text-xs sm:text-sm bg-primary hover:bg-primary/90 text-white"
+            className={cn(
+              'w-full text-xs sm:text-sm',
+              isOutOfStock 
+                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
+                : 'bg-primary hover:bg-primary/90 text-white'
+            )}
+            disabled={isOutOfStock}
             onClick={async (e) => {
               e.preventDefault();
-              // Directly go to checkout with this single product
-              window.location.href = `/checkout?directCheckout=true&productId=${product.id}${product?.variants?.[0]?.id ? `&variantId=${product.variants[0].id}` : ''}`;
+              if (!isOutOfStock) {
+                // Directly go to checkout with this single product
+                window.location.href = `/checkout?directCheckout=true&productId=${product.id}${product?.variants?.[0]?.id ? `&variantId=${product.variants[0].id}` : ''}`;
+              }
             }}
           >
-            Shop Now
+            {isOutOfStock ? 'Out of Stock' : 'Shop Now'}
           </Button>
 
-           {onAddToCart && product.status === ItemStatus.ACTIVE && available > 0 && (
+           {onAddToCart && product.status === ItemStatus.ACTIVE && (
               <Button
                 size="sm"
-                variant='outline'
-                className="text-xs sm:text-sm w-full"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onAddToCart(product);
-                  toast.showSuccess("Cart", `Successfully added ${product?.name} to cart`)
-                }}
+                className="w-full mt-2"
+                variant={isOutOfStock || isInCart || isAdded ? 'secondary' : 'outline'}
+                disabled={isOutOfStock || isInCart || isAdded}
+                onClick={handleAddToCart}
               >
-                Add to Cart
+                {isOutOfStock 
+                  ? 'Out of Stock' 
+                  : isAdded 
+                    ? '✓ Added to Cart' 
+                    : isInCart 
+                      ? '✓ In Cart' 
+                      : 'Add to Cart'}
               </Button>
             )}
         </div>

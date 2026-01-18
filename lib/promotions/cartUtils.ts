@@ -5,6 +5,7 @@
 import { Item } from '@/types';
 import { Promotion, PromotionStatus } from '@/types/promotion';
 import { calculatePromotionPrice } from './utils';
+import { getFinalPrice } from '@/lib/utils/pricing';
 
 /**
  * Get the effective price for an item (promotion price if on promotion, otherwise base price)
@@ -13,10 +14,16 @@ export const getItemEffectivePrice = (
   item: Item,
   promotion: Promotion | null | undefined
 ): number => {
-  if (promotion) {
-    return calculatePromotionPrice(item.pricing.basePrice, promotion);
-  }
-  return item.pricing.basePrice;
+  const promotionPrice = promotion
+    ? calculatePromotionPrice(item.pricing.basePrice, promotion)
+    : null;
+
+  return getFinalPrice(
+    item.pricing.basePrice,
+    promotionPrice,
+    item.pricing.includeTransactionFee,
+    item.pricing.transactionFeeRate
+  );
 };
 
 /**

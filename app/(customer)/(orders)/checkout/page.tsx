@@ -12,6 +12,7 @@ import { useCart, CartItem } from '@/contexts/CartContext';
 import { useProduct } from '@/hooks/useProducts';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
+import { reserveInventory } from '@/lib/orders/inventory';
 import { getUserFriendlyMessage, ERROR_MESSAGES } from '@/lib/utils/user-messages';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { FulfillmentMethod } from '@/types/order';
@@ -490,6 +491,16 @@ export default function CheckoutPage() {
 
       const orderRef = await addDoc(collection(db, COLLECTIONS.ORDERS), orderData);
       const orderId = orderRef.id;
+
+      // Reserve inventory for the order
+      try {
+        await reserveInventory(orderId);
+        console.log('Inventory reserved for order:', orderId);
+      } catch (inventoryError) {
+        console.error('Error reserving inventory:', inventoryError);
+        // Don't fail the order if inventory reservation fails - we'll handle it in the payment webhook
+        // But log it for monitoring
+      }
 
       // Create payment session via API
       const paymentResponse = await fetch('/api/payments', {

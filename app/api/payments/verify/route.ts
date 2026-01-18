@@ -20,6 +20,7 @@ import { BookingStatus } from '@/types/booking';
 import { LedgerEntryType } from '@/types/ledger';
 import { PaymentSessionStatus, PaymentMethod } from '@/types/payment';
 import { createLedgerEntry } from '@/lib/ledger/create';
+import { adjustInventoryForPaidOrder } from '@/lib/orders/inventory';
 import { shouldCreatePaymentDocument } from '@/lib/payments/utils';
 
 /**
@@ -240,6 +241,13 @@ async function updateOrderOrBookingStatus(
           updatedAt: serverTimestamp(),
         });
         console.log(`[${source.toUpperCase()}] Order status updated to PAID:`, finalOrderId);
+
+        // Adjust inventory for the paid order (idempotent via inventoryUpdated flag)
+        try {
+          await adjustInventoryForPaidOrder(finalOrderId);
+        } catch (inventoryError) {
+          console.error(`[${source.toUpperCase()}] Error adjusting inventory for order:`, finalOrderId, inventoryError);
+        }
         
         // Create notification for order status change
         try {

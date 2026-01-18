@@ -487,10 +487,7 @@ export const Header: React.FC = () => {
                 </div>
               </form>
 
-              {/* Theme Toggle */}
-              <div className="flex items-center">
-                <ThemeToggle />
-              </div>
+              
 
               {/* Notifications */}
               {user && (
@@ -516,7 +513,10 @@ export const Header: React.FC = () => {
                   {totalAmount > 0 ? `MWK${totalAmount.toFixed(2)}` : 'MWK0.00'}
                 </span>
               </Link>
-
+              {/* Theme Toggle */}
+              <div className="flex items-center">
+                <ThemeToggle />
+              </div>
               {/* User Menu - Hidden on very small screens */}
               {user ? (
                 <div className="relative hidden sm:block">

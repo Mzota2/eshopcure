@@ -221,6 +221,30 @@ function ServicesPageContent() {
     return sorted;
   }, [services, filters, searchQuery, sortBy, promotions, priceFilterEnabled]);
 
+  const servicesByCategory = useMemo(() => {
+    const map: Record<string, Item[]> = {};
+
+    serviceCategories.forEach((category) => {
+      if (category.id) {
+        map[category.id] = [];
+      }
+    });
+
+    filteredAndSortedServices.forEach((service) => {
+      if (!service.categoryIds || service.categoryIds.length === 0) {
+        return;
+      }
+
+      service.categoryIds.forEach((categoryId) => {
+        if (map[categoryId]) {
+          map[categoryId].push(service);
+        }
+      });
+    });
+
+    return map;
+  }, [filteredAndSortedServices, serviceCategories]);
+
   // Pagination
   const pageSize = 12;
   const totalServices = filteredAndSortedServices.length;
@@ -517,57 +541,98 @@ function ServicesPageContent() {
                 <p className="text-text-secondary text-lg">Error loading services.</p>
                 <p className="text-text-muted text-sm mt-2">{servicesError.message}</p>
               </div>
-            ) : paginatedServices.length > 0 ? (
-              <>
-                {/* Mobile: Horizontal Scroll, Desktop: Grid */}
-                <div className="md:hidden mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-                  <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            ) : filteredAndSortedServices.length > 0 ? (
+              filters.category === 'all' && serviceCategories.length > 0 ? (
+                <div className="space-y-10">
+                  {serviceCategories.map((category) => {
+                    const categoryServices = servicesByCategory[category.id!] || [];
+                    if (categoryServices.length === 0) {
+                      return null;
+                    }
+                    return (
+                      <section key={category.id}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-xl font-semibold text-foreground">
+                            {category.name}
+                          </h2>
+                        </div>
+                        <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+                          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                            {categoryServices.map((service) => (
+                              <div key={service.id} className="shrink-0 w-[280px] snap-start">
+                                <ServiceCard
+                                  service={service}
+                                  onBookNow={handleBookNow}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                          {categoryServices.map((service) => (
+                            <ServiceCard
+                              key={service.id}
+                              service={service}
+                              onBookNow={handleBookNow}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                <>
+                  {/* Mobile: Horizontal Scroll, Desktop: Grid */}
+                  <div className="md:hidden mb-6 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+                    <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                      {paginatedServices.map((service) => (
+                        <div key={service.id} className="shrink-0 w-[280px] snap-start">
+                          <ServiceCard
+                            service={service}
+                            onBookNow={handleBookNow}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Desktop: Grid Layout */}
+                  <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                     {paginatedServices.map((service) => (
-                      <div key={service.id} className="shrink-0 w-[280px] snap-start">
-                        <ServiceCard
-                          service={service}
-                          onBookNow={handleBookNow}
-                        />
-                      </div>
+                      <ServiceCard
+                        key={service.id}
+                        service={service}
+                        onBookNow={handleBookNow}
+                      />
                     ))}
                   </div>
-                </div>
-                {/* Desktop: Grid Layout */}
-                <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                  {paginatedServices.map((service) => (
-                    <ServiceCard
-                      key={service.id}
-                      service={service}
-                      onBookNow={handleBookNow}
-                    />
-                  ))}
-                </div>
 
-                {/* Pagination */}
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-text-secondary">
-                    Showing {startIndex + 1}-{Math.min(endIndex, totalServices)} of {totalServices} services
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage >= totalPages}
-                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    >
-                      Next
-                    </Button>
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-text-secondary">
+                      Showing {startIndex + 1}-{Math.min(endIndex, totalServices)} of {totalServices} services
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </>
+                </>
+              )
             ) : (
               <div className="text-center py-12">
                 <p className="text-text-secondary text-lg">No services found.</p>

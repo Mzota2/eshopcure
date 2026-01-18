@@ -29,6 +29,9 @@ import { signInWithGoogle } from '@/lib/auth';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 import { StoreTypeGuard } from '@/components/guards/StoreTypeGuard';
+import { useItemPromotion } from '@/hooks/useItemPromotion';
+import { calculatePromotionPrice } from '@/lib/promotions/utils';
+import { getFinalPrice } from '@/lib/utils/pricing';
 
 interface BookingFormData {
   firstName: string;
@@ -186,13 +189,30 @@ function ServiceBookingPageContent() {
     return Object.keys(newErrors).length === 0;
   };
   
+  // Promotion-based pricing (reuse same logic as ServiceCard for full price)
+  const { promotion } = useItemPromotion(service);
+
   // Calculate pricing
   const basePrice = service?.pricing.basePrice || 0;
-  const totalFee = service?.totalFee || basePrice;
+  const rawTotalFee = service?.totalFee;
   const bookingFee = service?.bookingFee || 0;
   const allowPartialPayment = service?.allowPartialPayment || false;
   const taxRate = settings?.payment?.taxRate || 0; // Percentage value (0-100), default to 0 if not set
-  
+
+  const promotionPrice = promotion
+    ? calculatePromotionPrice(basePrice, promotion)
+    : null;
+
+  const finalPriceWithFees = getFinalPrice(
+    basePrice,
+    promotionPrice,
+    service?.pricing.includeTransactionFee,
+    service?.pricing.transactionFeeRate
+  );
+
+  // Full service fee before tax (matches ServiceCard display logic)
+  const totalFee = rawTotalFee && rawTotalFee > 0 ? rawTotalFee : finalPriceWithFees;
+
   const finalPrice = useMemo(() => {
     if (paymentType === 'partial' && allowPartialPayment && bookingFee > 0) {
       return bookingFee;

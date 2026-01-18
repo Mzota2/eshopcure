@@ -29,9 +29,10 @@ export default function ProductDetailPageClient() {
 function ProductDetailPageContent() {
   const params = useParams();
   const slug = params?.slug as string;
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const { currentBusiness } = useApp();
   const toast = useToast();
+  const [isAdded, setIsAdded] = useState(false);
 
   // Fetch policies
   const { data: deliveryPolicy } = useActivePolicyByType(
@@ -81,11 +82,19 @@ function ProductDetailPageContent() {
     }));
   };
 
+  // Check if product is already in cart
+  const isInCart = product ? items.some(item => item.product.id === product.id) : false;
+
   const handleAddToCart = () => {
     if (product) {
       addItem(product, quantity, selectedVariants);
-      // Show success message (could use a toast notification)
-      toast.showSuccess("Cart", `Successfully added ${product?.name} to cart`)
+      setIsAdded(true);
+      toast.showSuccess("Cart", `Successfully added ${product.name} to cart`);
+      
+      // Reset the added state after 2 seconds
+      setTimeout(() => {
+        setIsAdded(false);
+      }, 2000);
     }
   };
 
@@ -377,9 +386,22 @@ function ProductDetailPageContent() {
                 size="lg"
                 className="w-full"
                 onClick={handleAddToCart}
-                disabled={product.status !== 'active' || !product.inventory || product.inventory.available === 0}
+                disabled={
+                  product.status !== 'active' || 
+                  !product.inventory || 
+                  product.inventory.available === 0 ||
+                  isInCart || 
+                  isAdded
+                }
+                variant={isInCart || isAdded ? 'secondary' : 'outline'}
               >
-                Add to Cart
+                {!product.inventory || product.inventory.available === 0 
+                  ? 'Out of Stock' 
+                  : isAdded 
+                    ? '✓ Added to Cart' 
+                    : isInCart 
+                      ? '✓ In Cart' 
+                      : 'Add to Cart'}
               </Button>
             </div>
 

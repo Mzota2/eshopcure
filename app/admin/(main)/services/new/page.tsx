@@ -33,7 +33,31 @@ export default function NewServicePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [formData, setFormData] = useState({
+  interface ServiceFormData {
+    name: string;
+    description: string;
+    slug: string;
+    status: ItemStatus;
+    categoryIds: string[];
+    pricing: {
+      basePrice: number;
+      currency: string;
+      taxIncluded: boolean;
+      bookingFee: number;
+      totalFee: number;
+      allowPartialPayment: boolean;
+      includeTransactionFee: boolean;
+      transactionFeeRate: number;
+    };
+    duration: number;
+    bufferTime: number;
+    maxConcurrentBookings: number;
+    images: ItemImage[];
+    tags: string[];
+    specifications: Record<string, string>;
+  }
+
+  const [formData, setFormData] = useState<ServiceFormData>({
     name: '',
     description: '',
     slug: '',
@@ -49,12 +73,12 @@ export default function NewServicePage() {
       includeTransactionFee: false,
       transactionFeeRate: 0.03, // Default 3%
     },
-    duration: 60, // minutes
+    duration: 60, // minutess 
     bufferTime: 0, // minutes
     maxConcurrentBookings: 1,
     images: [] as ItemImage[],
-    tags: [] as string[],
-    specifications: {} as Record<string, string>,
+    tags: [], // Made optional - default to empty array
+    specifications: {}, // Made optional - default to empty object
   });
 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -74,7 +98,7 @@ export default function NewServicePage() {
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
-    setFormData((prev) => ({
+    setFormData((prev: ServiceFormData) => ({
       ...prev,
       name,
       // Only auto-generate slug if it hasn't been manually edited
@@ -84,7 +108,7 @@ export default function NewServicePage() {
 
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSlugManuallyEdited(true);
-    setFormData((prev) => ({
+    setFormData((prev: ServiceFormData) => ({
       ...prev,
       slug: e.target.value,
     }));
@@ -691,7 +715,7 @@ export default function NewServicePage() {
               Add key-value pairs for service specifications (e.g., &quot;RAM: 4GB&quot;)
             </p>
             <div className="space-y-3">
-              {Object.entries(formData.specifications).map(([key, value], index) => (
+              {Object.entries(formData.specifications || {}).map(([key, value], index) => (
                 <div key={index} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
                   <Input
                     placeholder="Key (e.g., RAM)"
@@ -699,17 +723,23 @@ export default function NewServicePage() {
                     onChange={(e) => {
                       const newSpecs = { ...formData.specifications };
                       delete newSpecs[key];
-                      newSpecs[e.target.value] = value;
-                      setFormData((prev) => ({ ...prev, specifications: newSpecs }));
+                      newSpecs[e.target.value] = value as string;
+                      setFormData((prev: ServiceFormData) => ({
+                        ...prev,
+                        specifications: { ...newSpecs }
+                      }));
                     }}
                   />
                   <Input
                     placeholder="Value (e.g., 4GB)"
                     value={value}
                     onChange={(e) => {
-                      setFormData((prev) => ({
+                      setFormData((prev: ServiceFormData) => ({
                         ...prev,
-                        specifications: { ...prev.specifications, [key]: e.target.value },
+                        specifications: {
+                          ...prev.specifications,
+                          [key]: e.target.value
+                        }
                       }));
                     }}
                   />
@@ -719,7 +749,10 @@ export default function NewServicePage() {
                     onClick={() => {
                       const newSpecs = { ...formData.specifications };
                       delete newSpecs[key];
-                      setFormData((prev) => ({ ...prev, specifications: newSpecs }));
+                      setFormData((prev: ServiceFormData) => ({
+                        ...prev,
+                        specifications: { ...newSpecs }
+                      }));
                     }}
                   >
                     <X className="w-4 h-4" />

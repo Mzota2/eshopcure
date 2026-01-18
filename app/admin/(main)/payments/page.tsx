@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { usePayments, useRealtimePayments, useOrders, useBookings } from '@/hooks';
 import { PaymentSessionStatus } from '@/types/payment';
@@ -14,11 +14,15 @@ import { CreditCard, Download, Eye, Search, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatCurrency, formatDate, formatPaymentMethod } from '@/lib/utils/formatting';
 import Link from 'next/link';
+import { exportHtmlElement } from '@/lib/exports/htmlExport';
 
 export default function AdminPaymentsPage() {
   const [selectedStatus, setSelectedStatus] = useState<PaymentSessionStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingPayment, setViewingPayment] = useState<string | null>(null);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
+  const tableExportRef = useRef<HTMLDivElement | null>(null);
+  const modalReceiptRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch payments with React Query
   // Note: Payments don't have businessId, so we fetch all payments for admins
@@ -95,6 +99,24 @@ export default function AdminPaymentsPage() {
     }
   };
 
+  const handleExportAll = async () => {
+    if (!tableExportRef.current) return;
+    const fileName = `payments-${selectedStatus === 'all' ? 'all' : selectedStatus}`;
+    await exportHtmlElement(tableExportRef.current, {
+      format: exportFormat,
+      fileName,
+    });
+  };
+
+  const handleExportSingle = async (payment: any) => {
+    if (!modalReceiptRef.current) return;
+    const fileName = `payment-${payment.txRef}`;
+    await exportHtmlElement(modalReceiptRef.current, {
+      format: exportFormat,
+      fileName,
+    });
+  };
+
   if (loading && items.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -112,10 +134,28 @@ export default function AdminPaymentsPage() {
             View and manage payment transactions
           </p>
         </div>
-        <Button variant="outline" className="w-full sm:w-auto">
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 flex-1 sm:flex-none">
+            <span className="text-xs sm:text-sm text-text-secondary">Export as</span>
+            <select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
+              className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
+            >
+              <option value="pdf">PDF</option>
+              <option value="image">Image (PNG)</option>
+            </select>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={handleExportAll}
+            disabled={filteredPayments.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -187,7 +227,7 @@ export default function AdminPaymentsPage() {
       )}
 
       {/* Payments Table - Desktop */}
-      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden">
+      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden" ref={tableExportRef}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-background-secondary">
@@ -266,18 +306,7 @@ export default function AdminPaymentsPage() {
                       </button>
                       <button
                         onClick={() => {
-                          // Export payment receipt
-                          const createdAt = payment.createdAt instanceof Date 
-                            ? payment.createdAt 
-                            : (payment.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(payment.createdAt as string);
-                          const receipt = `Payment Receipt\n\nTransaction: ${payment.txRef}\nAmount: ${formatCurrency(payment.amount, payment.currency)}\nStatus: ${payment.status}\nDate: ${formatDate(createdAt.toISOString())}`;
-                          const blob = new Blob([receipt], { type: 'text/plain' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `payment-${payment.txRef}.txt`;
-                          a.click();
-                          URL.revokeObjectURL(url);
+                          setViewingPayment(payment.id!);
                         }}
                         className="p-1 text-text-secondary hover:text-foreground transition-colors"
                         title="Download Receipt"
@@ -335,14 +364,7 @@ export default function AdminPaymentsPage() {
                     </button>
                     <button
                       onClick={() => {
-                        const receipt = `Payment Receipt\n\nTransaction: ${payment.txRef}\nAmount: ${formatCurrency(payment.amount, payment.currency)}\nStatus: ${payment.status}\nDate: ${formatDate(createdAt.toISOString())}`;
-                        const blob = new Blob([receipt], { type: 'text/plain' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `payment-${payment.txRef}.txt`;
-                        a.click();
-                        URL.revokeObjectURL(url);
+                        setViewingPayment(payment.id!);
                       }}
                       className="p-1.5 text-text-secondary hover:text-foreground transition-colors"
                       title="Download Receipt"
@@ -404,99 +426,89 @@ export default function AdminPaymentsPage() {
       >
         {selectedPayment && (
           <div className="space-y-4">
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Transaction Reference</label>
-              <p className="text-xs sm:text-sm text-foreground font-mono break-all">{selectedPayment.txRef}</p>
-            </div>
-
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Customer</label>
-              <p className="text-sm sm:text-base text-foreground">{selectedPayment.customerName || 'N/A'}</p>
-              <p className="text-xs sm:text-sm text-text-secondary break-words">{selectedPayment.customerEmail}</p>
-            </div>
-
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Amount</label>
-              <p className="text-lg sm:text-xl font-bold text-foreground">
-                {formatCurrency(selectedPayment.amount, selectedPayment.currency)}
-              </p>
-            </div>
-
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Status</label>
-              <span className={cn('inline-block px-2 py-1 rounded-full text-xs font-medium', getStatusColor(selectedPayment.status))}>
-                {selectedPayment.status}
-              </span>
-            </div>
-
-            {selectedPayment.orderId && (
+            <div ref={modalReceiptRef} className="space-y-4">
               <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Order</label>
-                <Link
-                  href={`/admin/orders?orderId=${selectedPayment.orderId}`}
-                  className="text-sm sm:text-base text-primary hover:text-primary-hover flex items-center gap-1 break-words"
-                >
-                  <span className="break-words">{getOrderNumber(selectedPayment.orderId)}</span>
-                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                </Link>
+                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Transaction Reference</label>
+                <p className="text-xs sm:text-sm text-foreground font-mono break-all">{selectedPayment.txRef}</p>
               </div>
-            )}
 
-            {selectedPayment.bookingId && (
               <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Booking</label>
-                <Link
-                  href={`/admin/bookings?bookingId=${selectedPayment.bookingId}`}
-                  className="text-sm sm:text-base text-primary hover:text-primary-hover flex items-center gap-1 break-words"
-                >
-                  <span className="break-words">{getBookingNumber(selectedPayment.bookingId)}</span>
-                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                </Link>
+                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Customer</label>
+                <p className="text-sm sm:text-base text-foreground">{selectedPayment.customerName || 'N/A'}</p>
+                <p className="text-xs sm:text-sm text-text-secondary break-words">{selectedPayment.customerEmail}</p>
               </div>
-            )}
 
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Payment Method</label>
-              <p className="text-sm sm:text-base text-foreground">{formatPaymentMethod(selectedPayment.paymentMethod) || 'N/A'}</p>
-            </div>
-
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Date</label>
-              <p className="text-sm sm:text-base text-foreground">
-                {formatDate(
-                  (selectedPayment.createdAt instanceof Date 
-                    ? selectedPayment.createdAt 
-                    : (selectedPayment.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(selectedPayment.createdAt as string)
-                  ).toISOString()
-                )}
-              </p>
-            </div>
-
-            {selectedPayment.metadata && Object.keys(selectedPayment.metadata).length > 0 && (
               <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Metadata</label>
-                <pre className="text-xs text-text-secondary bg-background-secondary p-2 sm:p-3 rounded overflow-auto max-h-40">
-                  {JSON.stringify(selectedPayment.metadata, null, 2)}
-                </pre>
+                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Amount</label>
+                <p className="text-lg sm:text-xl font-bold text-foreground">
+                  {formatCurrency(selectedPayment.amount, selectedPayment.currency)}
+                </p>
               </div>
-            )}
+
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Status</label>
+                <span className={cn('inline-block px-2 py-1 rounded-full text-xs font-medium', getStatusColor(selectedPayment.status))}>
+                  {selectedPayment.status}
+                </span>
+              </div>
+
+              {selectedPayment.orderId && (
+                <div>
+                  <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Order</label>
+                  <Link
+                    href={`/admin/orders?orderId=${selectedPayment.orderId}`}
+                    className="text-sm sm:text-base text-primary hover:text-primary-hover flex items-center gap-1 break-words"
+                  >
+                    <span className="break-words">{getOrderNumber(selectedPayment.orderId)}</span>
+                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                  </Link>
+                </div>
+              )}
+
+              {selectedPayment.bookingId && (
+                <div>
+                  <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Booking</label>
+                  <Link
+                    href={`/admin/bookings?bookingId=${selectedPayment.bookingId}`}
+                    className="text-sm sm:text-base text-primary hover:text-primary-hover flex items-center gap-1 break-words"
+                  >
+                    <span className="break-words">{getBookingNumber(selectedPayment.bookingId)}</span>
+                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                  </Link>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Payment Method</label>
+                <p className="text-sm sm:text-base text-foreground">{formatPaymentMethod(selectedPayment.paymentMethod) || 'N/A'}</p>
+              </div>
+
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Date</label>
+                <p className="text-sm sm:text-base text-foreground">
+                  {formatDate(
+                    (selectedPayment.createdAt instanceof Date 
+                      ? selectedPayment.createdAt 
+                      : (selectedPayment.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(selectedPayment.createdAt as string)
+                    ).toISOString()
+                  )}
+                </p>
+              </div>
+
+              {selectedPayment.metadata && Object.keys(selectedPayment.metadata).length > 0 && (
+                <div>
+                  <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Metadata</label>
+                  <pre className="text-xs text-text-secondary bg-background-secondary p-2 sm:p-3 rounded overflow-auto max-h-40">
+                    {JSON.stringify(selectedPayment.metadata, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-end gap-3 pt-4 border-t border-border">
               <Button
                 variant="outline"
-                onClick={() => {
-                  const createdAt = selectedPayment.createdAt instanceof Date 
-                    ? selectedPayment.createdAt 
-                    : (selectedPayment.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(selectedPayment.createdAt as string);
-                  const receipt = `Payment Receipt\n\nTransaction: ${selectedPayment.txRef}\nAmount: ${formatCurrency(selectedPayment.amount, selectedPayment.currency)}\nStatus: ${selectedPayment.status}\nDate: ${formatDate(createdAt.toISOString())}`;
-                  const blob = new Blob([receipt], { type: 'text/plain' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `payment-${selectedPayment.txRef}.txt`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
+                onClick={() => handleExportSingle(selectedPayment)}
                 className="w-full sm:w-auto"
               >
                 <Download className="w-4 h-4 mr-2" />

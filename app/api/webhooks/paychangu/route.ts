@@ -9,6 +9,7 @@ import { LedgerEntryType } from '@/types/ledger';
 import { PaymentSessionStatus, PaymentMethod } from '@/types/payment';
 import { createHmac } from 'crypto';
 import { createLedgerEntry } from '@/lib/ledger/create';
+import { adjustInventoryForPaidOrder } from '@/lib/orders/inventory';
 import { shouldCreatePaymentDocument } from '@/lib/payments/utils';
 
 /**
@@ -445,6 +446,13 @@ async function handlePaymentSuccess(data: WebhookPaymentData, source: string = '
           updatedAt: serverTimestamp(),
         });
         console.log(`[${source.toUpperCase()}] Order status updated to PAID:`, finalOrderId);
+
+        // Adjust inventory when order is successfully paid (idempotent)
+        try {
+          await adjustInventoryForPaidOrder(finalOrderId);
+        } catch (inventoryError) {
+          console.error(`[${source.toUpperCase()}] Error adjusting inventory for order:`, finalOrderId, inventoryError);
+        }
         
         // Create notification for order status change
         try {

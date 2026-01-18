@@ -6,7 +6,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Button, Loading, useToast, useConfirmDialog, ConfirmDialog } from '@/components/ui';
+import { Button, Loading, useToast, useConfirmDialog, ConfirmDialog, Badge } from '@/components/ui';
 import { useApp } from '@/contexts/AppContext';
 import { useProducts, useRealtimeProducts, useDeleteProduct } from '@/hooks';
 import { ItemStatus } from '@/types/item';
@@ -20,23 +20,28 @@ export default function AdminProductsPage() {
   const { confirmDialog, showConfirm, hideConfirm } = useConfirmDialog();
   const { currentBusiness } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<ItemStatus | 'all'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<ItemStatus | 'all' | 'out_of_stock'>('all');
   
   // Fetch products with React Query
+  // Filter out 'out_of_stock' from the status filter for the API call
+  const apiStatusFilter = selectedStatus === 'all' || selectedStatus === 'out_of_stock' 
+    ? undefined 
+    : selectedStatus;
+
   const {
     data: items = [],
     isLoading: loading,
     error,
   } = useProducts({
     businessId: currentBusiness?.id,
-    status: selectedStatus === 'all' ? undefined : selectedStatus,
+    status: apiStatusFilter,
     enabled: !!currentBusiness?.id,
   });
 
   // Real-time updates for admin (critical - admin needs immediate updates when managing products)
   useRealtimeProducts({
     businessId: currentBusiness?.id,
-    status: selectedStatus === 'all' ? undefined : selectedStatus,
+    status: apiStatusFilter,
     enabled: !!currentBusiness?.id,
   });
 
@@ -44,18 +49,32 @@ export default function AdminProductsPage() {
   const deleteProduct = useDeleteProduct();
 
   const filteredProducts = items.filter((product) => {
+    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      return (
+      if (!(
         product.name.toLowerCase().includes(query) ||
-        product.sku?.toLowerCase().includes(query) ||
-        product.description?.toLowerCase().includes(query)
-      );
+        (product.sku && product.sku.toLowerCase().includes(query)) ||
+        (product.description && product.description.toLowerCase().includes(query))
+      )) {
+        return false;
+      }
     }
+    
+    // Apply status filter
+    if (selectedStatus === 'out_of_stock') {
+      const available = product.inventory?.available ?? 0;
+      return available <= 0;
+    } else if (selectedStatus !== 'all') {
+      return product.status === selectedStatus;
+    }
+    
     return true;
   });
 
-  const handleDelete = async (productId: string) => {
+  const handleDelete = async (productId: string | undefined) => {
+    if (!productId) return;
+    
     showConfirm({
       title: 'Delete Product',
       message: 'Are you sure you want to delete this product? This action cannot be undone.',
@@ -151,6 +170,17 @@ export default function AdminProductsPage() {
             >
               Inactive
             </button>
+            <button
+              onClick={() => setSelectedStatus('out_of_stock')}
+              className={cn(
+                'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
+                selectedStatus === 'out_of_stock'
+                  ? 'bg-destructive text-destructive-foreground'
+                  : 'bg-background-secondary text-text-secondary hover:bg-background-tertiary'
+              )}
+            >
+              Out of Stock
+            </button>
           </div>
         </div>
       </div>
@@ -201,13 +231,28 @@ export default function AdminProductsPage() {
                       {product.pricing.currency || 'MWK'}{product.pricing.basePrice} 
                       </p>
                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
-                        <p className="text-xs sm:text-sm text-text-secondary">
-                          Stock: {stock}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn(
+                            'w-2 h-2 rounded-full',
+                            stock > 10 ? 'bg-green-500' : stock > 0 ? 'bg-yellow-500' : 'bg-destructive'
+                          )} />
+                          <p className={cn(
+                            'text-xs sm:text-sm',
+                            stock > 10 ? 'text-text-secondary' : 
+                            stock > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-destructive font-medium'
+                          )}>
+                            {stock > 0 ? `${stock} in stock` : 'Out of stock'}
+                          </p>
+                        </div>
                         <span className="text-text-muted hidden sm:inline">|</span>
-                        <p className="text-xs sm:text-sm text-text-secondary">
-                          Status: <span className="capitalize">{product.status}</span>
-                        </p>
+                        <div className="text-xs sm:text-sm">
+                          <Badge 
+                            variant={product.status === ItemStatus.ACTIVE ? 'success' : 'default'}
+                            className="capitalize"
+                          >
+                            {product.status.toLowerCase()}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -220,9 +265,10 @@ export default function AdminProductsPage() {
                       </button>
                     </Link>
                     <button
-                      onClick={() => handleDelete(product.id!)}
+                      onClick={() => handleDelete(product.id)}
                       className="p-1.5 sm:p-2 text-destructive hover:text-destructive-hover transition-colors"
                       title="Delete"
+                      disabled={!product.id}
                     >
                       <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>

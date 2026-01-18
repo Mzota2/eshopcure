@@ -204,7 +204,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onBookNow }) 
               onBookNow(service);
             }}
           >
-            View Details
+            Book Now
           </Button>
         )}
       </div>

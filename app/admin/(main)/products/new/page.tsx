@@ -33,7 +33,33 @@ export default function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    slug: string;
+    sku: string;
+    status: ItemStatus;
+    categoryIds: string[];
+    pricing: {
+      basePrice: number;
+      compareAtPrice: number;
+      currency: string;
+      taxIncluded: boolean;
+      includeTransactionFee: boolean;
+      transactionFeeRate: number;
+    };
+    inventory: {
+      quantity: number;
+      reserved: number;
+      available: number;
+      lowStockThreshold: number;
+      trackInventory: boolean;
+    };
+    images: ItemImage[];
+    tags: string[];
+    specifications: Record<string, any>;
+    isReturnable: boolean;
+  }>({
     name: '',
     description: '',
     slug: '',
@@ -56,8 +82,8 @@ export default function NewProductPage() {
       trackInventory: true,
     },
     images: [] as ItemImage[],
-    tags: [] as string[],
-    specifications: {} as Record<string, string>,
+    tags: [], // Made optional - default to empty array
+    specifications: {}, // Made optional - default to empty object
     isReturnable: true, // Default to true for new products
   });
 
