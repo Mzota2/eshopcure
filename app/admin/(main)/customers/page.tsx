@@ -4,12 +4,13 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useCustomers, useRealtimeCustomers, useUpdateCustomer, useDeleteCustomer } from '@/hooks';
 import { User } from '@/types/user';
 import { Button, Modal, Input, Loading, useToast, useConfirmDialog, ConfirmDialog, OptimizedImage } from '@/components/ui';
 import { getUserFriendlyMessage, ERROR_MESSAGES } from '@/lib/utils/user-messages';
 import { Search, Edit, Trash2, Eye, Mail, Phone, User as UserIcon, Download } from 'lucide-react';
+import { exportHtmlElement } from '@/lib/exports/htmlExport';
 import { cn } from '@/lib/utils/cn';
 import {  formatDate } from '@/lib/utils/formatting';
 import { Timestamp } from 'firebase/firestore';
@@ -25,6 +26,25 @@ export default function AdminCustomersPage() {
   const [viewingCustomer, setViewingCustomer] = useState<User | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
+  const tableExportRef = useRef<HTMLDivElement>(null);
+
+  // Handle export
+  const handleExport = async () => {
+    if (!tableExportRef.current) return;
+    const fileName = `customers-${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      await exportHtmlElement(tableExportRef.current, {
+        format: exportFormat,
+        fileName,
+        scale: 1.5, // Increase scale for better quality
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.showError('Failed to export customers. Please try again.');
+    }
+  };
 
   // Real-time updates
   useRealtimeCustomers();
@@ -111,13 +131,33 @@ export default function AdminCustomersPage() {
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Customers Management</h1>
-        <Button variant="outline" className="w-full sm:w-auto">
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Customers Management</h1>
+          <p className="text-sm text-muted-foreground">
+            {filteredCustomers.length} {filteredCustomers.length === 1 ? 'customer' : 'customers'} found
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
+            className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
+          >
+            <option value="pdf">PDF</option>
+            <option value="image">Image (PNG)</option>
+          </select>
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={filteredCustomers.length === 0}
+            className="whitespace-nowrap"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -141,7 +181,7 @@ export default function AdminCustomersPage() {
       )}
 
       {/* Customers Table - Desktop */}
-      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden">
+      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden" ref={tableExportRef}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-background-secondary">
@@ -257,237 +297,6 @@ export default function AdminCustomersPage() {
           </table>
         </div>
       </div>
-
-      {/* Customers Cards - Mobile */}
-      <div className="md:hidden space-y-4">
-        {filteredCustomers.map((customer) => {
-          return (
-            <div key={customer.id} className="bg-card rounded-lg border border-border p-4">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {customer.photoURL ? (
-                    <OptimizedImage
-                      src={customer.photoURL}
-                      alt={customer.displayName || 'Customer'}
-                      className="w-12 h-12 rounded-full shrink-0"
-                      context="listing"
-                      width={48}
-                      height={48}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <UserIcon className="w-6 h-6 text-primary" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground truncate">
-                      {customer.displayName || 'No Name'}
-                    </h3>
-                    <span
-                      className={cn(
-                        'inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium',
-                        customer.isActive !== false
-                          ? 'bg-success/20 text-success'
-                          : 'bg-destructive/20 text-destructive'
-                      )}
-                    >
-                      {customer.isActive !== false ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleViewCustomer(customer)}
-                    className="p-2 text-text-secondary hover:text-foreground transition-colors"
-                    title="View"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleEditCustomer(customer)}
-                    className="p-2 text-text-secondary hover:text-foreground transition-colors"
-                    title="Edit"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => customer.id && handleDeleteCustomer(customer.id)}
-                    className="p-2 text-destructive hover:text-destructive-hover transition-colors"
-                    title="Delete"
-                    disabled={!customer.id}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-text-secondary shrink-0" />
-                  <Link
-                    href={`mailto:${customer.email}`}
-                    className="text-primary hover:text-primary-hover truncate">
-                    {customer.email}
-                  </Link>
-                </div>
-                {customer.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-text-secondary shrink-0" />
-                    <Link
-                      href={`tel:${customer.phone}`}
-                      className="text-primary hover:text-primary-hover">
-                    
-                      {customer.phone}
-                    </Link>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-text-secondary">
-                  <span className="text-xs">Joined:</span>
-                  <span className="text-xs">
-                    {customer.createdAt 
-                      ? formatDate(
-                          customer.createdAt instanceof Timestamp
-                            ? customer.createdAt.toDate().toISOString()
-                            : customer.createdAt instanceof Date
-                            ? customer.createdAt.toISOString()
-                            : customer.createdAt as string
-                        )
-                      : '-'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {filteredCustomers.length === 0 && !loading && (
-        <div className="text-center py-12 text-text-secondary">
-          <UserIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No customers found</p>
-        </div>
-      )}
-
-      {/* View Customer Modal */}
-      <Modal
-        isOpen={!!viewingCustomer}
-        onClose={() => setViewingCustomer(null)}
-        title={viewingCustomer?.displayName || 'Customer Details'}
-        size="lg"
-      >
-        {viewingCustomer && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-              {viewingCustomer.photoURL ? (
-                <img
-                  src={viewingCustomer.photoURL}
-                  alt={viewingCustomer.displayName || 'Customer'}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-full shrink-0"
-                />
-              ) : (
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <UserIcon className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <h3 className="text-lg sm:text-xl font-bold text-foreground truncate">
-                  {viewingCustomer.displayName || 'No Name'}
-                </h3>
-                <p className="text-xs sm:text-sm text-text-secondary truncate">{viewingCustomer.email}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Email</label>
-                <p className="text-sm sm:text-base text-foreground break-words">{viewingCustomer.email}</p>
-              </div>
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Phone</label>
-                <p className="text-sm sm:text-base text-foreground">{viewingCustomer.phone || '-'}</p>
-              </div>
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Status</label>
-                <p className="text-sm sm:text-base text-foreground">
-                  {viewingCustomer.isActive !== false ? 'Active' : 'Inactive'}
-                </p>
-              </div>
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Email Verified</label>
-                <p className="text-sm sm:text-base text-foreground">
-                  {viewingCustomer.emailVerified ? 'Yes' : 'No'}
-                </p>
-              </div>
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Joined</label>
-                <p className="text-sm sm:text-base text-foreground">
-                  {viewingCustomer.createdAt
-                    ? formatDate(
-                        viewingCustomer.createdAt instanceof Timestamp
-                          ? viewingCustomer.createdAt.toDate().toISOString()
-                          : viewingCustomer.createdAt instanceof Date
-                          ? viewingCustomer.createdAt.toISOString()
-                          : viewingCustomer.createdAt as string
-                      )
-                    : '-'}
-                </p>
-              </div>
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Last Login</label>
-                <p className="text-sm sm:text-base text-foreground">
-                  {viewingCustomer.lastLoginAt
-                    ? formatDate(
-                        viewingCustomer.lastLoginAt instanceof Timestamp
-                          ? viewingCustomer.lastLoginAt.toDate().toISOString()
-                          : viewingCustomer.lastLoginAt instanceof Date
-                          ? viewingCustomer.lastLoginAt.toISOString()
-                          : viewingCustomer.lastLoginAt as string
-                      )
-                    : '-'}
-                </p>
-              </div>
-            </div>
-
-            {viewingCustomer.addresses && viewingCustomer.addresses.length > 0 && (
-              <div>
-                <label className="text-sm font-medium text-text-secondary mb-2 block">
-                  Addresses
-                </label>
-                <div className="space-y-2">
-                  {viewingCustomer.addresses.map((address) => (
-                    <div
-                      key={address.id}
-                      className="p-3 bg-background-secondary rounded-lg text-sm"
-                    >
-                      <p className="font-medium text-foreground">{address.label}</p>
-                      <p className="text-text-secondary">
-                        {address.areaOrVillage}, {address.district}, {address.region}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-end gap-3 pt-4 border-t border-border">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setViewingCustomer(null);
-                  handleEditCustomer(viewingCustomer);
-                }}
-                className="w-full sm:w-auto"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
-              <Button onClick={() => setViewingCustomer(null)} className="w-full sm:w-auto">Close</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Edit Customer Modal */}
       <Modal
         isOpen={isEditing && !!editingCustomer}
         onClose={() => {
@@ -526,13 +335,12 @@ export default function AdminCustomersPage() {
                       isActive: e.target.checked,
                     })
                   }
-                  className="w-4 h-4 rounded border-border"
+                  className="form-checkbox h-4 w-4 text-primary-600 transition duration-150 ease-in-out"
                 />
-                <span className="text-sm text-foreground">Active</span>
+                <span className="text-sm font-medium text-foreground">Active</span>
               </label>
             </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-end gap-3 pt-4 border-t border-border">
+            <div className="flex justify-end gap-3 pt-4">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -543,7 +351,9 @@ export default function AdminCustomersPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleSaveEdit} className="w-full sm:w-auto">Save Changes</Button>
+              <Button onClick={handleSaveEdit} className="w-full sm:w-auto">
+                Save Changes
+              </Button>
             </div>
           </div>
         )}

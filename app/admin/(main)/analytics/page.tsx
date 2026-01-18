@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import {
   useOrders,
@@ -19,9 +19,11 @@ import {
   useRealtimeServices,
   useRealtimeCustomers,
 } from '@/hooks';
-import { Loading } from '@/components/ui';
+import { Loading, Button } from '@/components/ui';
+import { useToast } from '@/components/ui/Toast';
 import { useSettings } from '@/hooks/useSettings';
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Calendar, Users, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Calendar, Users, AlertTriangle, Download } from 'lucide-react';
+import { exportHtmlElement } from '@/lib/exports/htmlExport';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
 import { calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
@@ -62,7 +64,6 @@ const BOOKING_REVENUE_STATUSES = [
   BookingStatus.COMPLETED,
 ];
 
-
 // Helper to convert date safely
 const getDate = (date: Date | string | { toDate?: () => Date } | undefined): Date => {
   if (!date) return new Date(0);
@@ -75,6 +76,30 @@ export default function AdminAnalyticsPage() {
   const { currentBusiness } = useApp();
   const { data: settings } = useSettings();
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
+  const exportRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
+
+  // Handle export
+  const handleExport = async () => {
+    if (!exportRef.current) {
+      console.error('Export element not found');
+      return;
+    }
+    
+    const fileName = `analytics-${dateRange}-${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      await exportHtmlElement(exportRef.current, {
+        format: exportFormat,
+        fileName,
+        scale: 1.5, // Increase scale for better quality
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.showError('Failed to export analytics. Please try again.');
+    }
+  };
   
   // Get pagination settings
   const loadStrategy = settings?.performance?.analyticsLoadStrategy ?? 'paginated';
@@ -365,7 +390,8 @@ export default function AdminAnalyticsPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
+    <div ref={exportRef} className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Analytics Dashboard</h1>
@@ -373,6 +399,25 @@ export default function AdminAnalyticsPage() {
             Real-time analytics from your data
           </p>
         </div>
+{/* Export controls */}
+      <div className="flex justify-end gap-2">
+        <select
+          value={exportFormat}
+          onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
+          className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
+        >
+          <option value="pdf">PDF</option>
+          <option value="image">Image (PNG)</option>
+        </select>
+        <Button
+          variant="outline"
+          onClick={handleExport}
+          className="whitespace-nowrap"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export
+        </Button>
+      </div>
         <div className="flex gap-2 overflow-x-auto">
           {(['7d', '30d', '90d'] as const).map((range) => (
             <button

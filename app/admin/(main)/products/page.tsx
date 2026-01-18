@@ -4,9 +4,11 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { Button, Loading, useToast, useConfirmDialog, ConfirmDialog, Badge } from '@/components/ui';
+import { Download } from 'lucide-react';
+import { exportHtmlElement } from '@/lib/exports/htmlExport';
 import { useApp } from '@/contexts/AppContext';
 import { useProducts, useRealtimeProducts, useDeleteProduct } from '@/hooks';
 import { ItemStatus } from '@/types/item';
@@ -21,6 +23,8 @@ export default function AdminProductsPage() {
   const { currentBusiness } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<ItemStatus | 'all' | 'out_of_stock'>('all');
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
+  const tableExportRef = useRef<HTMLDivElement>(null);
   
   // Fetch products with React Query
   // Filter out 'out_of_stock' from the status filter for the API call
@@ -47,6 +51,16 @@ export default function AdminProductsPage() {
 
   // Delete mutation
   const deleteProduct = useDeleteProduct();
+
+  // Handle export
+  const handleExport = async () => {
+    if (!tableExportRef.current) return;
+    const fileName = `products-${selectedStatus === 'all' ? 'all' : selectedStatus}`;
+    await exportHtmlElement(tableExportRef.current, {
+      format: exportFormat,
+      fileName,
+    });
+  };
 
   const filteredProducts = items.filter((product) => {
     // Apply search filter
@@ -99,6 +113,7 @@ export default function AdminProductsPage() {
       </div>
     );
   }
+
 
   return (
     <div>
@@ -192,7 +207,7 @@ export default function AdminProductsPage() {
       )}
 
       {/* Products List */}
-      <div className="bg-card rounded-lg border border-border">
+      <div className="bg-white rounded-lg shadow overflow-hidden" ref={tableExportRef}>
         <div className="divide-y divide-border">
           {filteredProducts.length === 0 && !loading ? (
             <div className="p-8 sm:p-12 text-center text-text-secondary">

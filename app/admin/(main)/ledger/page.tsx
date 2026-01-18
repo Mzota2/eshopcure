@@ -5,9 +5,10 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useLedgerEntries, useRealtimeLedgerEntries, useDerivedTransactions, useSettings } from '@/hooks';
-import { Button, Loading } from '@/components/ui';
+import { exportHtmlElement } from '@/lib/exports/htmlExport';
+import { Button, Loading, useToast } from '@/components/ui';
 import { cn } from '@/lib/utils/cn';
 import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import { LedgerEntryType, LedgerEntryStatus, LedgerEntry } from '@/types/ledger';
@@ -31,6 +32,30 @@ export default function AdminLedgerPage() {
   const [typeFilter, setTypeFilter] = useState<LedgerEntryType | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<LedgerEntryStatus | 'all'>('all');
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
+  const tableExportRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
+
+  // Handle export
+  const handleExport = async () => {
+    if (!tableExportRef.current) {
+      console.error('Export element not found');
+      return;
+    }
+    
+    const fileName = `ledger-${dateRange}-${typeFilter === 'all' ? 'all' : typeFilter}-${statusFilter === 'all' ? 'all' : statusFilter}`;
+    
+    try {
+      await exportHtmlElement(tableExportRef.current, {
+        format: exportFormat,
+        fileName,
+        scale: 1.5, // Increase scale for better quality
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.showError('Failed to export. Please try again.');
+    }
+  };
 
   // Check if ledger creation is enabled
   const { data: settings } = useSettings();
@@ -206,25 +231,73 @@ export default function AdminLedgerPage() {
 
   if (error) {
     return (
-      <div className="p-4 bg-destructive/20 text-destructive rounded-lg">
-        {error instanceof Error ? error.message : 'An error occurred while loading transaction data'}
+      <div className="space-y-6" ref={tableExportRef}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Ledger</h1>
+            <p className="text-sm text-muted-foreground">
+              {filteredTransactions.length} entries found
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
+              className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
+            >
+              <option value="pdf">PDF</option>
+              <option value="image">Image (PNG)</option>
+            </select>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={filteredTransactions.length === 0}
+              className="whitespace-nowrap"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        </div>
+        <div className="p-4 bg-destructive/20 text-destructive rounded-lg">
+          {error instanceof Error ? error.message : 'An error occurred while loading transaction data'}
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="mb-6 sm:mb-8">
+    <div className="space-y-6">
+      {/* Header with title and export controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Ledger</h1>
-          <p className="text-xs sm:text-sm text-text-secondary mt-1">
-            {isUsingDerivedData 
-              ? 'Transaction data derived from orders and bookings' 
-              : 'Financial transaction history from Firestore'}
+          <p className="text-sm text-muted-foreground">
+            {filteredTransactions.length} entries found
+            {isUsingDerivedData && ' (derived from orders and bookings)'}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
+            className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
+          >
+            <option value="pdf">PDF</option>
+            <option value="image">Image (PNG)</option>
+          </select>
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={filteredTransactions.length === 0}
+            className="whitespace-nowrap"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
-
+      
       {/* Warning banner when using derived data */}
       {isUsingDerivedData && !isBannerDismissed && (
         <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-warning/20 border border-warning/50 rounded-lg flex items-start gap-2 sm:gap-3 relative">
@@ -232,10 +305,9 @@ export default function AdminLedgerPage() {
           <div className="flex-1 min-w-0 pr-6 sm:pr-8">
             <h3 className="text-sm sm:text-base font-semibold text-warning mb-1">Derived Transaction Data</h3>
             <p className="text-xs sm:text-sm text-text-secondary">
-              Ledger creation is currently disabled in app settings. This page is showing transaction information 
+              Ledger creation is currently disabled in app settings. This page shows transaction information 
               derived from successful orders and bookings. This data is calculated from payment records and may not 
-              include all transaction types that would appear in actual ledger entries. To enable full ledger functionality, 
-              please enable ledger creation in the app settings.
+              include all transaction types.
             </p>
           </div>
           <button
@@ -249,9 +321,11 @@ export default function AdminLedgerPage() {
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-card rounded-lg p-4 sm:p-6 border border-border">
+      {/* Main content with export ref */}
+      <div ref={tableExportRef} className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="bg-card rounded-lg p-4 sm:p-6 border border-border">
           <h3 className="text-xs sm:text-sm font-medium text-text-secondary mb-2">Total Balance</h3>
           <p className="text-2xl sm:text-3xl font-bold text-foreground">
             {formatCurrency(summary.totalBalance, 'MWK')}
@@ -472,12 +546,13 @@ export default function AdminLedgerPage() {
         })}
       </div>
 
-      {filteredTransactions.length === 0 && !isLoading && (
-        <div className="text-center py-8 sm:py-12 text-text-secondary">
-          <p className="text-sm sm:text-base">No ledger entries found</p>
-          <p className="text-xs sm:text-sm mt-2">Try adjusting your filters</p>
-        </div>
-      )}
+        {filteredTransactions.length === 0 && !isLoading && (
+          <div className="text-center py-8 sm:py-12 text-text-secondary">
+            <p className="text-sm sm:text-base">No ledger entries found</p>
+            <p className="text-xs sm:text-sm mt-2">Try adjusting your filters</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

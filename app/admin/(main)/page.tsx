@@ -5,10 +5,11 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '@/contexts/AppContext';
+import { exportHtmlElement } from '@/lib/exports/htmlExport';
 import {
   useOrders,
   useBookings,
@@ -48,6 +49,7 @@ import {
   FileText,
   Calendar,
   AlertTriangle,
+  Download,
   HelpCircle,
 } from 'lucide-react';
 import {
@@ -90,7 +92,9 @@ const BOOKING_REVENUE_STATUSES = [
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { currentBusiness } = useApp();
-  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
+  const dashboardExportRef = useRef<HTMLDivElement>(null);
   const [showStoreTypeSelector, setShowStoreTypeSelector] = useState(false);
   const { storeType, isLoading: storeTypeLoading, hasProducts, hasServices } = useStoreType();
 
@@ -122,6 +126,22 @@ export default function AdminDashboardPage() {
   useRealtimeProducts({ businessId: currentBusiness?.id, enabled: !!currentBusiness?.id });
   useRealtimeServices({ businessId: currentBusiness?.id, enabled: !!currentBusiness?.id });
   useRealtimeCustomers({ enabled: !!currentBusiness?.id });
+
+  // Handle export
+  const handleExport = async () => {
+    if (!dashboardExportRef.current) return;
+    const fileName = `dashboard-${dateRange}-${new Date().toISOString().split('T')[0]}`;
+    
+    try {
+      await exportHtmlElement(dashboardExportRef.current, {
+        format: exportFormat,
+        fileName,
+        scale: 1.5, // Increase scale for better quality
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  };
 
   // Calculate metrics from data
   const metrics = useMemo(() => {
@@ -558,30 +578,38 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div>
+    <div ref={dashboardExportRef}>
       {showStoreTypeSelector && (
         <StoreTypeSelector
           onComplete={() => setShowStoreTypeSelector(false)}
         />
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Admin Dashboard</h1>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Overview of your business performance
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
           <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value as '7d' | '30d' | '90d')}
-            className="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
+            className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
           >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
+            <option value="pdf">PDF</option>
+            <option value="image">Image (PNG)</option>
           </select>
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </button>
         </div>
       </div>
-
-      {/* Store Type Banner - Shown Conspicuously */}
-      {storeType && <StoreTypeBanner />}
 
       {/* Metrics Cards */}
       <div className="overflow-x-auto mb-6 sm:mb-8 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
