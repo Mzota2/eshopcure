@@ -14,6 +14,7 @@ import { useDeliveryProviders } from '@/hooks/useDeliveryProviders';
 import { MALAWI_DISTRICTS, MalawiRegion } from '@/types/delivery';
 import { ReviewFormModal } from '@/components/reviews';
 import { useApp } from '@/contexts/AppContext';
+import { User } from 'firebase/auth';
 import { PaymentConfirmation } from '@/components/confirmation';
 import { useCart } from '@/contexts/CartContext';
 import { ProductImage } from '@/components/ui/OptimizedImage';
@@ -30,15 +31,53 @@ export default function OrderConfirmedPageClient() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [reviewItemId, setReviewItemId] = useState<string | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [showBusinessReviewPrompt, setShowBusinessReviewPrompt] = useState(false);
+  const [hasDismissedBusinessReview, setHasDismissedBusinessReview] = useState(false);
+  const [hasReviewedBusiness, setHasReviewedBusiness] = useState<boolean | null>(null);
   const { data: deliveryProviders } = useDeliveryProviders();
-  const { currentBusiness } = useApp();
+  const appContext = useApp();
+  const currentBusiness = appContext.currentBusiness;
+  const user = 'user' in appContext ? (appContext as any).user : null;
   const { clearCart } = useCart();
+
+  const isPaymentSuccessful = paymentStatus === 'success' || (!txRef && order?.status === 'paid');
 
   useEffect(() => {
     if (orderId) {
       loadOrder();
     }
-  }, [orderId]);
+    
+    // Check if user has reviewed the business
+    const checkBusinessReview = async () => {
+      if (!currentBusiness?.id || !user?.uid) return;
+      
+      try {
+        const { hasUserReviewed } = await import('@/lib/reviews');
+        const reviewed = await hasUserReviewed({
+          userId: user.uid,
+          businessId: currentBusiness.id,
+          reviewType: 'business'
+        });
+        setHasReviewedBusiness(reviewed);
+        
+        // Only show the prompt if user hasn't reviewed and payment is successful
+        if (isPaymentSuccessful && !reviewed) {
+          const timer = setTimeout(() => {
+            setShowBusinessReviewPrompt(true);
+          }, 5000);
+          return () => clearTimeout(timer);
+        }
+      } catch (error) {
+        console.error('Error checking business review:', error);
+        // Default to false to show the prompt if there's an error
+        setHasReviewedBusiness(false);
+      }
+    };
+    
+    if (isPaymentSuccessful && currentBusiness?.id) {
+      checkBusinessReview();
+    }
+  }, [orderId, isPaymentSuccessful]);
   
   const verifyPayment = async (ref: string) => {
     try {
@@ -83,8 +122,7 @@ export default function OrderConfirmedPageClient() {
     }
   };
 
-  const isPaymentSuccessful = paymentStatus === 'success' || (!txRef && order?.status === 'paid');
-
+  
   // Clear cart when payment is successful (for cases where order status is already paid)
   useEffect(() => {
     if (isPaymentSuccessful && !txRef && order?.status === 'paid') {
@@ -404,19 +442,60 @@ export default function OrderConfirmedPageClient() {
       )}
     </PaymentConfirmation>
 
-    {/* Review Modal */}
-    {reviewItemId && currentBusiness?.id && order && (
+    {/* Review Modals */}
+    {currentBusiness?.id && order && (
       <ReviewFormModal
         isOpen={isReviewModalOpen}
         onClose={() => {
           setIsReviewModalOpen(false);
           setReviewItemId(null);
         }}
-        itemId={reviewItemId}
+        itemId={reviewItemId || undefined}
         businessId={currentBusiness.id}
-        reviewType="item"
+        reviewType={reviewItemId ? "item" : "business"}
         orderId={order.id}
       />
+    )}
+    
+    {/* Business Review Prompt */}
+    {showBusinessReviewPrompt && !hasDismissedBusinessReview && currentBusiness?.id && order && hasReviewedBusiness === false && (
+      <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full sm:w-96 bg-card border border-border rounded-lg shadow-lg p-4 animate-fade-in-up">
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="text-sm font-medium text-foreground">How was your experience with us?</h3>
+          <button 
+            onClick={() => setHasDismissedBusinessReview(true)}
+            className="text-text-secondary hover:text-foreground"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <p className="text-xs text-text-secondary mb-3">
+          We'd love to hear your feedback about your shopping experience.
+        </p>
+        <div className="flex justify-between items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setHasDismissedBusinessReview(true)}
+            className="text-xs"
+          >
+            Not Now
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              setReviewItemId(null);
+              setIsReviewModalOpen(true);
+              setHasDismissedBusinessReview(true);
+            }}
+            className="text-xs"
+          >
+            Leave a Review
+          </Button>
+        </div>
+      </div>
     )}
     </>
   );

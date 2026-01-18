@@ -53,6 +53,8 @@
   --color-border: rgb(229 231 235); /* Light gray (gray-200) */
   --color-border-light: rgb(243 244 246); /* Gray-100 */
   --color-border-dark: rgb(209 213 219); /* Gray-300 */
+  --color-border-strong: rgb(156 163 175); /* Gray-400 */
+  --color-border-muted: rgb(243 244 246); /* Gray-100 */
   
   /* Text Colors */
   --color-text-primary: rgb(17 24 39); /* Gray-900 */
@@ -81,18 +83,69 @@
  
 }
 
-/* Dark mode support (for future implementation) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: rgb(17 24 39) !important; /* Gray-900 */
-    --color-foreground: rgb(255 255 255) !important; /* White */
-    --color-card: rgb(31 41 55) !important; /* Gray-800 */
-    --color-card-foreground: rgb(255 255 255) !important; /* White */
-    --color-text-primary: rgb(255 255 255) !important; /* White */
-    --color-text-secondary: rgb(209 213 219) !important; /* Gray-300 */
-    --color-border: rgb(55 65 81) !important; /* Gray-700 */
-    --color-background-secondary: rgb(31 41 55) !important; /* Gray-800 */
-  }
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Smooth theme transitions */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+
+
+
+/* Dark mode styles */
+.dark {
+  --color-background: rgb(17 24 39);
+  --color-foreground: rgb(255 255 255);
+  
+  /* Card Colors */
+  --color-card: rgb(31 41 55);
+  --color-card-foreground: rgb(255 255 255);
+  
+  /* Primary Colors */
+  --color-primary: rgb(59 130 246);
+  --color-primary-foreground: rgb(30 41 59);
+  --color-primary-hover: rgb(96 165 250);
+  
+  /* Border Colors - Dark Mode */
+  --color-border: rgb(55 65 81); /* gray-700 */
+  --color-border-light: rgb(31 41 55); /* gray-800 */
+  --color-border-dark: rgb(75 85 99); /* gray-600 */
+  --color-border-strong: rgb(107 114 128); /* gray-500 */
+  --color-border-muted: rgb(17 24 39); /* gray-900 */
+  
+  /* Secondary Colors */
+  --color-secondary: rgb(75 85 99);
+  --color-secondary-foreground: rgb(255 255 255);
+  
+  /* Semantic Colors */
+  --color-destructive: rgb(239 68 68);
+  --color-destructive-foreground: rgb(255 255 255);
+  --color-success: rgb(34 197 94);
+  --color-warning: rgb(251 191 36);
+  --color-info: rgb(6 182 212);
+  
+  /* Border & Divider */
+  --color-border: rgb(55 65 81);
+  --color-border-light: rgb(55 65 81);
+  --color-border-dark: rgb(75 85 99);
+  
+  /* Text Colors */
+  --color-text-primary: rgb(255 255 255);
+  --color-text-secondary: rgb(209 213 219);
+  --color-text-tertiary: rgb(156 163 175);
+  --color-text-light: rgb(209 213 219);
+  --color-text-muted: rgb(107 114 128);
+  
+  /* Background Colors */
+  --color-background-primary: rgb(17 24 39);
+  --color-background-secondary: rgb(31 41 55);
+  --color-background-tertiary: rgb(55 65 81);
+  --color-background-dark: rgb(12 19 31);
+  
+  /* Shadow Colors */
+  --color-shadow: rgb(0 0 0 / 0.3);
+  --color-shadow-lg: rgb(0 0 0 / 0.4);
 }
 /* Tailwind v4 @theme directive - maps CSS variables to Tailwind theme */
 /* stylelint-disable-next-line at-rule-no-unknown */
@@ -140,6 +193,7 @@
  
 }
 
+
 /* Base Styles */
 * {
   @apply border-border;
@@ -152,6 +206,7 @@ body {
   line-height: var(--line-height-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
 /* Typography Utilities */
@@ -201,7 +256,7 @@ a {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-background-secondary;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -210,6 +265,16 @@ a {
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-text-tertiary;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color:transparent transparent;
+}
+/* For Edge and IE */
+* {
+  -ms-overflow-style: -ms-autohiding-scrollbar;
 }
 
 /* Utility Classes */

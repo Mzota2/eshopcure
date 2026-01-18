@@ -203,7 +203,7 @@ export default function VerifyPageClient() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background-secondary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6">
+      <div className="min-h-screen bg-background-secondary dark:bg-background-tertiary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6">
         <div className="text-center max-w-md w-full">
           <p className="text-sm sm:text-base text-text-secondary mb-4">Please sign in to verify your account.</p>
           <Link href="/login">
@@ -217,7 +217,7 @@ export default function VerifyPageClient() {
   // If coming from email link, show loading while verifying
   if (oobCode && mode === 'verifyEmail') {
     return (
-      <div className="min-h-screen bg-background-secondary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6">
+      <div className="min-h-screen bg-background-secondary dark:bg-background-tertiary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6">
         <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 md:p-8 text-center">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-3 sm:mb-4">
             {error ? 'Verification Failed' : verificationSuccess ? 'Email Verified!' : 'Verifying Email'}
@@ -255,7 +255,7 @@ export default function VerifyPageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-background-secondary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background-secondary dark:bg-background-tertiary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 md:p-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-3 sm:mb-4">Verify Your Email</h1>
         <p className="text-center text-xs sm:text-sm text-text-secondary mb-6 sm:mb-8">

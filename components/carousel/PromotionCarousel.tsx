@@ -6,6 +6,7 @@ import { OptimizedImage, BannerImage } from '@/components/ui/OptimizedImage';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { ShoppingCart, ChevronLeft, ChevronRight, Calendar, ArrowRight } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { Promotion } from '@/types/promotion';
 import { business } from '@/types/business';
 import { Item } from '@/types/item';
@@ -50,6 +51,8 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
   };
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(1);
+  const { theme, resolvedTheme} = useTheme();
+  const isDark = resolvedTheme == 'dark';
 
   // Build carousel items: promotions first, then business details at the end
   const carouselItems: CarouselItem[] = [
@@ -161,10 +164,10 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
           <div className='absolute top-4 left-0 right-0 z-30 flex items-center justify-between px-4'>
             <button
               onClick={() => paginate(-1)}
-              className="bg-white/90 hover:bg-white rounded-full p-2 sm:p-3 transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
+              className={`${isDark ? 'bg-black/60 hover:bg-black/80 text-white' : 'bg-white/90 hover:bg-white text-primary'} rounded-full p-2 sm:p-3 transition-all hover:scale-110 shadow-lg backdrop-blur-sm border ${isDark ? 'border-gray-600 hover:border-gray-400' : 'border-white/20 hover:border-primary'}`}
               aria-label="Previous slide"
             >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
              {/* Dots Indicator */}
@@ -179,8 +182,8 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                       }}
                       className={`h-2 rounded-full transition-all focus:outline-none
                         ${index === currentIndex
-                          ? 'w-8 bg-white border border-white/80 shadow-md'
-                          : 'w-2 bg-white/60 border border-white/80 hover:bg-white/80'
+                          ? `w-8 ${isDark ? 'bg-white border-white/90' : 'bg-white border-white/80'} border shadow-md`
+                          : `w-2 ${isDark ? 'bg-white/40 border-white/60 hover:bg-white/70' : 'bg-white/60 border-white/80 hover:bg-white/80'} border`
                         }`}
                       aria-label={`Go to slide ${index + 1}`}
                     />
@@ -190,10 +193,10 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
 
             <button
               onClick={() => paginate(1)}
-              className="bg-white/90 hover:bg-white rounded-full p-2 sm:p-3 transition-all hover:scale-110 shadow-lg backdrop-blur-sm"
+              className={`${isDark ? 'bg-black/60 hover:bg-black/80 text-white' : 'bg-white/90 hover:bg-white text-primary'} rounded-full p-2 sm:p-3 transition-all hover:scale-110 shadow-lg backdrop-blur-sm border ${isDark ? 'border-gray-600 hover:border-gray-400' : 'border-white/20 hover:border-primary'}`}
               aria-label="Next slide"
             >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         )}
@@ -271,7 +274,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                               repeat: Infinity,
                               ease: "easeInOut"
                             }}
-                            className="inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold text-lg sm:text-xl md:text-2xl rounded-lg sm:rounded-xl shadow-lg border-2 border-white/30 backdrop-blur-sm"
+                            className={`inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold text-lg sm:text-xl md:text-2xl rounded-lg sm:rounded-xl shadow-lg border-2 !border-white/30 backdrop-blur-sm`}
                           >
                             <motion.span
                               animate={{
@@ -339,7 +342,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                 >
                                 <Link
                                   href={item.type === 'product' ? `/products/${item.slug}` : `/services/${item.slug}`}
-                                    className="block relative bg-white/10 rounded-xl overflow-hidden border-2 border-white/20 hover:border-white/40 transition-all duration-300 shadow-xl hover:shadow-2xl"
+                                    className={`block relative ${isDark ? 'bg-black/30' : 'bg-white/10'} rounded-xl overflow-hidden border-2 !border-white/20 hover:border-white/40 transition-all duration-300 shadow-xl hover:shadow-2xl`}
                                 >
                                     <div className="relative aspect-[4/3]">
                                   <ProductImage
@@ -373,7 +376,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                 >
                                 <Link
                                   href={`/promotions/${promotionSlug}`}
-                                    className="relative bg-gradient-to-br w-full h-full from-white/20 to-white/10 backdrop-blur-md rounded-xl overflow-hidden border-2 border-white/30 hover:border-white/50 transition-all duration-300 shadow-xl hover:shadow-2xl aspect-square flex flex-col items-center justify-center"
+                                    className={`relative bg-gradient-to-br w-full h-full !border-white/30 hover:border-white/50 transition-all duration-300 shadow-xl hover:shadow-2xl aspect-square flex flex-col items-center justify-center`}
                                 >
                                     <div className="text-center p-4">
                                       <div className="text-2xl sm:text-3xl font-bold text-white mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
@@ -509,8 +512,8 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                         }}
                         className={`h-2 rounded-full transition-all focus:outline-none
                           ${index === currentIndex
-                          ? 'w-8 bg-white border border-white/80 shadow-md'
-                          : 'w-2 bg-white/60 border border-white/80 hover:bg-white/80'
+                          ? 'w-8 bg-white border !border-white/80 shadow-md'
+                          : 'w-2 bg-white/60 border !border-white/80 hover:bg-white/80'
                           }`}
                         aria-label={`Go to slide ${index + 1}`}
                       />
@@ -601,7 +604,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                               repeat: Infinity,
                               ease: "easeInOut"
                             }}
-                            className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl rounded-xl shadow-lg border-2 border-white/30 backdrop-blur-sm"
+                            className="inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl rounded-xl shadow-lg border-2 !border-white/30 backdrop-blur-sm"
                           >
                             <motion.span
                               animate={{
@@ -669,7 +672,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                 >
                                   <Link
                                     href={item.type === 'product' ? `/products/${item.slug}` : `/services/${item.slug}`}
-                                    className="block h-full w-fullrelative bg-white/10 rounded-lg overflow-hidden border-2 border-white/20 hover:border-white/40 transition-all duration-300 shadow-lg hover:shadow-xl"
+                                    className="block h-full w-fullrelative bg-white/10 rounded-lg overflow-hidden border-2 !border-white/20 hover:border-white/40 transition-all duration-300 shadow-lg hover:shadow-xl"
                                   >
                                     <div className="relative aspect-[4/3]">
                                       <ProductImage
@@ -703,7 +706,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                                 >
                                   <Link
                                     href={`/promotions/${promotionSlug}`}
-                                    className="relative bg-gradient-to-br h-full w-full from-white/20 to-white/10 rounded-lg overflow-hidden border-2 border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg hover:shadow-xl aspect-[4/3] flex flex-col items-center justify-center"
+                                    className="relative bg-gradient-to-br h-full w-full from-white/20 to-white/10 rounded-lg overflow-hidden border-2 !border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg hover:shadow-xl aspect-[4/3] flex flex-col items-center justify-center"
                                   >
                                     <div className="text-center p-3 sm:p-4">
                                       <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">

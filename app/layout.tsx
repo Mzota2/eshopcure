@@ -5,6 +5,7 @@ import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AppProvider } from "@/contexts/AppContext";
 import { ToastProvider } from "@/components/ui/Toast";
+import {ThemeProvider} from "@/providers/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "eShopCure",
@@ -34,16 +35,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <body>
         <QueryProvider>
           <AuthProvider>
             <AppProvider>
-              <ToastProvider>
-              <AnalyticsProvider>
-                {children}
-              </AnalyticsProvider>
-              </ToastProvider>
+              <ThemeProvider>
+                <ToastProvider>
+                  <AnalyticsProvider>
+                    {children}
+                  </AnalyticsProvider>
+                </ToastProvider>
+              </ThemeProvider>
             </AppProvider>
           </AuthProvider>
         </QueryProvider>

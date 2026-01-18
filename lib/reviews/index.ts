@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { COLLECTIONS } from '@/types/collections';
+import type { business } from '@/types/business';
 import { Review } from '@/types/reviews';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { isReviewsEnabled } from './utils';
@@ -250,25 +251,40 @@ export const createReview = async (
     throw new ValidationError('Business ID is required');
   }
 
+  // Check if reviews are enabled for this business
+  if (finalBusinessId) {
+    const businessRef = doc(db, COLLECTIONS.BUSINESS, finalBusinessId);
+    const businessSnap = await getDoc(businessRef);
+    
+    if (!businessSnap.exists()) {
+      throw new ValidationError('Business not found');
+    }
+    
+    const businessData = businessSnap.data() as business;
+    
+    // Check if reviews are enabled for this business
+    if (!isReviewsEnabled()) {
+      throw new ValidationError('Reviews are not enabled for this business');
+    }
+    
+    // Check if the user has already reviewed this item/business
+    // This is a critical check to prevent duplicate reviews
+    const hasReviewed = await hasUserReviewed({
+      userId: review.userId,
+      userEmail: review.userEmail?.toLowerCase().trim(),
+      itemId: review.itemId,
+      businessId: finalBusinessId,
+      reviewType: review.reviewType,
+    });
+    
+    if (hasReviewed) {
+      throw new ValidationError('You have already reviewed this item/business. Only one review per customer is allowed.');
+    }
+  }
+
   // Normalize email to lowercase for consistent duplicate checking
   const normalizedEmail = review.userEmail?.toLowerCase().trim();
   
-  // Check if user has already reviewed this item/business
-  const alreadyReviewed = await hasUserReviewed({
-    userId: review.userId,
-    userEmail: normalizedEmail,
-    itemId: review.itemId,
-    businessId: finalBusinessId,
-    reviewType: review.reviewType,
-  });
-
-  if (alreadyReviewed) {
-    const reviewTarget = review.reviewType === 'business' 
-      ? 'this business' 
-      : 'this item';
-    throw new ValidationError(`You have already submitted a review for ${reviewTarget}. Each customer can only submit one review per ${review.reviewType === 'business' ? 'business' : 'product/service'}.`);
-  }
-
   // If userId is provided, fetch user profile to get name
   let userName = review.userName;
   let userEmail = review.userEmail;

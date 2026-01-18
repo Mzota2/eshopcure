@@ -7,8 +7,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Mail, Phone, Home } from 'lucide-react';
-import { Button, Input, Textarea, useToast } from '@/components/ui';
-import { useCart } from '@/contexts/CartContext';
+import { Button, Input, Loading, Textarea, useToast } from '@/components/ui';
+import { useCart, CartItem } from '@/contexts/CartContext';
+import { useProduct } from '@/hooks/useProducts';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
 import { getUserFriendlyMessage, ERROR_MESSAGES } from '@/lib/utils/user-messages';
@@ -35,6 +36,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { ProductImage } from '@/components/ui/OptimizedImage';
 
+
 interface CheckoutFormData {
   firstName: string;
   lastName: string;
@@ -54,10 +56,10 @@ interface CheckoutFormData {
 export default function CheckoutPage() {
   const toast = useToast();
   const router = useRouter();
-  const { items, clearCart } = useCart();
+  const { items, clearCart, setDirectPurchaseItem } = useCart();
   const { user } = useAuth();
   const { currentBusiness } = useApp();
-  
+
   // Fetch delivery providers and settings
   const { data: deliveryProviders = [], isLoading: providersLoading } = useDeliveryProviders({
     businessId: currentBusiness?.id,
@@ -232,6 +234,45 @@ export default function CheckoutPage() {
     }
   }, [userProfile, user]);
 
+  // Get URL parameters at the top level
+  const [urlParams, setUrlParams] = useState<{
+    directCheckout: string | null;
+    productId: string | null;
+    variantId: string | null;
+  }>({ directCheckout: null, productId: null, variantId: null });
+
+  // Set URL parameters in a useEffect to ensure it only runs on the client
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setUrlParams({
+      directCheckout: params.get('directCheckout'),
+      productId: params.get('productId'),
+      variantId: params.get('variantId')
+    });
+  }, []);
+
+  // Fetch product details using the useProduct hook
+  const { data: directProduct, isLoading: isLoadingProduct } = useProduct(
+    urlParams.directCheckout === 'true' ? urlParams.productId || '' : '',
+    { enabled: urlParams.directCheckout === 'true' && !!urlParams.productId }
+  );
+
+  // Set direct purchase item when product is loaded
+  useEffect(() => {
+    if (urlParams.directCheckout === 'true' && directProduct) {
+      setDirectPurchaseItem({
+        product: directProduct,
+        quantity: 1,
+        variantId: urlParams.variantId || undefined
+      });
+      
+      // Clean up URL
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [directProduct, urlParams]);
+
+
   // Calculate pricing with promotions (discount already applied to subtotal)
   const subtotal = useMemo(() => {
     return items.reduce((sum, item) => {
@@ -284,9 +325,15 @@ export default function CheckoutPage() {
     return settings?.payment?.methods || [];
   }, [settings]);
 
-  // Note: We don't redirect to cart if items are empty
-  // This allows users to stay on checkout page even if cart is cleared
-  // Cart will be cleared after successful payment verification
+  // Redirect to cart if no items and not in direct purchase mode
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const directCheckout = params.get('directCheckout');
+    
+    if (items.length === 0 && directCheckout !== 'true') {
+      router.push('/cart');
+    }
+  }, [items, router]);
 
   const handleInputChange = (field: keyof CheckoutFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -499,6 +546,19 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return null; // Will redirect
+  }
+
+  
+  // Show loading state while fetching product
+  if (urlParams?.directCheckout && (isLoadingProduct || (urlParams.productId && !directProduct))) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loading/>
+          <p>Loading product details...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

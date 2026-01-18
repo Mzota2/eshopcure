@@ -12,9 +12,10 @@ import { COLLECTIONS } from '@/types/collections';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Booking } from '@/types/booking';
-import { Calendar, Clock, User, Phone, Mail, MessageSquare, Star } from 'lucide-react';
+import { Calendar, Clock, User as UserIcon, Phone, Mail, MessageSquare, Star } from 'lucide-react';
 import { ReviewFormModal } from '@/components/reviews';
 import { useApp } from '@/contexts/AppContext';
+import { User } from 'firebase/auth';
 import { PaymentConfirmation } from '@/components/confirmation';
 import { useCart } from '@/contexts/CartContext';
 
@@ -29,14 +30,70 @@ export default function BookConfirmedPageClient() {
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | 'pending' | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const { currentBusiness } = useApp();
+  const [showBusinessReviewPrompt, setShowBusinessReviewPrompt] = useState(false);
+  const [hasDismissedBusinessReview, setHasDismissedBusinessReview] = useState(false);
+  const [hasReviewedBusiness, setHasReviewedBusiness] = useState<boolean | null>(null);
+  const [reviewType, setReviewType] = useState<'item' | 'business'>('item');
+  const appContext = useApp();
+  const currentBusiness = appContext.currentBusiness;
+  const user = 'user' in appContext ? (appContext as any).user : null;
   const { clearCart } = useCart();
+
+  // Calculate payment success status
+  const isPaymentSuccessful = paymentStatus === 'success' || (!txRef && booking?.status === 'paid');
 
   useEffect(() => {
     if (bookingId) {
       loadBooking();
     }
   }, [bookingId]);
+  
+  // Check if user has reviewed the business and show prompt if not
+  useEffect(() => {
+    const checkBusinessReview = async () => {
+      if (!currentBusiness?.id || !user?.uid) return;
+      
+      try {
+        const { hasUserReviewed } = await import('@/lib/reviews');
+        const reviewed = await hasUserReviewed({
+          userId: user.uid,
+          businessId: currentBusiness.id,
+          reviewType: 'business'
+        });
+        setHasReviewedBusiness(reviewed);
+        
+        // Only show the prompt if user hasn't reviewed and payment is successful
+        if (isPaymentSuccessful && !reviewed) {
+          const timer = setTimeout(() => {
+            setShowBusinessReviewPrompt(true);
+          }, 5000);
+          return () => clearTimeout(timer);
+        }
+      } catch (error) {
+        console.error('Error checking business review:', error);
+        // Default to false to show the prompt if there's an error
+        setHasReviewedBusiness(false);
+      }
+    };
+    
+    if (isPaymentSuccessful && currentBusiness?.id) {
+      checkBusinessReview();
+    }
+  }, [isPaymentSuccessful, currentBusiness?.id, user?.uid]);
+  
+  // Clear cart when payment is successful (for cases where booking status is already paid)
+  useEffect(() => {
+    if (isPaymentSuccessful && !txRef && booking?.status === 'paid') {
+      clearCart();
+    }
+  }, [isPaymentSuccessful, booking?.status, txRef, clearCart]);
+  
+  // Handle business review submission
+  const handleBusinessReview = () => {
+    setReviewType('business');
+    setIsReviewModalOpen(true);
+    setHasDismissedBusinessReview(true);
+  };
   
   const verifyPayment = async (ref: string) => {
     try {
@@ -103,14 +160,6 @@ export default function BookConfirmedPageClient() {
     ? booking.pricing.totalFee - (booking.pricing.bookingFee || 0) + (booking.pricing.totalFee * 0.08)
     : 0;
 
-  const isPaymentSuccessful = paymentStatus === 'success' || (!txRef && booking?.status === 'paid');
-
-  // Clear cart when payment is successful (for cases where booking status is already paid)
-  useEffect(() => {
-    if (isPaymentSuccessful && !txRef && booking?.status === 'paid') {
-      clearCart();
-    }
-  }, [isPaymentSuccessful, booking?.status, txRef, clearCart]);
 
   return (
     <>
@@ -216,7 +265,7 @@ export default function BookConfirmedPageClient() {
             <div className="bg-background-secondary rounded-lg sm:rounded-xl p-4 sm:p-6">
               <div className="space-y-2 sm:space-y-3">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary flex-shrink-0" />
+<UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-text-secondary flex-shrink-0" />
                   <span className="text-sm sm:text-base text-foreground break-all">{booking.customerName || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
@@ -301,11 +350,44 @@ export default function BookConfirmedPageClient() {
                   </p>
                   <Button
                     variant="outline"
-                    onClick={() => setIsReviewModalOpen(true)}
+                    onClick={() => {
+                      setReviewType('item');
+                      setIsReviewModalOpen(true);
+                    }}
                     className="flex items-center gap-2 text-xs sm:text-sm"
                   >
                     <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
-                    Write a Review
+                    Rate This Service
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Business Review Prompt */}
+          {showBusinessReviewPrompt && !hasDismissedBusinessReview && currentBusiness?.id && booking && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg sm:rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="flex-shrink-0">
+                  <Star className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                </div>
+                <div className="flex-grow min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
+                    Share Your Experience with {currentBusiness.name}
+                  </h3>
+                  <p className="text-sm sm:text-base text-text-secondary mb-3 sm:mb-4">
+                    We&apos;d love to hear what you think about your experience with {currentBusiness.name}. Your review helps other customers make informed decisions.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setReviewType('business');
+                      setIsReviewModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 text-xs sm:text-sm"
+                  >
+                    <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Rate This Business
                   </Button>
                 </div>
               </div>
@@ -317,15 +399,42 @@ export default function BookConfirmedPageClient() {
     </PaymentConfirmation>
 
     {/* Review Modal */}
-    {isPaymentSuccessful && booking?.serviceId && currentBusiness?.id && (
+    {isPaymentSuccessful && currentBusiness?.id && booking && (
       <ReviewFormModal
         isOpen={isReviewModalOpen}
         onClose={() => setIsReviewModalOpen(false)}
-        itemId={booking.serviceId}
+        itemId={reviewType === 'item' ? booking.serviceId : undefined}
         businessId={currentBusiness.id}
-        reviewType="item"
+        reviewType={reviewType}
         bookingId={booking.id}
       />
+    )}
+    
+    {/* Business Review Prompt - Fixed Position */}
+    {showBusinessReviewPrompt && !hasDismissedBusinessReview && currentBusiness?.id && booking && (
+      <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full sm:w-96 bg-card border border-border rounded-lg shadow-lg p-4 animate-fade-in-up">
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="text-sm font-medium text-foreground">How was your experience with us?</h3>
+          <Button 
+            variant="ghost"
+            size="sm"
+            onClick={() => setHasDismissedBusinessReview(true)}
+            className="text-text-secondary hover:text-foreground text-xs"
+          >
+            Not Now
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              handleBusinessReview();
+            }}
+            className="text-xs"
+          >
+            Leave a Review
+          </Button>
+        </div>
+      </div>
     )}
     </>
   );

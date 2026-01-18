@@ -155,7 +155,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
   }
 
   return (
-    <div className="bg-card rounded-lg shadow-sm p-6">
+    <div className="bg-card dark:bg-background-tertiary rounded-lg shadow-sm p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-2">{defaultTitle}</h2>

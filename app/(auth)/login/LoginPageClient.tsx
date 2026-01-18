@@ -30,22 +30,22 @@ export default function LoginPageClient() {
   const [checkingRateLimit, setCheckingRateLimit] = useState(false);
 
   // Redirect if already logged in
-  // useEffect(() => {
-  //   if (user && !isLoading) {
-  //     if (fromAdmin) {
-  //       // If coming from admin, check role
-  //       if (userRole === UserRole.ADMIN || userRole === UserRole.STAFF) {
-  //         router.push('/admin');
-  //       }
-  //       // If not admin/staff, stay on login page (error will be shown)
-  //     } else if (returnUrl && isValidReturnUrl(returnUrl)) {
-  //       // Redirect to the returnUrl if valid
-  //       router.push(returnUrl);
-  //     } else {
-  //       router.push('/');
-  //     }
-  //   }
-  // }, [user, userRole, fromAdmin, returnUrl, router, isLoading]);
+  useEffect(() => {
+    if (user && !isLoading) {
+      if (fromAdmin) {
+        // If coming from admin, check role
+        if (userRole === UserRole.ADMIN || userRole === UserRole.STAFF) {
+          router.push('/admin');
+        }
+        // If not admin/staff, stay on login page (error will be shown)
+      } else if (returnUrl && isValidReturnUrl(returnUrl)) {
+        // Redirect to the returnUrl if valid
+        router.push(returnUrl);
+      } else {
+        router.push('/');
+      }
+    }
+  }, [user, userRole, fromAdmin, returnUrl, router, isLoading]);
 
   // Check rate limit when email changes
   useEffect(() => {
@@ -179,7 +179,7 @@ export default function LoginPageClient() {
   };
 
   return (
-    <div className="min-h-screen bg-background-secondary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background-secondary dark:bg-background-tertiary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 md:p-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-1.5 sm:mb-2">Log Back In</h1>
         <p className="text-center text-xs sm:text-sm text-text-secondary mb-6 sm:mb-8">

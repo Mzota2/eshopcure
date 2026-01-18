@@ -5,15 +5,14 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal, Button, Input, Textarea, useToast } from '@/components/ui';
 import { Star, AlertCircle } from 'lucide-react';
 import { useCreateReview } from '@/hooks/useReviews';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApp } from '@/contexts/AppContext';
-import { Review } from '@/types/reviews';
-import { hasUserReviewed } from '@/lib/reviews';
-import { useSettings } from '@/hooks/useSettings';
+import { Review, ReviewType } from '@/types/reviews';
+import { getReviews, hasUserReviewed } from '@/lib/reviews';
 import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 
 interface ReviewFormModalProps {
@@ -21,7 +20,7 @@ interface ReviewFormModalProps {
   onClose: () => void;
   itemId?: string;
   businessId?: string;
-  reviewType: 'item' | 'business';
+  reviewType: ReviewType;
   orderId?: string;
   bookingId?: string;
   onSuccess?: () => void;
@@ -40,33 +39,31 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
   const { user } = useAuth();
   const { currentBusiness } = useApp();
   const createReview = useCreateReview();
-  
+  const toast = useToast();
+
+  const finalBusinessId = useMemo(() => businessId || currentBusiness?.id || '', [businessId, currentBusiness]);
+
   const [rating, setRating] = useState(5);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState('');
   const [userName, setUserName] = useState(user?.displayName || '');
   const [userEmail, setUserEmail] = useState(user?.email || '');
   const [errors, setErrors] = useState<{ comment?: string; userName?: string; userEmail?: string }>({});
-  const [isCheckingReview, setIsCheckingReview] = useState(false);
+  const [isCheckingReview, setIsCheckingReview] = useState(true);
   const [hasExistingReview, setHasExistingReview] = useState(false);
+  const [existingReview, setExistingReview] = useState<Review | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const finalBusinessId = businessId || currentBusiness?.id || '';
-  const toast = useToast();
-  // Check if user has already reviewed when modal opens or user/item changes
-  useEffect(() => {
-    if (isOpen && finalBusinessId) {
-      checkExistingReview();
-    } else {
-      setHasExistingReview(false);
+  const checkExistingReview = useCallback(async (): Promise<void> => {
+    if (!finalBusinessId) {
+      setIsCheckingReview(false);
+      return;
     }
-  }, [isOpen, user?.uid, itemId, businessId, reviewType, finalBusinessId]);
 
-  const checkExistingReview = async () => {
-    if (!finalBusinessId) return;
-    
     // Only check for authenticated users or when we have email
     if (!user && !userEmail) {
       setHasExistingReview(false);
+      setIsCheckingReview(false);
       return;
     }
 
@@ -74,6 +71,13 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
     try {
       // Normalize email to lowercase for consistent duplicate checking
       const emailToCheck = (user?.email || userEmail)?.toLowerCase().trim();
+
+      if (!emailToCheck && !user?.uid) {
+        setHasExistingReview(false);
+        return;
+      }
+
+      // Check if user has already reviewed
       const alreadyReviewed = await hasUserReviewed({
         userId: user?.uid,
         userEmail: emailToCheck,
@@ -81,47 +85,75 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
         businessId: finalBusinessId,
         reviewType,
       });
-      setHasExistingReview(alreadyReviewed);
+
+      // If user has reviewed, try to fetch the existing review
+      if (alreadyReviewed) {
+        try {
+          // Create a query object with only the necessary parameters
+          const query: any = {
+            ...(user?.uid && { userId: user.uid }),
+            ...(emailToCheck && { userEmail: emailToCheck }),
+            ...(itemId && { itemId }),
+            ...(finalBusinessId && { businessId: finalBusinessId }),
+            reviewType,
+            limit: 1,
+          };
+          
+          const reviews = await getReviews(query);
+          if (reviews.length > 0) {
+            setExistingReview(reviews[0]);
+          }
+        } catch (error) {
+          console.error('Error fetching existing review:', error);
+        }
+      }
+
+      setHasExistingReview(!!alreadyReviewed);
     } catch (error) {
       console.error('Error checking existing review:', error);
       setHasExistingReview(false);
     } finally {
       setIsCheckingReview(false);
     }
-  };
+  }, [user, userEmail, itemId, finalBusinessId, reviewType]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    checkExistingReview();
+  }, [checkExistingReview]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
-
-    // Prevent submission if user has already reviewed
-    if (hasExistingReview) {
-      
-      toast.showWarning('Review Already Submitted', 'You have already submitted a review for this item. Each customer can only submit one review.');
-      return;
-    }
-
-    // Validation
-    const newErrors: { comment?: string; userName?: string; userEmail?: string } = {};
-    if (!comment.trim()) {
-      newErrors.comment = 'Please write a review comment';
-    }
-    if (!user && !userName.trim()) {
-      newErrors.userName = 'Name is required for guest reviews';
-    }
-    if (!user && !userEmail.trim()) {
-      newErrors.userEmail = 'Email is required for guest reviews';
-    } else if (!user && userEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
-      newErrors.userEmail = 'Please enter a valid email address';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    setIsSubmitting(true);
 
     try {
-      const reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'> = {
+      // Prevent submission if user has already reviewed
+      if (hasExistingReview) {
+        toast.showWarning('Review Already Submitted', 'You have already submitted a review for this item. Each customer can only submit one review.');
+        return;
+      }
+
+      // Validation
+      const newErrors: { comment?: string; userName?: string; userEmail?: string } = {};
+      if (!comment.trim()) {
+        newErrors.comment = 'Please write a review comment';
+      }
+      if (!user && !userName.trim()) {
+        newErrors.userName = 'Name is required for guest reviews';
+      }
+      if (!user && !userEmail.trim()) {
+        newErrors.userEmail = 'Email is required for guest reviews';
+      } else if (!user && userEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+        newErrors.userEmail = 'Please enter a valid email address';
+      }
+
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        return;
+      }
+
+      // Create review data without the id, createdAt, and updatedAt fields
+      const reviewData = {
         reviewType,
         rating,
         comment: comment.trim(),
@@ -129,16 +161,19 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
         ...(itemId && { itemId }),
         ...(user?.uid && { userId: user.uid }),
         // Normalize email to lowercase for consistent duplicate checking
-        ...(!user && { 
-          userName: userName.trim(), 
-          userEmail: userEmail.trim().toLowerCase() 
+        ...(!user && {
+          userName: userName.trim(),
+          userEmail: userEmail.trim().toLowerCase(),
         }),
         ...(orderId && { orderId }),
         ...(bookingId && { bookingId }),
+        // These will be added by the server
+        // createdAt: new Date(),
+        // updatedAt: new Date(),
       };
 
       await createReview.mutateAsync({ reviewData, businessId: finalBusinessId });
-      
+
       // Reset form
       setRating(5);
       setComment('');
@@ -146,17 +181,22 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
         setUserName('');
         setUserEmail('');
       }
-      
+
       onSuccess?.();
       onClose();
     } catch (error) {
-      const errorMessage = getUserFriendlyMessage(error instanceof Error ? error.message:'Failed to submit review. Please try again.', 'Failed to submit review. Please try again.');
-      console.error('Error submitting review:', errorMessage);
+      const errorMessage = getUserFriendlyMessage(
+        error instanceof Error ? error.message : 'Failed to submit review. Please try again.',
+        'Failed to submit review. Please try again.'
+      );
+      console.error('Error submitting review:', errorMessage, error);
       toast.showError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const renderStars = (displayRating: number, interactive = true) => {
+  const renderStars = (displayRating: number, interactive = true): React.ReactNode => {
     return (
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -184,7 +224,76 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
     );
   };
 
-  const reviewTarget = reviewType === 'business' ? 'this business' : 'this item';
+  if (!isOpen) return null;
+  
+  // Helper function to safely convert Firestore Timestamp to Date
+  const getReviewDate = (date: Date | { toDate: () => Date } | undefined): Date => {
+    if (!date) return new Date();
+    if (typeof date === 'object' && 'toDate' in date) {
+      return date.toDate();
+    }
+    return date as Date;
+  };
+
+  if (isCheckingReview) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Loading...">
+        <div className="p-4">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  if (hasExistingReview && existingReview) {
+    const reviewDate = getReviewDate(existingReview.createdAt);
+
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Your Review">
+        <div className="p-4">
+          <div className="mb-4">
+            <div className="flex items-center mb-2">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  className={`w-5 h-5 ${
+                    i < (existingReview.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                  }`}
+                />
+              ))}
+              <span className="ml-2 text-sm text-gray-500">
+                {reviewDate.toLocaleDateString()}
+              </span>
+            </div>
+            <p className="text-gray-700">{existingReview.comment}</p>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  } else if (hasExistingReview) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Review Already Submitted">
+        <div className="p-4">
+          <div className="flex items-center justify-center mb-4">
+            <AlertCircle className="w-12 h-12 text-yellow-500" />
+          </div>
+          <p className="text-center mb-4">
+            You have already submitted a review for this {reviewType}. Thank you for your feedback!
+          </p>
+          <div className="flex justify-end">
+            <Button onClick={onClose}>Close</Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -192,19 +301,8 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
       onClose={onClose}
       title={reviewType === 'business' ? 'Write a Business Review' : 'Write a Review'}
       size="lg"
+      aria-label={reviewType === 'business' ? 'Business Review Form' : 'Product Review Form'}
     >
-      {hasExistingReview && (
-        <div className="mb-6 p-4 bg-warning/10 border border-warning/20 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-semibold text-foreground mb-1">Already Reviewed</p>
-            <p className="text-sm text-text-secondary">
-              You have already submitted a review for {reviewTarget}. Each customer can only submit one review per {reviewType === 'business' ? 'business' : 'product/service'}.
-            </p>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Rating Selection */}
         <div>
@@ -277,8 +375,8 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
           </Button>
           <Button 
             type="submit" 
-            isLoading={createReview.isPending || isCheckingReview}
-            disabled={hasExistingReview}
+            isLoading={isSubmitting || createReview.isPending}
+            disabled={hasExistingReview || isCheckingReview}
           >
             {hasExistingReview ? 'Already Reviewed' : 'Submit Review'}
           </Button>

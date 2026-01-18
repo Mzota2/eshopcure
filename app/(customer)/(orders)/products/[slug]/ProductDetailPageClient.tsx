@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Button, Badge, Loading, ShareButton } from '@/components/ui';
+import { Button, Badge, Loading, ShareButton, useToast } from '@/components/ui';
 import { ProductImage } from '@/components/ui/OptimizedImage';
 import { Item, isProduct, ItemVariant } from '@/types';
 import { useCart } from '@/contexts/CartContext';
@@ -31,6 +31,7 @@ function ProductDetailPageContent() {
   const slug = params?.slug as string;
   const { addItem } = useCart();
   const { currentBusiness } = useApp();
+  const toast = useToast();
 
   // Fetch policies
   const { data: deliveryPolicy } = useActivePolicyByType(
@@ -84,6 +85,7 @@ function ProductDetailPageContent() {
     if (product) {
       addItem(product, quantity, selectedVariants);
       // Show success message (could use a toast notification)
+      toast.showSuccess("Cart", `Successfully added ${product?.name} to cart`)
     }
   };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
@@ -67,24 +67,24 @@ export default function HomePageClient() {
     enabled: !!currentBusiness?.id,
   });
 
-  // Delivery providers fetched but not used in this component
-  // const {
-  //   data: deliveryProviders = [],
-  // } = useDeliveryProviders({
-  //   businessId: currentBusiness?.id,
-  //   isActive: true,
-  //   limit: 3,
-  //   enabled: !!currentBusiness?.id,
-  // });
 
-  // Note: Real-time updates removed for public data to save Firebase quota
-  // Using polling instead (refetchInterval in hooks)
-  // Real-time is only used for critical data (notifications, user orders/bookings)
-  
   // Combine products and services into all items
   const productsArray = Array.isArray(products) ? products : [];
   const servicesArray = Array.isArray(services) ? services : [];
   const allItems = [...productsArray, ...servicesArray];
+
+
+   const getCategoryItems = useMemo(() => {
+    return (category: any) => {
+      if (!category || !allItems.length) return [];
+      return allItems
+        .filter(item => 
+          item.categoryIds?.some((catId: string) => catId === category.id) && 
+          item.status === ItemStatus.ACTIVE
+        )
+        .slice(0, 4); // Show max 4 items per category
+    };
+  }, [allItems]);
   
   // Helper to convert createdAt to Date
   const getDate = (date: Date | Timestamp | string | undefined): Date => {
@@ -182,24 +182,24 @@ export default function HomePageClient() {
       )}
 
       {/* Shop By Category */}
-      <section className="py-16 bg-background-secondary">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">SHOP BY CATEGORY</h2>
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-text-secondary">Loading categories...</p>
-            </div>
-          ) : categories.length > 0 ? (
-            <>
-              {/* Mobile: Horizontal Scroll */}
-              <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-                <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                  {categories.map((category) => (
-                    <Link
-                      key={category.id}
-                      href={`/products?category=${category.slug}`}
-                      className="shrink-0 w-[140px] snap-start bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
-                    >
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-foreground mb-4">Shop by Category</h2>
+            <p className="text-text-secondary max-w-2xl mx-auto">
+              Browse our wide range of products and services organized by category
+            </p>
+          </div>
+          {/* Mobile: Horizontal Scroll */}
+          <div className="md:hidden">
+            {categories.length > 0 ? (
+              <div className="flex gap-4 pb-4 overflow-x-auto snap-x snap-mandatory px-1">
+                {categories.map((category) => (
+                  <div 
+                    key={category.id}
+                    className="shrink-0 w-[160px] snap-start bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
+                  >
+                    <Link href={`/products?category=${category.slug}`}>
                       <div className="relative aspect-square bg-background-secondary">
                         {category.image ? (
                           <CategoryImage 
@@ -208,17 +208,42 @@ export default function HomePageClient() {
                             fill
                             context="card"
                             className="object-cover"
-                            sizes="(max-width: 768px) 140px, 50vw"
+                            sizes="(max-width: 768px) 160px, 50vw"
                           />
                         ) : (
                           <div className="absolute inset-0 bg-gradient-to-br from-primary-light to-primary flex items-center justify-center">
                             {category.icon ? (
                               <span className="text-3xl">{category.icon}</span>
                             ) : (
-                              <OptimizedImage src="/hero.jpg" alt={category.name} fill className="object-cover opacity-50" sizes="(max-width: 768px) 140px, 50vw" />
+                              <OptimizedImage 
+                                src="/placeholder-category.jpg" 
+                                alt={category.name} 
+                                fill 
+                                className="object-cover opacity-50" 
+                                sizes="(max-width: 768px) 160px, 50vw" 
+                              />
                             )}
                           </div>
                         )}
+                        {/* Product/Service Previews */}
+                        <div className="absolute left-0 bottom-0 w-full p-1.5 grid grid-cols-4 gap-1">
+                          {getCategoryItems(category).map((item) => (
+                            <Link 
+                              key={item.id} 
+                              href={`/${isProduct(item) ? 'products' : 'services'}/${item.slug}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="relative aspect-square rounded-sm overflow-hidden border border-white/80 shadow-sm hover:border-primary hover:z-10 hover:scale-105 transition-all duration-200"
+                            >
+                              <OptimizedImage
+                                src={item.images?.[0]?.url || '/placeholder-product.jpg'}
+                                alt={item.name}
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 768px) 70px, 80px"
+                              />
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                       <div className="p-3 text-center">
                         <h2 className="font-semibold text-sm text-foreground mb-1 group-hover:text-primary transition-colors line-clamp-1">
@@ -229,54 +254,86 @@ export default function HomePageClient() {
                         )}
                       </div>
                     </Link>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-              {/* Desktop: Grid Layout */}
-              <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-6">
-              {categories.map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/products?category=${category.slug}`}
-                  className="bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
+            ) : (
+              <div className="text-center py-12 text-text-muted">
+                <p>No categories available at the moment.</p>
+              </div>
+            )}
+          </div>
+          {/* Desktop: Grid Layout */}
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {categories.length > 0 ? (
+              categories.map((category) => (
+                <div 
+                  key={category.id} 
+                  className="bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
                 >
-                  <div className="relative aspect-square bg-background-secondary">
-                    {category.image ? (
-                      <CategoryImage 
-                        src={category.image}
-                        alt={category.name}
-                        fill
-                        context="card"
-                        className="object-cover"
+                  <Link href={`/products?category=${category.slug}`}>
+                    <div className="relative aspect-square bg-background-secondary">
+                      {category.image ? (
+                        <CategoryImage 
+                          src={category.image}
+                          alt={category.name}
+                          fill
+                          context="card"
+                          className="object-cover"
                           sizes="(max-width: 1200px) 50vw, 33vw"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-primary-light to-primary flex items-center justify-center">
-                        {category.icon ? (
-                          <span className="text-4xl">{category.icon}</span>
-                        ) : (
-                          <Image src={'/hero.jpg'} fill alt={category.name} className="object-cover opacity-50" />
-                        )}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary-light to-primary flex items-center justify-center">
+                          {category.icon ? (
+                            <span className="text-4xl">{category.icon}</span>
+                          ) : (
+                            <OptimizedImage 
+                              src="/placeholder-category.jpg" 
+                              alt={category.name} 
+                              fill 
+                              className="object-cover opacity-50" 
+                              sizes="(max-width: 1200px) 100%, 100%"
+                            />
+                          )}
+                        </div>
+                      )}
+                      {/* Product/Service Previews */}
+                      <div className="absolute bottom-0 left-0 p-2 grid grid-cols-4 gap-2 w-full">
+                        {getCategoryItems(category).map((item) => (
+                          <Link 
+                            key={item.id} 
+                            href={`/${isProduct(item) ? 'products' : 'services'}/${item.slug}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative aspect-square rounded-md overflow-hidden border-2 border-white/90 shadow-md hover:border-primary hover:z-10 hover:scale-105 transition-all duration-200"
+                          >
+                            <OptimizedImage
+                              src={item.images?.[0]?.url || '/placeholder-product.jpg'}
+                              alt={item.name}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 1200px) 100px, 120px"
+                            />
+                          </Link>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                  <div className="p-4 text-center">
-                    <h2 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
-                      {category.name}
-                    </h2>
-                    {category.description && (
-                      <p className="text-xs text-text-secondary line-clamp-2">{category.description}</p>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-            </>
-          ) : (
-            <div className="text-center py-12 text-text-muted">
-              <p>No categories available at the moment.</p>
-            </div>
-          )}
+                    </div>
+                    <div className="p-4 text-center">
+                      <h2 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
+                        {category.name}
+                      </h2>
+                      {category.description && (
+                        <p className="text-xs text-text-secondary line-clamp-2">{category.description}</p>
+                      )}
+                    </div>
+                  </Link>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12 text-text-muted col-span-full">
+                <p>No categories available at the moment.</p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -302,7 +359,7 @@ export default function HomePageClient() {
             <>
               {/* Mobile: Horizontal Scroll */}
               <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-                <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                <div className="flex gap-4 overflow-x-auto pb-4">
                   {newArrivals.map((item) => (
                     <div key={item.id} className="shrink-0 w-[280px] snap-start">
                       {isProduct(item) ? (
@@ -346,7 +403,7 @@ export default function HomePageClient() {
       </section>
 
       {/* Top Picks */}
-      <section className="py-16 bg-background-secondary">
+      <section className="py-16 bg-background-secondary dark:bg-background-tertiary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12 text-foreground">OUR TOP PICKS</h2>
           {loading ? (

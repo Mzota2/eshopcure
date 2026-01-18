@@ -14,15 +14,19 @@ interface CartContextType {
   items: CartItem[];
   itemCount: number;
   totalAmount: number;
+  directPurchaseItem: CartItem | null;
   addItem: (product: Item, quantity?: number, variants?: Record<string, string>) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  setDirectPurchaseItem: (item: { product: Item; quantity: number; variantId?: string }) => void;
+  clearDirectPurchase: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [directPurchaseItem, setDirectPurchaseItem] = useState<CartItem | null>(null);
   // Load cart from localStorage on mount
   const [items, setItems] = useState<CartItem[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -80,7 +84,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => {
     setItems([]);
+    setDirectPurchaseItem(null);
     localStorage.removeItem('cart');
+  };
+
+  const clearDirectPurchase = () => {
+    setDirectPurchaseItem(null);
   };
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -99,13 +108,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <CartContext.Provider
       value={{
-        items,
-        itemCount,
-        totalAmount,
-        addItem,
-        removeItem,
-        updateQuantity,
+        items: directPurchaseItem ? [directPurchaseItem] : items,
+        itemCount: directPurchaseItem ? directPurchaseItem.quantity : itemCount,
+        totalAmount: directPurchaseItem 
+          ? getEffectivePrice(
+              directPurchaseItem.product.pricing.basePrice,
+              directPurchaseItem.product.pricing.includeTransactionFee,
+              directPurchaseItem.product.pricing.transactionFeeRate
+            ) * directPurchaseItem.quantity
+          : totalAmount,
+        directPurchaseItem,
+        addItem: directPurchaseItem ? () => {} : addItem,
+        removeItem: directPurchaseItem ? () => {} : removeItem,
+        updateQuantity: directPurchaseItem ? () => {} : updateQuantity,
         clearCart,
+        setDirectPurchaseItem: (item) => {
+          setDirectPurchaseItem({
+            product: item.product,
+            quantity: item.quantity,
+            selectedVariants: item.variantId 
+              ? { 'variant': item.variantId }
+              : undefined
+          });
+        },
+        clearDirectPurchase,
       }}
     >
       {children}

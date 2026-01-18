@@ -84,7 +84,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       disabled={isSharing}
       aria-label={`Share ${title}`}
     >
-      <Share2 className="w-4 h-4" />
+      <Share2 className="w-4 h-4 !text-black" />
       {size !== 'sm' && <span className="ml-2">Share</span>}
     </Button>
   );

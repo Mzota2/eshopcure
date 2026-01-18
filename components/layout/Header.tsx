@@ -28,6 +28,7 @@ import { useStoreType } from '@/hooks/useStoreType';
 import { usePromotions } from '@/hooks/usePromotions';
 import { PromotionStatus } from '@/types/promotion';
 import { findItemPromotion, getItemEffectivePrice } from '@/lib/promotions/cartUtils';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 // Safe hooks that return defaults if context is not available
 const useAuthSafe = () => {
@@ -485,6 +486,11 @@ export const Header: React.FC = () => {
                   />
                 </div>
               </form>
+
+              {/* Theme Toggle */}
+              <div className="flex items-center">
+                <ThemeToggle />
+              </div>
 
               {/* Notifications */}
               {user && (

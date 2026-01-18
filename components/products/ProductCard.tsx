@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { Item, isProduct, ItemStatus } from '@/types';
 import { formatCurrency } from '@/lib/utils/formatting';
-import { ProductImage } from '../ui';
+import { ProductImage, useToast } from '../ui';
 import { useItemPromotion } from '@/hooks/useItemPromotion';
 import { calculatePromotionPrice } from '@/lib/promotions/utils';
 import { getEffectivePrice, getFinalPrice } from '@/lib/utils/pricing';
@@ -24,6 +24,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
   const [isHovered, setIsHovered] = useState(false);
   const mainImage = product.images[0]?.url || '/placeholder-product.jpg';
   const secondImage = product.images[1]?.url;
+  const toast = useToast();
 
   // Check if product is on promotion from promotions collection
   const { promotion, isOnPromotion, discountPercentage } = useItemPromotion(product);
@@ -119,9 +120,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           {/* Dark overlay gradient for badge visibility */}
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
           
+         
+          
           {product.status === ItemStatus.OUT_OF_STOCK && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-              <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-base shadow-xl backdrop-blur-sm border-2 border-white/20">
+              <div className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-base shadow-xl backdrop-blur-sm !border-2 !border-white/20">
                 Out of Stock
               </div>
             </div>
@@ -130,7 +133,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           {/* Promotion badge */}
           {showPromotion && discount > 0 && (
             <div className="absolute top-2 right-2 z-10">
-              <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 border-white/20">
+              <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm !border-2 !border-white/20">
                 {discount}% OFF
               </div>
             </div>
@@ -138,7 +141,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           
           {showPromotion && discount === 0 && (
             <div className="absolute top-2 right-2 z-10">
-              <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 border-white/20">
+              <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm !border-2 !border-white/20">
                 On Sale
               </div>
             </div>
@@ -146,7 +149,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           
           {product.status === ItemStatus.ACTIVE && available > 0 && !showPromotion && (
             <div className="absolute top-2 left-2 z-10">
-              <div className="bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 border-white/20">
+              <div className="bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm !border-2 !border-white/20">
                 New
               </div>
             </div>
@@ -187,6 +190,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
               {product.name}
             </h3>
           </Link>
+          <span className="text-xs text-text-muted">
+            {available > 0 
+              ? `In Stock`
+              : 'Out of Stock'
+            }
+          </span>
         </div>
         
         {/* Pricing with promotion display */}
@@ -212,26 +221,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           </p>
         )}
         
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-text-muted">
-            {available > 0 
-              ? `In Stock`
-              : 'Out of Stock'
-            }
-          </span>
-          {onAddToCart && product.status === ItemStatus.ACTIVE && available > 0 && (
-            <Button
-              size="sm"
-              className="text-xs sm:text-sm"
-              onClick={(e) => {
-                e.preventDefault();
-                onAddToCart(product);
-              }}
-            >
-              Add to Cart
-            </Button>
-          )}
+      
+        <div className='flex flex-col gap-2 w-full'>
+         
+          <Button
+            size="sm"
+            className="w-full text-xs sm:text-sm bg-primary hover:bg-primary/90 text-white"
+            onClick={async (e) => {
+              e.preventDefault();
+              // Directly go to checkout with this single product
+              window.location.href = `/checkout?directCheckout=true&productId=${product.id}${product?.variants?.[0]?.id ? `&variantId=${product.variants[0].id}` : ''}`;
+            }}
+          >
+            Shop Now
+          </Button>
+
+           {onAddToCart && product.status === ItemStatus.ACTIVE && available > 0 && (
+              <Button
+                size="sm"
+                variant='outline'
+                className="text-xs sm:text-sm w-full"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onAddToCart(product);
+                  toast.showSuccess("Cart", `Successfully added ${product?.name} to cart`)
+                }}
+              >
+                Add to Cart
+              </Button>
+            )}
         </div>
+         
+      
       </div>
     </div>
   );
