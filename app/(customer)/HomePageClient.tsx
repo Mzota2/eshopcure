@@ -229,11 +229,11 @@ export default function HomePageClient() {
       )}
 
       {/* Shop By Category */}
-      <section className="py-16">
+      <section className="py-8 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">Shop by Category</h2>
-            <p className="text-text-secondary max-w-2xl mx-auto">
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 md:mb-4">Shop by Category</h2>
+            <p className="text-text-secondary max-w-2xl mx-auto text-sm md:text-base">
               Browse our wide range of products and services organized by category
             </p>
           </div>
@@ -391,12 +391,12 @@ export default function HomePageClient() {
       </section>
 
       {/* New Arrivals */}
-      <section className="py-16">
+      <section className="py-8 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex flex-col gap-2 w-full text-center">
-              <h2 className="text-3xl font-bold mb-2 text-foreground">NEW ARRIVALS</h2>
-              <p className="text-text-secondary">
+          <div className="flex items-center justify-between mb-6 md:mb-8">
+            <div className="flex flex-col gap-1 md:gap-2 w-full text-center">
+              <h2 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2 text-foreground">NEW ARRIVALS</h2>
+              <p className="text-text-secondary text-sm md:text-base">
                 {hasProducts && hasServices && 'Explore our latest products and services featuring exclusive designs and premium quality. Limited stock available.'}
                 {hasProducts && !hasServices && 'Explore our latest products featuring exclusive designs and premium quality. Limited stock available.'}
                 {!hasProducts && hasServices && 'Explore our latest services featuring exclusive designs and premium quality. Limited availability.'}
@@ -465,9 +465,9 @@ export default function HomePageClient() {
       </section>
 
       {/* Top Picks */}
-      <section className="py-16 bg-background-secondary dark:bg-background-tertiary">
+      <section className="py-8 md:py-16 bg-background-secondary dark:bg-background-tertiary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">OUR TOP PICKS</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 md:mb-12 text-foreground">OUR TOP PICKS</h2>
           {loading ? (
             <div className="text-center py-12">
               <p className="text-text-secondary">Loading top picks...</p>
@@ -520,10 +520,10 @@ export default function HomePageClient() {
       </section>
 
       {/* Service Highlights */}
-      <section className="py-16">
+      <section className="py-8 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Why Choose Us</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 md:mb-12 text-foreground">Why Choose Us</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             <>
               <div className="text-center">
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -559,11 +559,11 @@ export default function HomePageClient() {
 
       {/* Customer Reviews Section */}
       {currentBusiness?.id && (
-        <section className="py-16 bg-background-secondary">
+        <section className="py-8 md:py-16 bg-background-secondary">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-foreground mb-4">What Our Customers Say</h2>
-              <p className="text-lg text-text-secondary max-w-3xl mx-auto">
+            <div className="text-center mb-8 md:mb-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 md:mb-4">What Our Customers Say</h2>
+              <p className="text-sm md:text-base text-text-secondary max-w-3xl mx-auto">
                 Join thousands of satisfied customers. See why people love shopping with us!
               </p>
             </div>
