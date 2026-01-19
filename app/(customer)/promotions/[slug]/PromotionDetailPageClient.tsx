@@ -7,6 +7,7 @@ import { ServiceCard } from '@/components/services';
 import { Button, Loading, Badge } from '@/components/ui';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { usePromotions, useProducts, useServices } from '@/hooks';
+import { useStoreType } from '@/hooks/useStoreType';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/components/ui';
 import { PromotionStatus } from '@/types/promotion';
@@ -21,6 +22,7 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
   const { currentBusiness } = useApp();
   const { addItem } = useCart();
   const toast = useToast();
+  const { hasProducts, hasServices } = useStoreType();
 
   // Handle add to cart
   const handleAddToCart = (product: Item) => {
@@ -35,17 +37,17 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
     enabled: !!currentBusiness?.id,
   });
 
-  // Fetch all products and services
+  // Fetch products and services based on store type
   const { data: products = [], isLoading: productsLoading } = useProducts({
     businessId: currentBusiness?.id,
     status: ItemStatus.ACTIVE,
-    enabled: !!currentBusiness?.id,
+    enabled: !!currentBusiness?.id && hasProducts,
   });
 
   const { data: services = [], isLoading: servicesLoading } = useServices({
     businessId: currentBusiness?.id,
     status: ItemStatus.ACTIVE,
-    enabled: !!currentBusiness?.id,
+    enabled: !!currentBusiness?.id && hasServices,
   });
 
   // Helper to convert date to Date object
@@ -67,15 +69,21 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
     });
   }, [promotions, slug]);
 
-  // Get items in this promotion
+  // Get items in this promotion, filtered by store type
   const promotionItems = useMemo(() => {
     if (!promotion) return [];
-    const productsArray = Array.isArray(products) ? products : [];
-    const servicesArray = Array.isArray(services) ? services : [];
+    
+    const productsArray = hasProducts && Array.isArray(products) ? products : [];
+    const servicesArray = hasServices && Array.isArray(services) ? services : [];
     const allItems = [...productsArray, ...servicesArray];
-    const itemIds = [...(promotion.productsIds || []), ...(promotion.servicesIds || [])];
-    return allItems.filter(item => item.id && itemIds.includes(item.id));
-  }, [promotion, products, services]);
+    
+    // Only include item IDs that match the store type
+    const validProductIds = hasProducts ? (promotion.productsIds || []) : [];
+    const validServiceIds = hasServices ? (promotion.servicesIds || []) : [];
+    const validItemIds = [...validProductIds, ...validServiceIds];
+    
+    return allItems.filter(item => item.id && validItemIds.includes(item.id));
+  }, [promotion, products, services, hasProducts, hasServices]);
 
   const loading = promotionsLoading || productsLoading || servicesLoading;
 
@@ -92,9 +100,17 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Promotion Not Found</h1>
-          <Link href="/">
-            <Button>Back to Home</Button>
-          </Link>
+          <p className="text-text-secondary mb-6">
+            The promotion you're looking for doesn't exist or is no longer available.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/promotions">
+              <Button variant="outline">View All Promotions</Button>
+            </Link>
+            <Link href="/">
+              <Button>Back to Home</Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -162,13 +178,27 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
         <div className="mb-8">
           {promotionItems.length === 0 ? (
             <div className="text-center py-12 bg-card rounded-lg">
-              <p className="text-text-secondary">No items found in this promotion.</p>
+              <p className="text-text-secondary">
+                {hasProducts && hasServices
+                  ? 'No products or services found in this promotion.'
+                  : hasProducts
+                  ? 'No products found in this promotion.'
+                  : 'No services found in this promotion.'
+                }
+              </p>
+              <div className="mt-4">
+                <Link href="/promotions">
+                  <Button variant="outline">View Other Promotions</Button>
+                </Link>
+              </div>
             </div>
           ) : (
             <>
-              {productItems.length > 0 && (
+              {hasProducts && productItems.length > 0 && (
                 <div className="mb-12">
-                  <h2 className="text-2xl font-bold text-foreground mb-6">Products ({productItems.length})</h2>
+                  <h2 className="text-2xl font-bold text-foreground mb-6">
+                    {hasServices ? 'Products' : 'Items'} ({productItems.length})
+                  </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {productItems.map((product) => (
                       <ProductCard 
@@ -181,9 +211,11 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
                 </div>
               )}
 
-              {serviceItems.length > 0 && (
+              {hasServices && serviceItems.length > 0 && (
                 <div className="mb-12">
-                  <h2 className="text-2xl font-bold text-foreground mb-6">Services ({serviceItems.length})</h2>
+                  <h2 className="text-2xl font-bold text-foreground mb-6">
+                    Services ({serviceItems.length})
+                  </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {serviceItems.map((service) => (
                       <ServiceCard key={service.id} service={service} />

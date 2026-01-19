@@ -3,6 +3,8 @@
  */
 
 import { ValidationError } from './errors';
+import { OrderStatus } from '@/types/order';
+import { BookingStatus } from '@/types/booking';
 
 /**
  * Validate email format
@@ -69,42 +71,73 @@ export const validatePhoneNumber = (phone: string, fieldName: string = 'phone'):
 };
 
 /**
- * Validate order status transition
+ * Validate order status transition with flexible rules
+ * Allows any status transition that makes logical sense
  */
 export const isValidOrderStatusTransition = (
   currentStatus: string,
   newStatus: string
 ): boolean => {
-  const validTransitions: Record<string, string[]> = {
-    pending: ['paid', 'canceled'],
-    paid: ['processing', 'canceled', 'refunded'],
-    processing: ['shipped', 'canceled'],
-    shipped: ['completed', 'canceled'],
-    completed: [], // Terminal state
-    canceled: [], // Terminal state
-    refunded: [], // Terminal state
-  };
+  // If status hasn't changed, it's always valid
+  if (currentStatus === newStatus) return true;
 
-  return validTransitions[currentStatus]?.includes(newStatus) || false;
+  // Define terminal states that cannot be changed from
+  const terminalStates = [
+    OrderStatus.COMPLETED,
+    OrderStatus.CANCELED,
+    OrderStatus.REFUNDED
+  ];
+  
+  // Cannot transition from a terminal state
+  if (terminalStates.includes(currentStatus as OrderStatus)) {
+    return false;
+  }
+  
+  // Special case: allow marking as completed from any non-terminal state
+  if (newStatus === OrderStatus.COMPLETED) {
+    return true;
+  }
+  
+  // Allow any other transition except to terminal states without proper path
+  // Terminal states can only be set through specific flows
+  return !terminalStates.includes(newStatus as OrderStatus) || 
+         (currentStatus === OrderStatus.PAID && newStatus === OrderStatus.REFUNDED) ||
+         (currentStatus === OrderStatus.SHIPPED && newStatus === OrderStatus.COMPLETED);
 };
 
 /**
- * Validate booking status transition
+ * Validate booking status transition with flexible rules
+ * Allows any status transition that makes logical sense
  */
 export const isValidBookingStatusTransition = (
   currentStatus: string,
   newStatus: string
 ): boolean => {
-  const validTransitions: Record<string, string[]> = {
-    pending: ['paid', 'canceled'],
-    paid: ['confirmed', 'canceled', 'refunded'],
-    confirmed: ['completed', 'canceled', 'no_show'],
-    completed: [], // Terminal state
-    canceled: [], // Terminal state
-    no_show: [], // Terminal state
-    refunded: [], // Terminal state
-  };
+  // If status hasn't changed, it's always valid
+  if (currentStatus === newStatus) return true;
 
-  return validTransitions[currentStatus]?.includes(newStatus) || false;
+  // Define terminal states that cannot be changed from
+  const terminalStates = [
+    BookingStatus.COMPLETED,
+    BookingStatus.CANCELED,
+    BookingStatus.NO_SHOW,
+    BookingStatus.REFUNDED
+  ];
+  
+  // Cannot transition from a terminal state
+  if (terminalStates.includes(currentStatus as BookingStatus)) {
+    return false;
+  }
+  
+  // Special case: allow marking as completed from any non-terminal state
+  if (newStatus === BookingStatus.COMPLETED) {
+    return true;
+  }
+  
+  // Allow any other transition except to terminal states without proper path
+  // Terminal states can only be set through specific flows
+  return !terminalStates.includes(newStatus as BookingStatus) || 
+         (currentStatus === BookingStatus.PAID && newStatus === BookingStatus.REFUNDED) ||
+         (currentStatus === BookingStatus.CONFIRMED && newStatus === BookingStatus.COMPLETED);
 };
 

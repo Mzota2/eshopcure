@@ -41,34 +41,48 @@ const getStatusIcon = (status: StatusType) => {
 };
 
 const getStatusColor = (status: StatusType): string => {
-  const statusLower = status.toLowerCase();
+  const statusLower = status?.toLowerCase() || '';
   
-  if (statusLower.includes('completed')) {
+  if (statusLower.includes('completed') || statusLower.includes('delivered')) {
     return 'text-success bg-success/10';
   }
-  if (statusLower.includes('canceled') || statusLower.includes('refunded') || statusLower.includes('no_show')) {
-    return 'text-error bg-error/10';
+  if (statusLower.includes('canceled') || 
+       statusLower.includes('refunded') || 
+       statusLower.includes('no_show') ||
+       statusLower.includes('cancelled')) {
+    return 'text-destructive bg-destructive/10';
   }
-  if (statusLower.includes('pending')) {
+  if (statusLower.includes('pending') || 
+       statusLower.includes('processing') ||
+       statusLower.includes('shipped')) {
     return 'text-warning bg-warning/10';
   }
-  if (statusLower.includes('paid') || statusLower.includes('processing') || statusLower.includes('shipped') || statusLower.includes('confirmed')) {
-    return 'text-primary bg-primary/10';
+  if (statusLower.includes('paid') || statusLower.includes('confirmed')) {
+    return 'text-info bg-info/10';
   }
   return 'text-text-secondary bg-background-secondary';
 };
 
 const getStatusBadgeVariant = (status: StatusType): 'default' | 'success' | 'warning' | 'danger' | 'info' => {
-  const statusLower = status.toLowerCase();
+  const statusLower = status?.toLowerCase() || '';
   
-  if (statusLower.includes('completed')) {
+  if (statusLower.includes('completed') || statusLower.includes('delivered')) {
     return 'success';
   }
-  if (statusLower.includes('canceled') || statusLower.includes('refunded') || statusLower.includes('no_show')) {
+  if (statusLower.includes('canceled') || 
+       statusLower.includes('refunded') || 
+       statusLower.includes('no_show') ||
+       statusLower.includes('cancelled')) {
     return 'danger';
   }
-  if (statusLower.includes('pending')) {
+  if (statusLower.includes('pending') || 
+       statusLower.includes('processing') ||
+       statusLower.includes('shipped')) {
     return 'warning';
+  }
+  if (statusLower.includes('paid') || 
+       statusLower.includes('confirmed')) {
+    return 'info';
   }
   return 'default';
 };
@@ -94,11 +108,19 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   className,
   variant = 'pill',
 }) => {
+  const badgeVariant = getStatusBadgeVariant(status);
+  
   if (variant === 'badge') {
     return (
-      <Badge variant={getStatusBadgeVariant(status)} className={className}>
-        {showIcon && <span className="mr-1">{getStatusIcon(status)}</span>}
-        {showLabel && getStatusLabel(status)}
+      <Badge 
+        variant={badgeVariant} 
+        className={cn(
+          'inline-flex items-center gap-1',
+          className
+        )}
+      >
+        {showIcon && <span className="flex-shrink-0">{getStatusIcon(status)}</span>}
+        {showLabel && <span className="whitespace-nowrap">{getStatusLabel(status)}</span>}
       </Badge>
     );
   }

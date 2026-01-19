@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { usePromotions, useProducts, useServices } from '@/hooks';
+import { useStoreType } from '@/hooks/useStoreType';
 import { PromotionStatus } from '@/types/promotion';
 import { ItemStatus } from '@/types/item';
 import { useApp } from '@/contexts/AppContext';
@@ -15,6 +16,7 @@ import { isProduct, isService } from '@/types';
 
 export default function PromotionsPageClient() {
   const { currentBusiness } = useApp();
+  const { hasProducts, hasServices } = useStoreType();
 
   // Fetch promotions
   const { data: promotions = [], isLoading: promotionsLoading } = usePromotions({
@@ -27,13 +29,13 @@ export default function PromotionsPageClient() {
   const { data: products = [] } = useProducts({
     businessId: currentBusiness?.id,
     status: ItemStatus.ACTIVE,
-    enabled: !!currentBusiness?.id,
+    enabled: !!currentBusiness?.id && hasProducts,
   });
 
   const { data: services = [] } = useServices({
     businessId: currentBusiness?.id,
     status: ItemStatus.ACTIVE,
-    enabled: !!currentBusiness?.id,
+    enabled: !!currentBusiness?.id && hasServices,
   });
 
   // Helper to convert date to Date object
@@ -44,29 +46,55 @@ export default function PromotionsPageClient() {
     return new Date(date);
   };
 
-  // Filter active promotions that haven't expired
+  // Filter active promotions that haven't expired and match store type
   const activePromotions = useMemo(() => {
     if (!promotions || promotions.length === 0) return [];
     
     const now = new Date();
     return promotions.filter((promo) => {
+      // Check if promotion is active and not expired
       if (promo.status !== PromotionStatus.ACTIVE) return false;
+      
       const endDate = toDate(promo.endDate);
-      return endDate >= now;
+      if (endDate < now) return false;
+      
+      // Check if promotion has items that match the store type
+      const hasValidProducts = hasProducts && promo.productsIds && promo.productsIds.length > 0;
+      const hasValidServices = hasServices && promo.servicesIds && promo.servicesIds.length > 0;
+      
+      // If store has both types, show all active promotions
+      if (hasProducts && hasServices) return true;
+      
+      // Otherwise, only show promotions with items that match the store type
+      return hasValidProducts || hasValidServices;
     });
-  }, [promotions]);
+  }, [promotions, hasProducts, hasServices]);
 
-  // Get item count for each promotion
+  // Get item count for each promotion, filtered by store type
   const promotionsWithItemCounts = useMemo(() => {
-    const productsArray = Array.isArray(products) ? products : [];
-    const servicesArray = Array.isArray(services) ? services : [];
+    const productsArray = hasProducts && Array.isArray(products) ? products : [];
+    const servicesArray = hasServices && Array.isArray(services) ? services : [];
     const allItems = [...productsArray, ...servicesArray];
+    
     return activePromotions.map((promo) => {
-      const itemIds = [...(promo.productsIds || []), ...(promo.servicesIds || [])];
-      const itemCount = allItems.filter(item => item.id && itemIds.includes(item.id)).length;
-      return { ...promo, itemCount };
+      // Only count items that match the store type
+      const validProductIds = hasProducts ? (promo.productsIds || []) : [];
+      const validServiceIds = hasServices ? (promo.servicesIds || []) : [];
+      const validItemIds = [...validProductIds, ...validServiceIds];
+      
+      const itemCount = allItems.filter(item => 
+        item.id && validItemIds.includes(item.id)
+      ).length;
+      
+      return { 
+        ...promo, 
+        itemCount,
+        // Add type information for filtering in the UI if needed
+        hasProducts: hasProducts && promo.productsIds && promo.productsIds.length > 0,
+        hasServices: hasServices && promo.servicesIds && promo.servicesIds.length > 0
+      };
     });
-  }, [activePromotions, products, services]);
+  }, [activePromotions, products, services, hasProducts, hasServices]);
 
   const loading = promotionsLoading;
 
@@ -93,15 +121,27 @@ export default function PromotionsPageClient() {
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">Active Promotions</h1>
-          <p className="text-sm sm:text-base md:text-lg text-text-secondary">
-            Discover amazing deals and special offers on our products and services.
+          <p className="text-sm sm:text-base text-text-secondary mb-4 sm:mb-6">
+            {hasProducts && hasServices
+              ? 'Discover amazing deals and special offers on our products and services.'
+              : hasProducts
+              ? 'Discover amazing deals and special offers on our products.'
+              : 'Discover amazing deals and special offers on our services.'
+            }
           </p>
         </div>
 
         {/* Promotions Grid */}
         {promotionsWithItemCounts.length === 0 ? (
           <div className="text-center py-8 sm:py-10 md:py-12 bg-card rounded-lg px-4">
-            <p className="text-sm sm:text-base text-text-secondary mb-4 sm:mb-6">No active promotions at the moment. Check back soon for exciting deals!</p>
+            <p className="text-sm sm:text-base text-text-secondary mb-4 sm:mb-6">
+            {hasProducts && hasServices
+              ? 'No active promotions at the moment. Check back soon for exciting deals!'
+              : hasProducts
+              ? 'No active product promotions at the moment. Check back soon for exciting deals!'
+              : 'No active service promotions at the moment. Check back soon for exciting deals!'
+            }
+          </p>
             <Link href="/" className="mt-4 inline-block">
               <Button variant="outline" size="sm" className="sm:size-default">Back to Home</Button>
             </Link>

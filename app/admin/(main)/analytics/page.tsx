@@ -30,6 +30,7 @@ import { calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib
 import { OrderStatus } from '@/types/order';
 import { BookingStatus } from '@/types/booking';
 import { ItemStatus } from '@/types/item';
+import { useStoreType } from '@/hooks/useStoreType';
 import {
   LineChart,
   Line,
@@ -75,6 +76,7 @@ const getDate = (date: Date | string | { toDate?: () => Date } | undefined): Dat
 export default function AdminAnalyticsPage() {
   const { currentBusiness } = useApp();
   const { data: settings } = useSettings();
+  const { hasProducts, hasServices } = useStoreType();
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
   const exportRef = useRef<HTMLDivElement>(null);
@@ -141,64 +143,78 @@ export default function AdminAnalyticsPage() {
   const isLoading = ordersLoading || bookingsLoading || productsLoading || servicesLoading || customersLoading;
   const error = ordersError || bookingsError;
 
-  // Calculate metrics from data
+  // Calculate metrics
   const metrics = useMemo(() => {
     const now = new Date();
     const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
-    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     
-    // Current period revenue (gross - what customers paid)
-    const currentGrossRevenue = orders
-      .filter((o) => {
-        if (!ORDER_REVENUE_STATUSES.includes(o.status) || !o.payment) return false;
-        const orderDate = getDate(o.payment.paidAt || o.createdAt);
-        return orderDate >= startDate;
-      })
-      .reduce((sum, o) => sum + (o.payment?.amount || o.pricing?.total || 0), 0) +
-      bookings
+    // Current period revenue
+    const currentPeriodStart = new Date(now);
+    currentPeriodStart.setDate(currentPeriodStart.getDate() - days);
+    
+    // Only count revenue-generating orders/bookings with confirmed payment
+    // Use payment amount and payment date (paidAt) to match ledger calculations
+    // Calculate gross revenue (what customers paid) and transaction fees (costs)
+    const currentGrossRevenue = 
+      (hasProducts ? orders
+        .filter((o) => {
+          if (!ORDER_REVENUE_STATUSES.includes(o.status) || !o.payment) return false;
+          // Use payment date (paidAt) if available, otherwise use createdAt
+          const transactionDate = o.payment.paidAt
+            ? getDate(o.payment.paidAt)
+            : getDate(o.createdAt);
+          return transactionDate >= currentPeriodStart;
+        })
+        .reduce((sum, o) => sum + (o.payment?.amount || o.pricing.total || 0), 0) : 0) +
+      (hasServices ? bookings
         .filter((b) => {
           if (!BOOKING_REVENUE_STATUSES.includes(b.status) || !b.payment) return false;
-          const bookingDate = getDate(b.payment.paidAt || b.createdAt);
-          return bookingDate >= startDate;
+          // Use payment date (paidAt) if available, otherwise use createdAt
+          const transactionDate = b.payment.paidAt
+            ? getDate(b.payment.paidAt)
+            : getDate(b.createdAt);
+          return transactionDate >= currentPeriodStart;
         })
-        .reduce((sum, b) => sum + (b.payment?.amount || b.pricing?.total || 0), 0);
-
-    // Calculate transaction fees as costs (3% of gross revenue by default)
+        .reduce((sum, b) => sum + (b.payment?.amount || b.pricing.total || 0), 0) : 0);
+        
+    // Calculate transaction fees (costs)
     const currentTransactionFees = calculateTransactionFeeCost(currentGrossRevenue, DEFAULT_TRANSACTION_FEE_RATE);
-    const currentRevenue = currentGrossRevenue - currentTransactionFees; // Net revenue
-
-    // Previous period revenue
-    const previousPeriodStart = new Date(now);
-    previousPeriodStart.setDate(previousPeriodStart.getDate() - (days * 2));
-    const previousPeriodEnd = new Date(now);
-    previousPeriodEnd.setDate(previousPeriodEnd.getDate() - days);
     
-    // Previous period revenue (gross - what customers paid)
-    const previousGrossRevenue = orders
-      .filter((o) => {
-        if (!ORDER_REVENUE_STATUSES.includes(o.status) || !o.payment) return false;
-        const orderDate = getDate(o.payment.paidAt || o.createdAt);
-        return orderDate >= previousPeriodStart && orderDate < previousPeriodEnd;
-      })
-      .reduce((sum, o) => sum + (o.payment?.amount || o.pricing?.total || 0), 0) +
-      bookings
+    // Net revenue (what the business actually earns after fees)
+    const currentRevenue = currentGrossRevenue - currentTransactionFees;
+    
+    // Previous period for comparison
+    const previousPeriodStart = new Date(currentPeriodStart);
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - days);
+    
+    const previousRevenue = 
+      (hasProducts ? orders
+        .filter((o) => {
+          if (!ORDER_REVENUE_STATUSES.includes(o.status) || !o.payment) return false;
+          const transactionDate = o.payment.paidAt
+            ? getDate(o.payment.paidAt)
+            : getDate(o.createdAt);
+          return transactionDate >= previousPeriodStart && transactionDate < currentPeriodStart;
+        })
+        .reduce((sum, o) => sum + (o.payment?.amount || o.pricing.total || 0), 0) : 0) +
+      (hasServices ? bookings
         .filter((b) => {
           if (!BOOKING_REVENUE_STATUSES.includes(b.status) || !b.payment) return false;
-          const bookingDate = getDate(b.payment.paidAt || b.createdAt);
-          return bookingDate >= previousPeriodStart && bookingDate < previousPeriodEnd;
+          const transactionDate = b.payment.paidAt
+            ? getDate(b.payment.paidAt)
+            : getDate(b.createdAt);
+          return transactionDate >= previousPeriodStart && transactionDate < currentPeriodStart;
         })
-        .reduce((sum, b) => sum + (b.payment?.amount || b.pricing?.total || 0), 0);
-
-    // Calculate transaction fees as costs (3% of gross revenue by default)
-    const previousTransactionFees = calculateTransactionFeeCost(previousGrossRevenue, DEFAULT_TRANSACTION_FEE_RATE);
-    const previousRevenue = previousGrossRevenue - previousTransactionFees; // Net revenue
-
-    const revenueGrowth = previousRevenue > 0
-      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
+        .reduce((sum, b) => sum + (b.payment?.amount || b.pricing.total || 0), 0) : 0);
+    
+    // Calculate growth percentage
+    const revenueGrowth = previousRevenue > 0 
+      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 
       : currentRevenue > 0 ? 100 : 0;
-
-    const totalOrders = orders.length;
-    const totalBookings = bookings.length;
+    
+    // Other metrics
+    const totalOrders = hasProducts ? orders.length : 0;
+    const totalBookings = hasServices ? bookings.length : 0;
     const totalCustomers = customers.length;
     const activeProducts = Array.isArray(products) ? products.filter((p) => {
       return typeof p === 'object' && p !== null && 'status' in p && (p as { status: unknown }).status === ItemStatus.ACTIVE;
@@ -256,20 +272,36 @@ export default function AdminAnalyticsPage() {
       const dateEnd = new Date(dateStart);
       dateEnd.setDate(dateEnd.getDate() + 1);
 
-      const dayOrders = orders.filter((order) => {
+      // Only process orders if business has products
+      const dayOrders = hasProducts ? orders.filter((order) => {
         if (!ORDER_REVENUE_STATUSES.includes(order.status)) return false;
-        const orderDate = getDate(order.createdAt);
-        return orderDate >= dateStart && orderDate < dateEnd;
-      });
+        // Use payment date (paidAt) if available, otherwise use createdAt
+        const transactionDate = order.payment?.paidAt
+          ? getDate(order.payment.paidAt)
+          : getDate(order.createdAt);
+        return transactionDate >= dateStart && transactionDate < dateEnd;
+      }) : [];
 
-      const dayBookings = bookings.filter((booking) => {
+      // Only process bookings if business has services
+      const dayBookings = hasServices ? bookings.filter((booking) => {
         if (!BOOKING_REVENUE_STATUSES.includes(booking.status)) return false;
-        const bookingDate = getDate(booking.createdAt);
-        return bookingDate >= dateStart && bookingDate < dateEnd;
-      });
+        // Use payment date (paidAt) if available, otherwise use createdAt
+        const transactionDate = booking.payment?.paidAt
+          ? getDate(booking.payment.paidAt)
+          : getDate(booking.createdAt);
+        return transactionDate >= dateStart && transactionDate < dateEnd;
+      }) : [];
 
-      const grossRevenue = dayOrders.reduce((sum, o) => sum + (o.payment?.amount || o.pricing?.total || 0), 0) +
-        dayBookings.reduce((sum, b) => sum + (b.payment?.amount || b.pricing?.total || 0), 0);
+      // Calculate gross revenue from orders and bookings based on business type
+      const ordersRevenue = hasProducts 
+        ? dayOrders.reduce((sum, o) => sum + (o.payment?.amount || o.pricing?.total || 0), 0) 
+        : 0;
+      
+      const bookingsRevenue = hasServices 
+        ? dayBookings.reduce((sum, b) => sum + (b.payment?.amount || b.pricing?.total || 0), 0) 
+        : 0;
+      
+      const grossRevenue = ordersRevenue + bookingsRevenue;
       
       // Calculate transaction fees and net revenue
       const transactionFees = calculateTransactionFeeCost(grossRevenue, DEFAULT_TRANSACTION_FEE_RATE);
@@ -278,64 +310,72 @@ export default function AdminAnalyticsPage() {
       data.push({
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         revenue, // Net revenue (after transaction fees)
-        orders: dayOrders.length,
-        bookings: dayBookings.length,
+        orders: hasProducts ? dayOrders.length : 0,
+        bookings: hasServices ? dayBookings.length : 0,
       });
     }
 
     return data;
-  }, [orders, bookings, dateRange]);
+  }, [orders, bookings, dateRange, hasProducts, hasServices]);
 
   // Calculate top products/services
   const topItemsData = useMemo(() => {
     const itemSales: Record<string, { name: string; sales: number; revenue: number; type: 'product' | 'service' }> = {};
 
-    // Count sales from orders (using net revenue after transaction fees)
-    orders.forEach((order) => {
-      if (!ORDER_REVENUE_STATUSES.includes(order.status) || !order.payment) return;
-      if (!order.items || !Array.isArray(order.items)) return;
-      const grossAmount = order.payment?.amount || order.pricing?.total || 0;
-      const transactionFees = calculateTransactionFeeCost(grossAmount, DEFAULT_TRANSACTION_FEE_RATE);
-      const netAmount = grossAmount - transactionFees;
-      // Distribute net revenue proportionally across items
-      const totalSubtotal = order.items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
-      const revenueRatio = totalSubtotal > 0 ? netAmount / totalSubtotal : 0;
-      
-      order.items.forEach((item) => {
-        if (!item.productId) return;
-        if (!itemSales[item.productId]) {
-          itemSales[item.productId] = {
-            name: item.productName || 'Unknown Product',
+    // Only process orders if business has products
+    if (hasProducts) {
+      orders.forEach((order) => {
+        if (!ORDER_REVENUE_STATUSES.includes(order.status) || !order.payment) return;
+        if (!order.items || !Array.isArray(order.items)) return;
+        const grossAmount = order.payment?.amount || order.pricing?.total || 0;
+        const transactionFees = calculateTransactionFeeCost(grossAmount, DEFAULT_TRANSACTION_FEE_RATE);
+        const netAmount = grossAmount - transactionFees;
+        // Distribute net revenue proportionally across items
+        const totalSubtotal = order.items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+        const revenueRatio = totalSubtotal > 0 ? netAmount / totalSubtotal : 0;
+        
+        order.items.forEach((item) => {
+          if (!item.productId) return;
+          if (!itemSales[item.productId]) {
+            itemSales[item.productId] = {
+              name: item.productName || 'Product',
+              sales: 0,
+              revenue: 0,
+              type: 'product',
+            };
+          }
+          itemSales[item.productId].sales += item.quantity || 0;
+          itemSales[item.productId].revenue += (item.subtotal || 0) * revenueRatio;
+        });
+      });
+    }
+
+    // Only process bookings if business has services
+    if (hasServices) {
+      bookings.forEach((booking) => {
+        if (!BOOKING_REVENUE_STATUSES.includes(booking.status) || !booking.serviceId || !booking.payment) return;
+        if (!itemSales[booking.serviceId]) {
+          itemSales[booking.serviceId] = {
+            name: booking.serviceName || 'Service',
             sales: 0,
             revenue: 0,
-            type: 'product',
+            type: 'service',
           };
         }
-        itemSales[item.productId].sales += item.quantity || 0;
-        // Use proportional net revenue for this item
-        itemSales[item.productId].revenue += (item.subtotal || 0) * revenueRatio;
+        itemSales[booking.serviceId].sales += 1;
+        // Calculate net revenue (after transaction fees)
+        const grossAmount = booking.payment?.amount || booking.pricing?.total || 0;
+        const transactionFees = calculateTransactionFeeCost(grossAmount, DEFAULT_TRANSACTION_FEE_RATE);
+        itemSales[booking.serviceId].revenue += grossAmount - transactionFees;
       });
-    });
+    }
 
-    // Count sales from bookings (using net revenue after transaction fees)
-    bookings.forEach((booking) => {
-      if (!BOOKING_REVENUE_STATUSES.includes(booking.status) || !booking.serviceId || !booking.payment) return;
-      if (!itemSales[booking.serviceId]) {
-        itemSales[booking.serviceId] = {
-          name: booking.serviceName || 'Service',
-          sales: 0,
-          revenue: 0,
-          type: 'service',
-        };
-      }
-      itemSales[booking.serviceId].sales += 1;
-      // Calculate net revenue (after transaction fees)
-      const grossAmount = booking.payment?.amount || booking.pricing?.total || 0;
-      const transactionFees = calculateTransactionFeeCost(grossAmount, DEFAULT_TRANSACTION_FEE_RATE);
-      itemSales[booking.serviceId].revenue += grossAmount - transactionFees;
-    });
+    // Filter items based on business type
+    const filteredItems = Object.values(itemSales).filter(item => 
+      (hasProducts && item.type === 'product') || (hasServices && item.type === 'service')
+    );
 
-    return Object.values(itemSales)
+    return filteredItems
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10)
       .map((item) => {
@@ -344,28 +384,33 @@ export default function AdminAnalyticsPage() {
           name: name.length > 25 ? name.substring(0, 25) + '...' : name,
           revenue: item.revenue || 0,
           sales: item.sales || 0,
+          type: item.type
         };
       });
-  }, [orders, bookings]);
+  }, [orders, bookings, hasProducts, hasServices]);
 
   // Calculate status distribution
   const statusDistribution = useMemo(() => {
     const orderStatusCounts: Record<string, number> = {};
     const bookingStatusCounts: Record<string, number> = {};
 
-    orders.forEach((order) => {
-      orderStatusCounts[order.status] = (orderStatusCounts[order.status] || 0) + 1;
-    });
+    if (hasProducts) {
+      orders.forEach((order) => {
+        orderStatusCounts[order.status] = (orderStatusCounts[order.status] || 0) + 1;
+      });
+    }
 
-    bookings.forEach((booking) => {
-      bookingStatusCounts[booking.status] = (bookingStatusCounts[booking.status] || 0) + 1;
-    });
+    if (hasServices) {
+      bookings.forEach((booking) => {
+        bookingStatusCounts[booking.status] = (bookingStatusCounts[booking.status] || 0) + 1;
+      });
+    }
 
     return {
       orders: Object.entries(orderStatusCounts).map(([name, value]) => ({ name, value })),
       bookings: Object.entries(bookingStatusCounts).map(([name, value]) => ({ name, value })),
     };
-  }, [orders, bookings]);
+  }, [orders, bookings, hasProducts, hasServices]);
 
   if (isLoading) {
     return (
@@ -439,74 +484,85 @@ export default function AdminAnalyticsPage() {
       {/* Metrics Grid */}
       <div className="overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="flex gap-3 sm:gap-4 min-w-max">
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <span className="text-xs sm:text-sm text-text-secondary">Net Revenue</span>
-            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-          </div>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{formatCurrency(metrics.totalRevenue, 'MWK')}</p>
-          <div className="flex items-center gap-1 mt-2">
-            {metrics.revenueGrowth >= 0 ? (
-              <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-success shrink-0" />
-            ) : (
-              <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-destructive shrink-0" />
+          {/* Net Revenue Card - Always shown */}
+          <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <span className="text-xs sm:text-sm text-text-secondary">Net Revenue</span>
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+            </div>
+            <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{formatCurrency(metrics.totalRevenue, 'MWK')}</p>
+            <div className="flex items-center gap-1 mt-2">
+              {metrics.revenueGrowth >= 0 ? (
+                <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-success shrink-0" />
+              ) : (
+                <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 text-destructive shrink-0" />
+              )}
+              <span className={cn('text-xs sm:text-sm', metrics.revenueGrowth >= 0 ? 'text-success' : 'text-destructive')}>
+                {metrics.revenueGrowth >= 0 ? '+' : ''}{metrics.revenueGrowth.toFixed(1)}%
+              </span>
+            </div>
+            {metrics.transactionFees !== undefined && (
+              <p className="text-xs text-text-secondary mt-1">
+                After {formatCurrency(metrics.transactionFees, 'MWK')} in fees
+              </p>
             )}
-            <span className={cn('text-xs sm:text-sm', metrics.revenueGrowth >= 0 ? 'text-success' : 'text-destructive')}>
-              {metrics.revenueGrowth >= 0 ? '+' : ''}{metrics.revenueGrowth.toFixed(1)}%
-            </span>
           </div>
-          {metrics.transactionFees !== undefined && (
-            <p className="text-xs text-text-secondary mt-1">
-              After {formatCurrency(metrics.transactionFees, 'MWK')} in fees
-            </p>
+
+          {/* Transaction Fees Card - Always shown */}
+          <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <span className="text-xs sm:text-sm text-text-secondary">Transaction Fees</span>
+              <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-destructive shrink-0" />
+            </div>
+            <p className="text-xl sm:text-2xl md:text-3xl font-bold text-destructive whitespace-nowrap">{formatCurrency(metrics.transactionFees || 0, 'MWK')}</p>
+            {metrics.grossRevenue !== undefined && metrics.transactionFees !== undefined && (
+              <p className="text-xs text-text-secondary mt-2">
+                {((metrics.transactionFees / metrics.grossRevenue) * 100).toFixed(1)}% of gross revenue
+              </p>
+            )}
+          </div>
+
+          {/* Total Orders Card - Only show if business has products */}
+          {hasProducts && (
+            <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <span className="text-xs sm:text-sm text-text-secondary">Total Orders</span>
+                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+              </div>
+              <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalOrders}</p>
+              <p className="text-xs sm:text-sm text-text-secondary mt-2">
+                Avg: {formatCurrency(metrics.averageOrderValue, 'MWK')}
+              </p>
+            </div>
           )}
-        </div>
 
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <span className="text-xs sm:text-sm text-text-secondary">Transaction Fees</span>
-            <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-destructive shrink-0" />
-          </div>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-destructive whitespace-nowrap">{formatCurrency(metrics.transactionFees || 0, 'MWK')}</p>
-          {metrics.grossRevenue !== undefined && metrics.transactionFees !== undefined && (
-            <p className="text-xs text-text-secondary mt-2">
-              {((metrics.transactionFees / metrics.grossRevenue) * 100).toFixed(1)}% of gross revenue
-            </p>
+          {/* Total Bookings Card - Only show if business has services */}
+          {hasServices && (
+            <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <span className="text-xs sm:text-sm text-text-secondary">Total Bookings</span>
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+              </div>
+              <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalBookings}</p>
+              <p className="text-xs sm:text-sm text-text-secondary mt-2">
+                Avg: {formatCurrency(metrics.averageBookingValue, 'MWK')}
+              </p>
+            </div>
           )}
-        </div>
 
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <span className="text-xs sm:text-sm text-text-secondary">Total Orders</span>
-            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+          {/* Total Customers Card - Always shown */}
+          <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <span className="text-xs sm:text-sm text-text-secondary">Total Customers</span>
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+            </div>
+            <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalCustomers}</p>
+            <p className="text-xs sm:text-sm text-text-secondary mt-2">
+              {metrics.activeProducts} {hasProducts ? 'products' : ''} 
+              {hasProducts && hasServices ? ', ' : ''}
+              {hasServices ? `${metrics.activeServices} services` : ''}
+            </p>
           </div>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalOrders}</p>
-          <p className="text-xs sm:text-sm text-text-secondary mt-2">
-            Avg: {formatCurrency(metrics.averageOrderValue, 'MWK')}
-          </p>
-        </div>
-
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <span className="text-xs sm:text-sm text-text-secondary">Total Bookings</span>
-            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-          </div>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalBookings}</p>
-          <p className="text-xs sm:text-sm text-text-secondary mt-2">
-            Avg: {formatCurrency(metrics.averageBookingValue, 'MWK')}
-          </p>
-        </div>
-
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 shrink-0 min-w-[200px] sm:min-w-[220px]">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <span className="text-xs sm:text-sm text-text-secondary">Total Customers</span>
-            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-          </div>
-          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground whitespace-nowrap">{metrics.totalCustomers}</p>
-          <p className="text-xs sm:text-sm text-text-secondary mt-2">
-            {metrics.activeProducts} products, {metrics.activeServices} services
-          </p>
-        </div>
         </div>
       </div>
 
@@ -562,7 +618,7 @@ export default function AdminAnalyticsPage() {
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#3b82f6"
+                  stroke="#6366f1"
                   fillOpacity={1}
                   fill="url(#colorRevenue)"
                   name="Net Revenue (MWK)"
@@ -607,8 +663,26 @@ export default function AdminAnalyticsPage() {
                   wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
                   iconSize={12}
                 />
-                <Line type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} name="Orders" />
-                <Line type="monotone" dataKey="bookings" stroke="#f59e0b" strokeWidth={2} name="Bookings" />
+                {hasProducts && (
+                  <Line 
+                    type="monotone" 
+                    dataKey="orders" 
+                    name="Orders" 
+                    stroke="#10b981" 
+                    strokeWidth={2} 
+                    dot={false} 
+                  />
+                )}
+                {hasServices && (
+                  <Line 
+                    type="monotone" 
+                    dataKey="bookings" 
+                    name="Bookings" 
+                    stroke="#f59e0b" 
+                    strokeWidth={2} 
+                    dot={false} 
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>

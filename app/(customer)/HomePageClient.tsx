@@ -18,6 +18,7 @@ import {
   // Real-time hooks removed for non-critical data to save Firebase quota
   // Using polling instead via refetchInterval in hooks
 } from '@/hooks';
+import { useStoreType } from '@/hooks/useStoreType';
 import { PromotionStatus } from '@/types/promotion';
 import { ItemStatus } from '@/types/item';
 import { Timestamp } from 'firebase/firestore';
@@ -28,6 +29,7 @@ import { ReviewsSection } from '@/components/reviews';
 export default function HomePageClient() {
   const { addItem } = useCart();
   const { currentBusiness } = useApp();
+  const { hasProducts, hasServices } = useStoreType();
   
   // React Query hooks
   const {
@@ -68,9 +70,9 @@ export default function HomePageClient() {
   });
 
 
-  // Combine products and services into all items
-  const productsArray = Array.isArray(products) ? products : [];
-  const servicesArray = Array.isArray(services) ? services : [];
+  // Combine products and services into all items based on store type
+  const productsArray = hasProducts && Array.isArray(products) ? products : [];
+  const servicesArray = hasServices && Array.isArray(services) ? services : [];
   const allItems = [...productsArray, ...servicesArray];
 
 
@@ -78,13 +80,18 @@ export default function HomePageClient() {
     return (category: any) => {
       if (!category || !allItems.length) return [];
       return allItems
-        .filter(item => 
-          item.categoryIds?.some((catId: string) => catId === category.id) && 
-          item.status === ItemStatus.ACTIVE
-        )
+        .filter(item => {
+          const isInCategory = item.categoryIds?.some((catId: string) => catId === category.id);
+          const isActive = item.status === ItemStatus.ACTIVE;
+          const matchesType = 
+            (hasProducts && isProduct(item) && category.type === 'product') ||
+            (hasServices && isService(item) && category.type === 'service');
+          
+          return isInCategory && isActive && matchesType;
+        })
         .slice(0, 4); // Show max 4 items per category
     };
-  }, [allItems]);
+  }, [allItems, hasProducts, hasServices]);
   
   // Helper to convert createdAt to Date
   const getDate = (date: Date | Timestamp | string | undefined): Date => {
@@ -94,20 +101,49 @@ export default function HomePageClient() {
     return new Date(date);
   };
 
-  // Derive new arrivals and top picks from store state
-  const newArrivals = allItems
-    .filter(item => item.status === ItemStatus.ACTIVE)
-    .sort((a, b) => {
-      const aDate = getDate(a.createdAt);
-      const bDate = getDate(b.createdAt);
-      return bDate.getTime() - aDate.getTime();
-    })
-    .slice(0, 3);
+  // Derive new arrivals and top picks from store state, filtered by store type
+  const newArrivals = useMemo(() => {
+    return allItems
+      .filter(item => {
+        const isActive = item.status === ItemStatus.ACTIVE;
+        if (hasProducts && hasServices) return isActive;
+        if (hasProducts) return isActive && isProduct(item);
+        if (hasServices) return isActive && isService(item);
+        return false;
+      })
+      .sort((a, b) => {
+        const aDate = getDate(a.createdAt);
+        const bDate = getDate(b.createdAt);
+        return bDate.getTime() - aDate.getTime();
+      })
+      .slice(0, 3);
+  }, [allItems, hasProducts, hasServices]);
   
-  const featuredItems = allItems.filter(item => item.isFeatured && item.status === ItemStatus.ACTIVE);
-  const topPicks = featuredItems.length >= 4 
-    ? featuredItems.slice(0, 4) 
-    : allItems.filter(item => item.status === ItemStatus.ACTIVE).slice(0, 4);
+  const featuredItems = useMemo(() => {
+    return allItems.filter(item => {
+      const isActive = item.status === ItemStatus.ACTIVE;
+      const isFeatured = item.isFeatured;
+      if (hasProducts && hasServices) return isActive && isFeatured;
+      if (hasProducts) return isActive && isFeatured && isProduct(item);
+      if (hasServices) return isActive && isFeatured && isService(item);
+      return false;
+    });
+  }, [allItems, hasProducts, hasServices]);
+
+  const topPicks = useMemo(() => {
+    if (featuredItems.length >= 4) {
+      return featuredItems.slice(0, 4);
+    }
+    return allItems
+      .filter(item => {
+        const isActive = item.status === ItemStatus.ACTIVE;
+        if (hasProducts && hasServices) return isActive;
+        if (hasProducts) return isActive && isProduct(item);
+        if (hasServices) return isActive && isService(item);
+        return false;
+      })
+      .slice(0, 4);
+  }, [allItems, featuredItems, hasProducts, hasServices]);
   
   const loading = productsLoading || servicesLoading;
 
@@ -121,7 +157,18 @@ export default function HomePageClient() {
     return new Date(date as string | number);
   };
 
-  // Filter active promotions that haven't expired
+  // Filter categories based on store type
+  const filteredCategories = useMemo(() => {
+    if (!categories) return [];
+    return categories.filter(category => {
+      if (hasProducts && hasServices) return true; // Show all categories if both types are enabled
+      if (hasProducts) return category.type === 'product';
+      if (hasServices) return category.type === 'service';
+      return false;
+    });
+  }, [categories, hasProducts, hasServices]);
+
+  // Filter active promotions that haven't expired and match store type
   const activePromotions = useMemo(() => {
     if (!promotions || promotions.length === 0) {
       console.log('No promotions found in store');
@@ -192,9 +239,9 @@ export default function HomePageClient() {
           </div>
           {/* Mobile: Horizontal Scroll */}
           <div className="md:hidden">
-            {categories.length > 0 ? (
+            {filteredCategories.length > 0 ? (
               <div className="flex gap-4 pb-4 overflow-x-auto snap-x snap-mandatory px-1">
-                {categories.map((category) => (
+                {filteredCategories.map((category) => (
                   <div 
                     key={category.id}
                     className="shrink-0 w-[160px] snap-start bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
@@ -261,15 +308,15 @@ export default function HomePageClient() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12 text-text-muted">
-                <p>No categories available at the moment.</p>
+              <div className="text-center py-12 text-text-muted col-span-full">
+                <p>No categories available for the current store type.</p>
               </div>
             )}
           </div>
           {/* Desktop: Grid Layout */}
           <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.length > 0 ? (
-              categories.map((category) => (
+            {filteredCategories.length > 0 ? (
+              filteredCategories.map((category) => (
                 <div 
                   key={category.id} 
                   className="bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
@@ -350,10 +397,19 @@ export default function HomePageClient() {
             <div className="flex flex-col gap-2 w-full text-center">
               <h2 className="text-3xl font-bold mb-2 text-foreground">NEW ARRIVALS</h2>
               <p className="text-text-secondary">
-                Explore our latest collection featuring exclusive designs and premium quality. Limited stock available.
+                {hasProducts && hasServices && 'Explore our latest products and services featuring exclusive designs and premium quality. Limited stock available.'}
+                {hasProducts && !hasServices && 'Explore our latest products featuring exclusive designs and premium quality. Limited stock available.'}
+                {!hasProducts && hasServices && 'Explore our latest services featuring exclusive designs and premium quality. Limited availability.'}
               </p>
-              <Link className="shrink-0" href="/products?sort=newest">
-                <Button variant="outline">View All →</Button>
+              <Link 
+                className="shrink-0" 
+                href={hasProducts ? 
+                  (hasServices ? '/search?sort=newest' : '/products?sort=newest') : 
+                  '/services?sort=newest'
+                }>
+                <Button variant="outline">
+                  {hasProducts && hasServices ? 'Browse All' : 'View All'} →
+                </Button>
               </Link>
             </div>
           </div>

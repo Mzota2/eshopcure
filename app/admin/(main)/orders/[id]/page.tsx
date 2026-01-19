@@ -32,6 +32,7 @@ export default function AdminOrderDetailPage() {
   
   const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState<OrderStatus | ''>('');
+  const [statusReason, setStatusReason] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const [notes, setNotes] = useState('');
@@ -57,14 +58,31 @@ export default function AdminOrderDetailPage() {
     }
 
     try {
+      const updates: any = { status: status as OrderStatus };
+      
+      // Add status update reason if provided
+      if (statusReason.trim()) {
+        updates.statusHistory = [
+          ...(order.statusHistory || []),
+          {
+            status: status as OrderStatus,
+            updatedAt: new Date(),
+            reason: statusReason.trim(),
+            updatedBy: 'admin' // In a real app, this would be the current admin's ID
+          }
+        ];
+      }
+
       await updateOrderMutation.mutateAsync({
         orderId: order.id,
-        updates: { status: status as OrderStatus },
+        updates,
       });
+      
+      setStatusReason('');
       setIsEditing(false);
       toast.showSuccess(SUCCESS_MESSAGES.ORDER_STATUS_UPDATED);
     } catch (error) {
-      console.error('Error updating order:', error);
+      console.error('Error updating order status:', error);
       toast.showError(getUserFriendlyMessage(error, ERROR_MESSAGES.UPDATE_FAILED));
     }
   };
@@ -504,25 +522,43 @@ export default function AdminOrderDetailPage() {
               {/* Status Update */}
               <div>
                 <h3 className="text-lg font-semibold mb-3 text-foreground">Update Status</h3>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as OrderStatus)}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground mb-3"
-                >
-                  {Object.values(OrderStatus).map((s) => (
-                    <option key={s} value={s}>
-                      {statusUtils.getStatusLabel(s)}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  onClick={handleUpdateStatus}
-                  disabled={updateOrderMutation.isPending || status === order.status}
-                  isLoading={updateOrderMutation.isPending}
-                  className="w-full"
-                >
-                  Update Status
-                </Button>
+                <div className="space-y-3">
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as OrderStatus)}
+                    className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
+                  >
+                    {Object.values(OrderStatus).map((s) => (
+                      <option key={s} value={s}>
+                        {statusUtils.getStatusLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {status && status !== order.status && (
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-1">
+                        Reason for status change (optional):
+                      </label>
+                      <Textarea
+                        value={statusReason}
+                        onChange={(e) => setStatusReason(e.target.value)}
+                        rows={2}
+                        placeholder="E.g., Order shipped with tracking number..."
+                        className="w-full text-sm"
+                      />
+                    </div>
+                  )}
+                  
+                  <Button
+                    onClick={handleUpdateStatus}
+                    disabled={updateOrderMutation.isPending || status === order.status}
+                    isLoading={updateOrderMutation.isPending}
+                    className="w-full mt-2"
+                  >
+                    Update Status
+                  </Button>
+                </div>
               </div>
 
               {/* Order Dates */}

@@ -80,12 +80,20 @@ export interface OrderPayment {
 /**
  * Order document
  */
+export interface StatusUpdate {
+  status: OrderStatus;
+  updatedAt: Date | string;
+  reason?: string;
+  updatedBy: string; // User ID or system
+}
+
 export interface Order extends BaseDocument {
   orderNumber: string; // Human-readable order number
   customerId?: string; // null for guest checkout
   customerEmail: string;
   customerName?: string;
   status: OrderStatus;
+  statusHistory?: StatusUpdate[]; // History of status changes
   items: OrderItem[];
   pricing: OrderPricing;
   delivery?: OrderDelivery;

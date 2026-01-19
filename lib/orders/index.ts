@@ -10,10 +10,10 @@ import {
   limit,
   serverTimestamp
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { COLLECTIONS } from '@/types/collections';
-import { Order, OrderStatus } from '@/types/order';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { db } from '../firebase/config';
+import { COLLECTIONS } from '@/types';
+import { Order, OrderStatus, StatusUpdate } from '@/types/order';
+import { NotFoundError, ValidationError } from '../utils/errors';
 import { isValidOrderStatusTransition } from '@/lib/utils/validation';
 import { createOrder } from './create';
 
@@ -108,20 +108,77 @@ export const updateOrder = async (orderId: string, updates: Partial<Order>): Pro
   }
   
   const currentOrder = { id: orderSnap.id, ...orderSnap.data() } as Order;
+  const isStatusUpdate = updates.status && updates.status !== currentOrder.status;
   
-  // Validate status transition if status is being updated
-  if (updates.status && updates.status !== currentOrder.status) {
-    if (!isValidOrderStatusTransition(currentOrder.status, updates.status)) {
-      throw new ValidationError(
-        `Cannot change order status from ${currentOrder.status} to ${updates.status}. Invalid status transition.`
-      );
-    }
-  }
-  
-  await updateDoc(orderRef, {
+  // Prepare the update data
+  const updateData: any = {
     ...updates,
     updatedAt: serverTimestamp(),
-  });
+  };
+
+  // Handle status update
+  if (isStatusUpdate) {
+    const newStatus = updates.status as OrderStatus;
+    
+    // Validate status transition
+    if (!isValidOrderStatusTransition(currentOrder.status, newStatus)) {
+      throw new ValidationError(
+        `Cannot change order status from ${currentOrder.status} to ${newStatus}. Invalid status transition.`
+      );
+    }
+
+    // Add to status history
+    const statusUpdate: StatusUpdate = {
+      status: newStatus,
+      updatedAt: new Date(),
+      updatedBy: 'admin', // In a real app, this would be the current user's ID
+    };
+
+    // Add reason if provided in the updates
+    if (updates.statusHistory?.[updates.statusHistory.length - 1]?.reason) {
+      statusUpdate.reason = updates.statusHistory[updates.statusHistory.length - 1].reason;
+    }
+
+    updateData.statusHistory = [
+      ...(currentOrder.statusHistory || []),
+      statusUpdate
+    ];
+
+    // Set specific timestamps based on status
+    if (newStatus === OrderStatus.CANCELED) {
+      updateData.canceledAt = new Date();
+    } else if (newStatus === OrderStatus.REFUNDED) {
+      updateData.refundedAt = new Date();
+    } else if (newStatus === OrderStatus.COMPLETED) {
+      updateData.completedAt = new Date();
+    } else if (newStatus === OrderStatus.PAID) {
+      updateData.payment = {
+        ...currentOrder.payment,
+        paidAt: new Date(),
+      };
+    }
+  }
+
+  // Update the order
+  await updateDoc(orderRef, updateData);
+
+  // Send notifications if status changed
+  if (isStatusUpdate) {
+    try {
+      const { notifyOrderStatusChange } = await import('@/lib/notifications');
+      await notifyOrderStatusChange({
+        customerEmail: currentOrder.customerEmail,
+        customerId: currentOrder.customerId || '',
+        orderId: currentOrder?.id || '',
+        orderNumber: currentOrder.orderNumber,
+        status: updates.status as OrderStatus,
+        previousStatus: currentOrder.status,
+      });
+    } catch (error) {
+      console.error('Error sending order status notification:', error);
+      // Don't fail the update if notification fails
+    }
+  }
 };
 
 /**

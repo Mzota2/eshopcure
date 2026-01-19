@@ -22,7 +22,7 @@ import {
   useRealtimeServices,
   useRealtimeCustomers,
 } from '@/hooks';
-import { Loading } from '@/components/ui';
+import { Loading, StatusBadge } from '@/components/ui';
 import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
 import { calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
@@ -52,6 +52,7 @@ import {
   Download,
   HelpCircle,
 } from 'lucide-react';
+import { OptimizedImage } from '@/components/ui';
 import {
   LineChart,
   Line,
@@ -442,41 +443,50 @@ export default function AdminDashboardPage() {
   const topItemsData = useMemo(() => {
     const itemSales: Record<string, { name: string; sales: number; revenue: number; type: 'product' | 'service' }> = {};
 
-    // Count sales from orders - only revenue-generating orders
-    orders.forEach((order) => {
-      if (!ORDER_REVENUE_STATUSES.includes(order.status)) return;
-      if (!order.items || !Array.isArray(order.items)) return; // Safety check
-      order.items.forEach((item) => {
-        if (!item.productId) return; // Skip items without productId
-        if (!itemSales[item.productId]) {
-          itemSales[item.productId] = {
-            name: item.productName || 'Unknown Product',
+    // Only process orders if business has products
+    if (hasProducts) {
+      orders.forEach((order) => {
+        if (!ORDER_REVENUE_STATUSES.includes(order.status)) return;
+        if (!order.items || !Array.isArray(order.items)) return; // Safety check
+        order.items.forEach((item) => {
+          if (!item.productId) return; // Skip items without productId
+          if (!itemSales[item.productId]) {
+            itemSales[item.productId] = {
+              name: item.productName || 'Unknown Product',
+              sales: 0,
+              revenue: 0,
+              type: 'product',
+            };
+          }
+          itemSales[item.productId].sales += item.quantity || 0;
+          itemSales[item.productId].revenue += item.subtotal || 0;
+        });
+      });
+    }
+
+    // Only process bookings if business has services
+    if (hasServices) {
+      bookings.forEach((booking) => {
+        if (!BOOKING_REVENUE_STATUSES.includes(booking.status) || !booking.serviceId) return;
+        if (!itemSales[booking.serviceId]) {
+          itemSales[booking.serviceId] = {
+            name: booking.serviceName || 'Service',
             sales: 0,
             revenue: 0,
-            type: 'product',
+            type: 'service',
           };
         }
-        itemSales[item.productId].sales += item.quantity || 0;
-        itemSales[item.productId].revenue += item.subtotal || 0;
+        itemSales[booking.serviceId].sales += 1;
+        itemSales[booking.serviceId].revenue += booking.pricing?.total || 0;
       });
-    });
+    }
 
-    // Count sales from bookings - only revenue-generating bookings
-    bookings.forEach((booking) => {
-      if (!BOOKING_REVENUE_STATUSES.includes(booking.status) || !booking.serviceId) return;
-      if (!itemSales[booking.serviceId]) {
-        itemSales[booking.serviceId] = {
-          name: booking.serviceName || 'Service',
-          sales: 0,
-          revenue: 0,
-          type: 'service',
-        };
-      }
-      itemSales[booking.serviceId].sales += 1;
-      itemSales[booking.serviceId].revenue += booking.pricing.total || 0;
-    });
+    // Filter items based on business type
+    const filteredItems = Object.values(itemSales).filter(item => 
+      (hasProducts && item.type === 'product') || (hasServices && item.type === 'service')
+    );
 
-    return Object.values(itemSales)
+    return filteredItems
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5)
       .map((item) => {
@@ -485,6 +495,8 @@ export default function AdminDashboardPage() {
           name: name.length > 20 ? name.substring(0, 20) + '...' : name,
           revenue: item.revenue || 0,
           sales: item.sales || 0,
+          // Include type for conditional rendering if needed
+          type: item.type
         };
       });
   }, [orders, bookings]);
@@ -560,22 +572,16 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-      case 'delivered':
-        return 'bg-success/20 text-success';
-      case 'pending':
-        return 'bg-warning/20 text-warning';
-      case 'processing':
-      case 'paid':
-        return 'bg-info/20 text-info';
-      case 'cancelled':
-        return 'bg-destructive/20 text-destructive';
-      default:
-        return 'bg-background-secondary text-text-secondary';
-    }
-  };
+  // Debug: Log the first few items to check their status values
+  console.log('Recent items with status:', recentItems.map(item => ({
+    id: item.id,
+    type: item.type,
+    status: item.status,
+    number: item.number,
+    amount: item.amount,
+    currency: item.currency,
+    date: item.date.toISOString()
+  })));
 
   return (
     <div ref={dashboardExportRef}>
@@ -614,7 +620,8 @@ export default function AdminDashboardPage() {
       {/* Metrics Cards */}
       <div className="overflow-x-auto mb-6 sm:mb-8 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <div className="flex gap-3 sm:gap-4 md:gap-6 min-w-max">
-        {/* Today's Orders */}
+        {/* Today's Orders - Only show if business has products */}
+      {hasProducts && (
         <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
             <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Today&apos;s Orders</h3>
@@ -634,6 +641,7 @@ export default function AdminDashboardPage() {
             </p>
           </div>
         </div>
+      )}
 
         {/* Today's Bookings - Only show if business has services */}
         {hasServices && (
@@ -701,36 +709,40 @@ export default function AdminDashboardPage() {
           )}
         </div>
 
-        {/* Low Stock Items */}
-        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Low Stock Items</h3>
-            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-warning shrink-0" />
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
-            {metrics?.lowStockProducts || 0}
-          </p>
-          {metrics && metrics.lowStockProducts > 0 && (
-            <div className="flex items-center gap-1 min-w-0">
-              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warning shrink-0" />
-              <p className="text-xs sm:text-sm text-warning">Action required</p>
+        {/* Low Stock Items - Only show if business has products */}
+        {hasProducts && (
+          <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
+            <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+              <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Low Stock Items</h3>
+              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-warning shrink-0" />
             </div>
-          )}
-        </div>
-
-        {/* Pending Bookings */}
-        <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
-          <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-            <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Pending Bookings</h3>
-            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-info shrink-0" />
+            <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
+              {metrics?.lowStockProducts || 0}
+            </p>
+            {metrics && metrics.lowStockProducts > 0 && (
+              <div className="flex items-center gap-1 min-w-0">
+                <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warning shrink-0" />
+                <p className="text-xs sm:text-sm text-warning">Action required</p>
+              </div>
+            )}
           </div>
-          <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
-            {metrics?.pendingBookings || 0}
-          </p>
-          <p className="text-xs sm:text-sm text-text-secondary">
-            {metrics?.totalBookings || 0} total bookings
-          </p>
-        </div>
+        )}
+
+        {/* Pending Bookings - Only show if business has services */}
+        {hasServices && (
+          <div className="bg-card rounded-lg p-4 sm:p-5 md:p-6 border border-border shrink-0 min-w-[200px] sm:min-w-[220px]">
+            <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+              <h3 className="text-xs sm:text-sm font-medium text-text-secondary">Pending Bookings</h3>
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-info shrink-0" />
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2 whitespace-nowrap">
+              {metrics?.pendingBookings || 0}
+            </p>
+            <p className="text-xs sm:text-sm text-text-secondary">
+              {metrics?.totalBookings || 0} total bookings
+            </p>
+          </div>
+        )}
         </div>
       </div>
 
@@ -845,30 +857,42 @@ export default function AdminDashboardPage() {
                 </thead>
                 <tbody>
                   {recentItems.map((item) => (
-                    <tr key={`${item.type}-${item.id}`} className="border-b border-border hover:bg-background-secondary transition-colors">
+                    <tr 
+                      key={`${item.type}-${item.id}`} 
+                      className="border-b border-border hover:bg-background-secondary transition-colors group cursor-pointer"
+                      onClick={() => router.push(item.link)}
+                    >
                       <td className="py-2 sm:py-3 px-2 sm:px-3">
                         <span className={cn(
-                          'px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded-full font-medium',
-                          item.type === 'order' ? 'bg-blue-500/20 text-blue-500' : 'bg-purple-500/20 text-purple-500'
+                          'px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded-full font-medium inline-flex items-center',
+                          item.type === 'order' 
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' 
+                            : 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300'
                         )}>
                           {item.type === 'order' ? 'Order' : 'Booking'}
                         </span>
                       </td>
-                      <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-foreground font-medium">
-                        <Link href={item.link} className="hover:text-primary transition-colors">
+                      <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm font-medium">
+                        <span className="text-foreground group-hover:text-primary transition-colors">
                           {item.number}
-                        </Link>
-                      </td>
-                      <td className="py-2 sm:py-3 px-2 sm:px-3">
-                        <span className={cn('px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded-full', getStatusColor(item.status))}>
-                          {item.status || 'Pending'}
                         </span>
                       </td>
-                      <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-foreground font-medium">
+                      <td className="py-2 sm:py-3 px-2 sm:px-3">
+                        <StatusBadge 
+                          status={item.status} 
+                          variant="badge"
+                          className="text-xs"
+                          showIcon={false}
+                        />
+                      </td>
+                      <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm font-medium text-foreground">
                         {formatCurrency(item.amount, item.currency)}
                       </td>
                       <td className="py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-text-secondary">
-                        {formatDate(item.date.toISOString())}
+                        <div className="flex items-center justify-between">
+                          <span>{formatDate(item.date.toISOString())}</span>
+                          <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -952,67 +976,93 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Orders & Bookings over time */}
-        <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">
-          <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">Orders & Bookings Over Time</h2>
-          <div className="w-full" style={{ minHeight: '200px', height: '200px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={revenueChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#9ca3af" 
-                  tick={{ fontSize: 10 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  interval="preserveStartEnd"
-                />
-                <YAxis 
-                  stroke="#9ca3af" 
-                  tick={{ fontSize: 10 }}
-                  width={60}
-                />
-              <Tooltip
-                  contentStyle={{ 
-                    backgroundColor: '#1f2937', 
-                    border: '1px solid #374151', 
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    padding: '8px'
-                  }}
-                  labelStyle={{ color: '#f3f4f6', fontSize: '12px' }}
-              />
-                <Legend 
-                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
-                  iconSize={12}
-                />
-              <Line type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} name="Orders" />
-              <Line type="monotone" dataKey="bookings" stroke="#f59e0b" strokeWidth={2} name="Bookings" />
-            </LineChart>
-          </ResponsiveContainer>
+        {/* Orders & Bookings over time - Dynamic based on business type */}
+        {hasProducts || hasServices ? (
+          <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">
+              {hasProducts && hasServices 
+                ? 'Orders & Bookings Over Time' 
+                : hasProducts 
+                  ? 'Orders Over Time' 
+                  : 'Bookings Over Time'}
+            </h2>
+            <div className="w-full" style={{ minHeight: '200px', height: '200px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={revenueChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#9ca3af" 
+                    tick={{ fontSize: 10 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis 
+                    stroke="#9ca3af" 
+                    tick={{ fontSize: 10 }}
+                    width={60}
+                  />
+                  <Tooltip
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151', 
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      padding: '8px'
+                    }}
+                    labelStyle={{ color: '#f3f4f6', fontSize: '12px' }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                    iconSize={12}
+                  />
+                  {hasProducts && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="orders" 
+                      stroke="#10b981" 
+                      strokeWidth={2} 
+                      name="Orders" 
+                      hide={!hasProducts}
+                    />
+                  )}
+                  {hasServices && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="bookings" 
+                      stroke="#f59e0b" 
+                      strokeWidth={2} 
+                      name="Bookings" 
+                      hide={!hasServices}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
-      {/* Items Needing Restock */}
-      {metrics?.lowStockProducts > 0 && (
-        <div className="bg-card rounded-lg border border-warning/20 p-4 sm:p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
+      {/* Items Needing Restock - Only show if business has products and there are low stock items */}
+      {hasProducts && metrics?.lowStockProducts > 0 && (
+        <div className="bg-card rounded-lg border border-warning/20 p-3 sm:p-4 md:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
             <div className="space-y-1">
-              <h2 className="text-lg sm:text-xl font-semibold text-foreground flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-warning" />
-                Items Needing Attention ({metrics.lowStockProducts + (metrics.outOfStockProducts || 0)})
+              <h2 className="text-base sm:text-lg md:text-xl font-semibold text-foreground flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-warning flex-shrink-0" />
+                <span>Items Needing Attention <span className="text-sm font-normal">({metrics.lowStockProducts + (metrics.outOfStockProducts || 0)})</span></span>
               </h2>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {metrics.outOfStockProducts > 0 && (
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
                     <span className="w-2 h-2 rounded-full bg-destructive"></span>
                     {metrics.outOfStockProducts} Out of Stock
                   </span>
                 )}
                 {metrics.lowStockProducts > 0 && (
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
                     <span className="w-2 h-2 rounded-full bg-warning"></span>
                     {metrics.lowStockProducts} Low Stock
                   </span>
@@ -1021,128 +1071,153 @@ export default function AdminDashboardPage() {
             </div>
             <Link 
               href="/admin/products" 
-              className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+              className="text-xs sm:text-sm font-medium text-primary hover:underline flex items-center gap-1 justify-end sm:justify-start self-end sm:self-auto"
             >
               View All Products
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
             </Link>
           </div>
           
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs text-text-secondary border-b border-border">
-                  <th className="pb-2 font-medium">Product</th>
-                  <th className="pb-2 font-medium text-right">Available</th>
-                  <th className="pb-2 font-medium text-right">In Stock</th>
-                  <th className="pb-2 font-medium text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {products
-                  .filter((p) => {
-                    if (p.type !== 'product') return false;
-                    const inventory = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
-                      ? p.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
-                      : null;
-                    
-                    if (inventory?.trackInventory === false) return false;
-                    
-                    const available = typeof inventory?.available === 'number' 
-                      ? inventory.available 
-                      : typeof inventory?.quantity === 'number' 
-                        ? inventory.quantity 
-                        : 0;
-                    
-                    const quantity = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
-                    
-                    // Show items that are out of stock or low stock
-                    return available <= 10 || quantity === 0;
-                  })
-                  .sort((a, b) => {
-                    // Sort by status (out of stock first) then by available quantity
-                    const getAvailable = (p: any) => {
-                      const inv = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
-                        ? p.inventory as { available?: number; quantity?: number }
+          <div className="overflow-x-auto -mx-2 sm:mx-0">
+            <div className="min-w-[600px] sm:min-w-0">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs text-text-secondary border-b border-border">
+                    <th className="pb-2 pl-2 sm:pl-0 font-medium">Product</th>
+                    <th className="pb-2 font-medium text-right">Available</th>
+                    <th className="pb-2 font-medium text-right">In Stock</th>
+                    <th className="pb-2 pr-2 sm:pr-0 font-medium text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {products
+                    .filter((p) => {
+                      if (p.type !== 'product') return false;
+                      const inventory = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
+                        ? p.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
                         : null;
-                      return typeof inv?.available === 'number' 
-                        ? inv.available 
-                        : typeof inv?.quantity === 'number' 
-                          ? inv.quantity 
+                      
+                      if (inventory?.trackInventory === false) return false;
+                      
+                      const available = typeof inventory?.available === 'number' 
+                        ? inventory.available 
+                        : typeof inventory?.quantity === 'number' 
+                          ? inventory.quantity 
                           : 0;
-                    };
-                    
-                    const aAvailable = getAvailable(a);
-                    const bAvailable = getAvailable(b);
-                    
-                    // Out of stock items first, then sort by available quantity (lowest first)
-                    if (aAvailable === 0 && bAvailable > 0) return -1;
-                    if (aAvailable > 0 && bAvailable === 0) return 1;
-                    return aAvailable - bAvailable;
-                  })
-                  .slice(0, 8) // Show top 8 items (increased from 5 to show more critical items)
-                  .map((product) => {
-                    const inventory = 'inventory' in product && product.inventory && typeof product.inventory === 'object' 
-                      ? product.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
-                      : null;
-                    
-                    const available = typeof inventory?.available === 'number' 
-                      ? inventory.available 
-                      : typeof inventory?.quantity === 'number' 
-                        ? inventory.quantity 
-                        : 0;
-                        
-                    const inStock = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
-                    const isOutOfStock = available <= 0;
-                    const isCritical = !isOutOfStock && available <= 3;
-                    const isLow = !isOutOfStock && available <= 10;
-                    
-                    return (
-                      <tr key={product.id} className="hover:bg-muted/50">
-                        <td className="py-3 pr-4">
-                          <Link 
-                            href={`/admin/products/${product.id}/edit`}
-                            className={cn(
-                              "font-medium hover:underline flex items-center gap-2",
-                              isOutOfStock ? "text-destructive" : "text-foreground hover:text-primary"
-                            )}
-                          >
-                            {product.name}
-                            {isOutOfStock && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">OUT OF STOCK</span>}
-                          </Link>
-                        </td>
-                        <td className="py-3 text-right">
-                          <span className={cn(
-                            "font-medium",
-                            isOutOfStock 
-                              ? "text-destructive" 
-                              : isCritical 
+                      
+                      const quantity = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
+                      
+                      // Show items that are out of stock or low stock
+                      return available <= 10 || quantity === 0;
+                    })
+                    .sort((a, b) => {
+                      // Sort by status (out of stock first) then by available quantity
+                      const getAvailable = (p: any) => {
+                        const inv = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
+                          ? p.inventory as { available?: number; quantity?: number }
+                          : null;
+                        return typeof inv?.available === 'number' 
+                          ? inv.available 
+                          : typeof inv?.quantity === 'number' 
+                            ? inv.quantity 
+                            : 0;
+                      };
+                      
+                      const aAvailable = getAvailable(a);
+                      const bAvailable = getAvailable(b);
+                      
+                      // Out of stock items first, then sort by available quantity (lowest first)
+                      if (aAvailable === 0 && bAvailable > 0) return -1;
+                      if (aAvailable > 0 && bAvailable === 0) return 1;
+                      return aAvailable - bAvailable;
+                    })
+                    .slice(0, 8) // Show top 8 items (increased from 5 to show more critical items)
+                    .map((product) => {
+                      const inventory = 'inventory' in product && product.inventory && typeof product.inventory === 'object' 
+                        ? product.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
+                        : null;
+                      
+                      const available = typeof inventory?.available === 'number' 
+                        ? inventory.available 
+                        : typeof inventory?.quantity === 'number' 
+                          ? inventory.quantity 
+                          : 0;
+                          
+                      const inStock = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
+                      const isOutOfStock = available <= 0;
+                      const isCritical = !isOutOfStock && available <= 3;
+                      const isLow = !isOutOfStock && available <= 10;
+                      
+                      return (
+                        <tr key={product.id} className="text-sm hover:bg-muted/30 transition-colors">
+                          <td className="py-3 pl-2 sm:pl-0 pr-1">
+                            <Link 
+                              href={`/admin/products/${product.id}/edit`}
+                              className={cn(
+                                "font-medium hover:underline flex items-center gap-2 group",
+                                isOutOfStock ? "text-destructive" : "text-foreground hover:text-primary"
+                              )}
+                            >
+                              {product.images?.[0] ? (
+                                <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                                  <OptimizedImage
+                                    src={product.images?.[0]?.url || ''}
+                                    alt={product?.name || 'Product image'}
+                                    fill
+                                    sizes="(max-width: 640px) 24px, 32px"
+                                    className="object-cover"
+                                    priority={false}
+                                    context="listing"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-md bg-muted/50 flex items-center justify-center flex-shrink-0">
+                                  <Package className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+                                </div>
+                              )}
+                              <span className="truncate max-w-[120px] sm:max-w-[180px] md:max-w-xs">
+                                {product.name}
+                              </span>
+                              {isOutOfStock && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive whitespace-nowrap">
+                                  OUT OF STOCK
+                                </span>
+                              )}
+                            </Link>
+                          </td>
+                          <td className="py-3 text-right px-2">
+                            <span className={cn(
+                              "font-medium whitespace-nowrap",
+                              isOutOfStock 
                                 ? "text-destructive" 
-                                : "text-warning"
-                          )}>
-                            {available} {available === 1 ? 'unit' : 'units'}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right text-muted-foreground">
-                          {inStock} {inStock === 1 ? 'unit' : 'units'}
-                        </td>
-                        <td className="py-3 text-right">
-                          <span className={cn(
-                            "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
-                            isOutOfStock
-                              ? "bg-destructive/10 text-destructive"
-                              : isCritical 
-                                ? "bg-destructive/10 text-destructive" 
-                                : "bg-warning/10 text-warning"
-                          )}>
-                            {isOutOfStock ? 'Out of Stock' : isCritical ? 'Critical' : 'Low Stock'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
+                                : isCritical 
+                                  ? "text-destructive" 
+                                  : "text-warning"
+                            )}>
+                              {available} {available === 1 ? 'unit' : 'units'}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right px-2 text-muted-foreground whitespace-nowrap">
+                            {inStock} {inStock === 1 ? 'unit' : 'units'}
+                          </td>
+                          <td className="py-3 pr-2 sm:pr-0 text-right">
+                            <span className={cn(
+                              "inline-flex items-center justify-center px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium whitespace-nowrap",
+                              isOutOfStock
+                                ? "bg-destructive/10 text-destructive"
+                                : isCritical 
+                                  ? "bg-destructive/10 text-destructive" 
+                                  : "bg-warning/10 text-warning"
+                            )}>
+                              {isOutOfStock ? 'Out of Stock' : isCritical ? 'Critical' : 'Low Stock'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -1221,56 +1296,78 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Top Products & Services */}
-        <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">
-          <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">Top Products & Services</h2>
-          {topItemsData.length > 0 ? (
-            <div className="w-full" style={{ minHeight: '200px', height: '200px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topItemsData} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis 
-                    type="number" 
-                    stroke="#9ca3af" 
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={(value) => {
-                      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                      if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-                      return value.toString();
-                    }}
-                  />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    stroke="#9ca3af" 
-                    tick={{ fontSize: 10 }}
-                    width={80}
-                  />
-                <Tooltip
-                    contentStyle={{ 
-                      backgroundColor: '#1f2937', 
-                      border: '1px solid #374151', 
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      padding: '8px'
-                    }}
-                    labelStyle={{ color: '#f3f4f6', fontSize: '12px' }}
-                  formatter={(value: number) => formatCurrency(value, 'MWK')}
-                />
-                  <Legend 
-                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
-                    iconSize={12}
-                  />
-                <Bar dataKey="revenue" fill="#3b82f6" name="Revenue (MWK)" />
-              </BarChart>
-            </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="h-[200px] flex items-center justify-center text-text-secondary">
-              <p className="text-xs sm:text-sm md:text-base">No sales data available</p>
-            </div>
-          )}
-        </div>
+        {/* Top Products & Services - Dynamic based on business type */}
+        {(hasProducts || hasServices) && (
+          <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-foreground mb-2 sm:mb-3 md:mb-4">
+              {hasProducts && hasServices 
+                ? 'Top Products & Services' 
+                : hasProducts 
+                  ? 'Top Products' 
+                  : 'Top Services'}
+            </h2>
+            {topItemsData.length > 0 ? (
+              <div className="w-full" style={{ minHeight: '200px', height: '200px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={topItemsData} 
+                    layout="vertical" 
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis 
+                      type="number" 
+                      stroke="#9ca3af" 
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(value) => {
+                        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                        if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+                        return value.toString();
+                      }}
+                    />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      stroke="#9ca3af" 
+                      tick={{ fontSize: 10 }}
+                      width={80}
+                    />
+                    <Tooltip
+                      contentStyle={{ 
+                        backgroundColor: '#1f2937', 
+                        border: '1px solid #374151', 
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        padding: '8px'
+                      }}
+                      labelStyle={{ color: '#f3f4f6', fontSize: '12px' }}
+                      formatter={(value: number) => formatCurrency(value, 'MWK')}
+                    />
+                    <Legend 
+                      wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                      iconSize={12}
+                    />
+                    <Bar 
+                      dataKey="revenue" 
+                      fill={hasProducts && hasServices ? "#3b82f6" : hasProducts ? "#10b981" : "#f59e0b"} 
+                      name={hasProducts && hasServices ? "Revenue (MWK)" : hasProducts ? "Product Revenue" : "Service Revenue"} 
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-text-secondary">
+                <p className="text-xs sm:text-sm md:text-base">
+                  {hasProducts && hasServices 
+                    ? 'No sales data available for products or services' 
+                    : hasProducts 
+                      ? 'No product sales data available' 
+                      : 'No service booking data available'}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
