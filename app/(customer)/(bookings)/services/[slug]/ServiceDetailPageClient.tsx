@@ -230,6 +230,7 @@ function ServiceDetailPageContent() {
                 description={service.description}
                 variant="outline"
                 size="md"
+                color='text-white'
               />
             </div>
             <div className="mb-6">

@@ -164,7 +164,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
           <div className='absolute top-4 left-0 right-0 z-30 flex items-center justify-between px-4'>
             <button
               onClick={() => paginate(-1)}
-              className={`${isDark ? 'bg-black/60 hover:bg-black/80 text-white' : 'bg-white/90 hover:bg-white text-primary'} rounded-full p-2 sm:p-3 transition-all hover:scale-110 shadow-lg backdrop-blur-sm border ${isDark ? 'border-gray-600 hover:border-gray-400' : 'border-white/20 hover:border-primary'}`}
+              className={`${isDark ? 'bg-black/60 hover:bg-black/80 text-white' : 'bg-white/90 hover:bg-white text-primary'} rounded-full p-2 sm:p-3 transition-all hover:scale-110 shadow-lg backdrop-blur-sm border !border-white/20 hover:border-primary`}
               aria-label="Previous slide"
             >
               <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -182,7 +182,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
                       }}
                       className={`h-2 rounded-full transition-all focus:outline-none
                         ${index === currentIndex
-                          ? `w-8 ${isDark ? 'bg-white border-white/90' : 'bg-white !border-white/80'} border shadow-md`
+                          ? `w-8 ${isDark ? 'bg-white !border-white/90' : 'bg-white !border-white/80'} border shadow-md`
                           : `w-2 ${isDark ? 'bg-white/40 !border-white/60 hover:bg-white/70' : 'bg-white/60 !border-white/80 hover:bg-white/80'} border`
                         }`}
                       aria-label={`Go to slide ${index + 1}`}
@@ -193,7 +193,7 @@ export const PromotionCarousel: React.FC<PromotionCarouselProps> = ({
 
             <button
               onClick={() => paginate(1)}
-              className={`${isDark ? 'bg-black/60 hover:bg-black/80 text-white' : 'bg-white/90 hover:bg-white text-primary'} rounded-full p-2 sm:p-3 transition-all hover:scale-110 shadow-lg backdrop-blur-sm border ${isDark ? 'border-gray-600 hover:border-gray-400' : 'border-white/20 hover:border-primary'}`}
+              className={`${isDark ? 'bg-black/60 hover:bg-black/80 text-white' : 'bg-white/90 hover:bg-white text-primary'} rounded-full p-2 sm:p-3 transition-all hover:scale-110 shadow-lg backdrop-blur-sm border !border-white/20 hover:border-primary`}
               aria-label="Next slide"
             >
               <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />

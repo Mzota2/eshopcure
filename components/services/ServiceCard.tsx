@@ -113,7 +113,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onBookNow }) 
           {/* Promotion badge */}
           {showPromotion && discountPercentage > 0 && (
             <div className="absolute top-2 right-2 z-10">
-              <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 border-white/20">
+              <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 !border-white/20">
                 {discountPercentage}% OFF
               </div>
             </div>
@@ -121,7 +121,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onBookNow }) 
           
           {showPromotion && discountPercentage === 0 && (
             <div className="absolute top-2 right-2 z-10">
-              <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 border-white/20">
+              <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 !border-white/20">
                 On Sale
               </div>
             </div>
@@ -129,37 +129,26 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onBookNow }) 
           
           {service.status === ItemStatus.ACTIVE && !showPromotion && (
             <div className="absolute top-2 left-2 z-10">
-              <div className="bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 border-white/20">
+              <div className="bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg backdrop-blur-sm border-2 !border-white/20">
                 Available
               </div>
             </div>
           )}
 
-          {/* Share button overlay - positioned in top-right when no promotion badge */}
-          {!showPromotion && (
-            <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-              <ShareButton
-                url={shareUrl}
-                title={service.name}
-                description={service.description}
-                variant="ghost"
-                size="sm"
-                className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-sm"
-              />
-            </div>
-          )}
-          {showPromotion && (
-            <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-              <ShareButton
-                url={shareUrl}
-                title={service.name}
-                description={service.description}
-                variant="ghost"
-                size="sm"
-                className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-sm"
-              />
-            </div>
-          )}
+          {/* Share button - always visible on mobile, hover on desktop */}
+          <div className={`absolute ${showPromotion ? 'top-2 left-2' : 'top-2 right-2'} z-10 md:opacity-0 md:group-hover:opacity-100 transition-opacity`}>
+            <ShareButton
+              url={shareUrl}
+              title={service.name}
+              description={service.description}
+              variant="ghost"
+              size="sm"
+              className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-sm"
+            />
+          </div>
+          
+          {/* Mobile share button in the bottom right corner */}
+        
         </div>
       </Link>
       

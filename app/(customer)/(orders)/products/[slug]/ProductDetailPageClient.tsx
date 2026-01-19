@@ -253,6 +253,7 @@ function ProductDetailPageContent() {
                 description={product.description}
                 variant="outline"
                 size="md"
+                color='text-white'
               />
             </div>
 

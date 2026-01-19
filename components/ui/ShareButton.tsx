@@ -15,6 +15,7 @@ export interface ShareButtonProps {
   className?: string;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
+  color?: string;
 }
 
 export const ShareButton: React.FC<ShareButtonProps> = ({
@@ -24,6 +25,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
   className,
   variant = 'ghost',
   size = 'sm',
+  color = 'text-black',
 }) => {
   const [isSharing, setIsSharing] = useState(false);
 
@@ -84,7 +86,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       disabled={isSharing}
       aria-label={`Share ${title}`}
     >
-      <Share2 className="w-4 h-4 !text-black" />
+      <Share2 className={`w-4 h-4 !text-black dark:!text-warning`} />
       {size !== 'sm' && <span className="ml-2">Share</span>}
     </Button>
   );

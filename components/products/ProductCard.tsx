@@ -187,19 +187,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
             </div>
           )}
 
-          {/* Share button overlay - positioned in top-right when no promotion badge */}
-          {!showPromotion && (
-            <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-              <ShareButton
-                url={shareUrl}
-                title={product.name}
-                description={product.description}
-                variant="ghost"
-                size="sm"
-                className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-sm"
-              />
-            </div>
-          )}
+          {/* Share button - always visible on mobile, hover on desktop */}
+          <div className={`absolute ${showPromotion ? 'top-2 left-2' : 'top-2 right-2'} z-10 md:opacity-0 md:group-hover:opacity-100 transition-opacity`}>
+            <ShareButton
+              url={shareUrl}
+              title={product.name}
+              description={product.description}
+              variant="ghost"
+              size="sm"
+              className="bg-white/90 hover:bg-white backdrop-blur-sm shadow-sm"
+            />
+          </div>
+          
+        
           {showPromotion && (
             <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
               <ShareButton
