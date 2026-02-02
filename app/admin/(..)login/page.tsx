@@ -11,6 +11,7 @@ import { signIn, sendVerificationEmail, signInWithGoogle } from '@/lib/auth';
 import { FcGoogle } from 'react-icons/fc';
 import { auth } from '@/lib/firebase/config';
 import { getUserRole } from '@/lib/firebase/auth';
+import { Recaptcha } from '@/components/security/Recaptcha';
 
 /**
  * Intercepting route for login when accessing admin pages
@@ -24,6 +25,7 @@ export default function AdminLoginIntercept() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string>('');
 
   // Redirect if already logged in as admin
   React.useEffect(() => {
@@ -39,6 +41,59 @@ export default function AdminLoginIntercept() {
     setIsLoading(true);
 
     try {
+      const verifyRecaptchaToken = async (tokenToVerify: string) => {
+        const response = await fetch('/api/auth/verify-recaptcha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenToVerify }),
+        });
+
+        if (response.ok) return;
+
+        const data: unknown = await response.json().catch(() => undefined);
+        const errorMessage =
+          data && typeof data === 'object' && 'error' in data && typeof (data as { error?: unknown }).error === 'string'
+            ? (data as { error: string }).error
+            : 'Security verification failed. Please try again.';
+        throw new Error(errorMessage);
+      };
+
+      let token = recaptchaToken;
+      if (!token) {
+        const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+        if (siteKey && window.grecaptcha) {
+          await new Promise<void>((resolve) => {
+            window.grecaptcha.ready(async () => {
+              try {
+                token = await window.grecaptcha.execute(siteKey, { action: 'admin_login' });
+                setRecaptchaToken(token);
+              } catch (err) {
+                console.error('reCAPTCHA execution error:', err);
+              } finally {
+                resolve();
+              }
+            });
+          });
+        }
+      }
+
+      if (process.env.NODE_ENV === 'production' && !token) {
+        setError('Security verification is required');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!token) {
+        if (process.env.NODE_ENV === 'production') {
+          setError('Security verification is required');
+          setIsLoading(false);
+          return;
+        }
+        token = 'dev-token';
+      }
+
+      await verifyRecaptchaToken(token);
+
       // Sign in using the auth function
       await signIn({ email, password });
       
@@ -188,6 +243,17 @@ export default function AdminLoginIntercept() {
             onChange={(e) => setPassword(e.target.value)}
             required
             icon={<Lock className="w-5 h-5" />}
+          />
+
+          <Recaptcha
+            onVerify={setRecaptchaToken}
+            onError={(err) => {
+              console.error('reCAPTCHA error:', err);
+              if (process.env.NODE_ENV === 'production') {
+                setError('Security verification failed. Please refresh and try again.');
+              }
+            }}
+            action="admin_login"
           />
 
           <div className="flex flex-col gap-3 sm:gap-4">

@@ -4,21 +4,23 @@
 
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useCustomers, useRealtimeCustomers, useUpdateCustomer, useDeleteCustomer } from '@/hooks';
 import { User } from '@/types/user';
 import { Button, Modal, Input, Loading, useToast, useConfirmDialog, ConfirmDialog, OptimizedImage } from '@/components/ui';
 import { getUserFriendlyMessage, ERROR_MESSAGES } from '@/lib/utils/user-messages';
 import { Search, Edit, Trash2, Eye, Mail, Phone, User as UserIcon, Download } from 'lucide-react';
-import { exportHtmlElement } from '@/lib/exports/htmlExport';
+import { exportCustomersPdf } from '@/lib/exports/exports';
 import { cn } from '@/lib/utils/cn';
-import {  formatDate } from '@/lib/utils/formatting';
+import { formatDate } from '@/lib/utils/formatting';
 import { Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
+import { useApp } from '@/contexts/AppContext';
 
 export default function AdminCustomersPage() {
   const toast = useToast();
   const { confirmDialog, showConfirm, hideConfirm } = useConfirmDialog();
+  const { currentBusiness } = useApp();
   const { data: items = [], isLoading: loading, error } = useCustomers();
   const updateCustomer = useUpdateCustomer();
   const deleteCustomer = useDeleteCustomer();
@@ -26,19 +28,16 @@ export default function AdminCustomersPage() {
   const [viewingCustomer, setViewingCustomer] = useState<User | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
-  const tableExportRef = useRef<HTMLDivElement>(null);
 
   // Handle export
   const handleExport = async () => {
-    if (!tableExportRef.current) return;
     const fileName = `customers-${new Date().toISOString().split('T')[0]}`;
-    
+
     try {
-      await exportHtmlElement(tableExportRef.current, {
-        format: exportFormat,
+      await exportCustomersPdf({
+        customers: filteredCustomers,
         fileName,
-        scale: 1.5, // Increase scale for better quality
+        business: currentBusiness || undefined,
       });
     } catch (error) {
       console.error('Export failed:', error);
@@ -103,7 +102,7 @@ export default function AdminCustomersPage() {
       toast.showError('Customer ID is missing. Please refresh the page and try again.');
       return;
     }
-    
+
     try {
       await updateCustomer.mutateAsync({
         customerId: editingCustomer.id,
@@ -132,22 +131,14 @@ export default function AdminCustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Customers Management</h1>
           <p className="text-sm text-muted-foreground">
             {filteredCustomers.length} {filteredCustomers.length === 1 ? 'customer' : 'customers'} found
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
-            className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
-          >
-            <option value="pdf">PDF</option>
-            <option value="image">Image (PNG)</option>
-          </select>
+        <div className="flex gap-2 sm:justify-end">
           <Button
             variant="outline"
             onClick={handleExport}
@@ -155,7 +146,8 @@ export default function AdminCustomersPage() {
             className="whitespace-nowrap"
           >
             <Download className="w-4 h-4 mr-2" />
-            Export
+            <span className="hidden sm:inline">Export</span>
+            <span className="sm:hidden">DL</span>
           </Button>
         </div>
       </div>
@@ -181,7 +173,7 @@ export default function AdminCustomersPage() {
       )}
 
       {/* Customers Table - Desktop */}
-      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden" ref={tableExportRef}>
+      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-background-secondary">
@@ -296,6 +288,118 @@ export default function AdminCustomersPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Customers Cards - Mobile */}
+      <div className="md:hidden space-y-3">
+        {filteredCustomers.length > 0 ? (
+          filteredCustomers.map((customer) => (
+            <div key={customer.id} className="bg-card rounded-lg border border-border p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {customer.photoURL ? (
+                    <OptimizedImage
+                      src={customer.photoURL}
+                      alt={customer.displayName || 'Customer'}
+                      className="w-12 h-12 rounded-full"
+                      width={250}
+                      height={250}
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <UserIcon className="w-6 h-6 text-primary" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {customer.displayName || 'No Name'}
+                    </h3>
+                    <span
+                      className={cn(
+                        'inline-block px-2 py-1 rounded-full text-xs font-medium mt-1',
+                        customer.isActive !== false
+                          ? 'bg-success/20 text-success'
+                          : 'bg-destructive/20 text-destructive'
+                      )}
+                    >
+                      {customer.isActive !== false ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleViewCustomer(customer)}
+                    className="p-2 text-text-secondary hover:text-foreground transition-colors"
+                    title="View"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleEditCustomer(customer)}
+                    className="p-2 text-text-secondary hover:text-foreground transition-colors"
+                    title="Edit"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => customer.id && handleDeleteCustomer(customer.id)}
+                    className="p-2 text-destructive hover:text-destructive-hover transition-colors"
+                    title="Delete"
+                    disabled={!customer.id}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-text-muted flex-shrink-0" />
+                  <Link
+                    href={`mailto:${customer.email}`}
+                    className="text-primary hover:text-primary-hover truncate"
+                  >
+                    {customer.email}
+                  </Link>
+                </div>
+                
+                {customer.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-text-muted flex-shrink-0" />
+                    <Link
+                      href={`tel:${customer.phone}`}
+                      className="text-primary hover:text-primary-hover"
+                    >
+                      {customer.phone}
+                    </Link>
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-text-muted">Joined:</span>
+                  <span className="text-text-secondary">
+                    {customer.createdAt 
+                      ? formatDate(
+                          customer.createdAt instanceof Timestamp
+                            ? customer.createdAt.toDate().toISOString()
+                            : customer.createdAt instanceof Date
+                            ? customer.createdAt.toISOString()
+                            : customer.createdAt as string
+                        )
+                      : '-'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <UserIcon className="w-12 h-12 mx-auto mb-4 text-text-muted opacity-50" />
+            <p className="text-text-secondary">
+              {searchQuery ? 'No customers found matching your search' : 'No customers found'}
+            </p>
+          </div>
+        )}
       </div>
       <Modal
         isOpen={isEditing && !!editingCustomer}

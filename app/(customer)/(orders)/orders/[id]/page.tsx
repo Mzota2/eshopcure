@@ -7,11 +7,12 @@
 import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Calendar, CreditCard, Truck, AlertCircle } from 'lucide-react';
-import { Button, Loading, useToast, StatusBadge, CancellationDialog } from '@/components/ui';
+import { MapPin, Calendar, CreditCard, Truck, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Button, Loading, useToast, StatusBadge, CancellationDialog, ExportButton } from '@/components/ui';
 import { useOrder, useCancelOrder } from '@/hooks/useOrders';
 import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
 import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
+import { useApp } from '@/contexts/AppContext';
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod } from '@/lib/utils/formatting';
 import { OrderStatus, FulfillmentMethod } from '@/types/order';
 import { MALAWI_DISTRICTS } from '@/types/delivery';
@@ -22,7 +23,8 @@ import { ProductImage } from '@/components/ui/OptimizedImage';
 export default function CustomerOrderDetailPage() {
   const toast = useToast();
   const params = useParams();
-  const orderId = params?.id as string;
+  const orderId = params.id as string;
+  const { currentBusiness } = useApp();
   
   const { data: order, isLoading, error } = useOrder(orderId);
   const cancelOrderMutation = useCancelOrder();
@@ -86,19 +88,28 @@ export default function CustomerOrderDetailPage() {
     <div className="min-h-screen bg-background-secondary py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
+        {/* Header */}
         <div className="mb-6">
-          <Link href="/profile?tab=orders">
+          <Link href="/orders">
             <Button variant="outline" size="sm" className="mb-4">
-              ← Back to Orders
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Orders
             </Button>
           </Link>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Order Details</h1>
-              <p className="text-sm sm:text-base text-text-secondary wrap-break-word">Order #{order.orderNumber}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Order Details</h1>
+              <p className="text-text-secondary">Order #{order.orderNumber}</p>
             </div>
-            <div className="shrink-0">
-            <StatusBadge status={order.status} variant="pill" />
+            <div className="flex items-center gap-2">
+              <ExportButton 
+                data={order} 
+                type="order" 
+                isAdmin={false}
+                businessData={currentBusiness}
+                className="flex-shrink-0"
+              />
+              <StatusBadge status={order.status} variant="pill" />
             </div>
           </div>
         </div>

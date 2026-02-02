@@ -6,10 +6,11 @@ import { useApp } from '@/contexts/AppContext';
 import { PolicyLinksSection } from '@/components/policies/PolicyLinksSection';
 import { useActivePolicyByType } from '@/hooks';
 import { PolicyType } from '@/types/policy';
-import { Loading } from '@/components/ui/Loading';
 import { getSettings } from '@/lib/settings';
 import { formatDate } from '@/lib/utils/formatting';
 import { Timestamp } from 'firebase/firestore';
+import { SITE_CONFIG } from '@/lib/config/siteConfig';
+import { sanitizeHtmlContent } from '@/lib/utils/sanitizeHtml';
 
 export default function TermsPageClient() {
   const { currentBusiness } = useApp();
@@ -45,9 +46,9 @@ export default function TermsPageClient() {
   };
 
   const business = currentBusiness;
-  const businessName = business?.name || 'eshopcure';
-  const businessEmail = business?.contactInfo?.email || 'info@eshopcure.tech';
-  const businessPhone = business?.contactInfo?.phone || '';
+  const businessName = business?.name || SITE_CONFIG.defaultBusinessName;
+  const businessEmail = business?.contactInfo?.email || SITE_CONFIG.defaultContactEmail || '';
+  const businessPhone = business?.contactInfo?.phone || SITE_CONFIG.defaultContactPhone || '';
   
 
   const sections = [
@@ -154,7 +155,7 @@ export default function TermsPageClient() {
                   {policy && section.id === 'terms' ? (
                     <div
                       className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: policy.content }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(policy.content || '') }}
                     />
                   ) : (
                     <div className="prose prose-sm max-w-none">{section.content}</div>

@@ -211,10 +211,13 @@ export default function NewCategoryPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+      <div className="flex flex-col gap-4 mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Create New Category</h1>
-        <Link href="/admin/categories" className="w-full sm:w-auto">
-          <Button variant="outline" className="w-full sm:w-auto">Back to Categories</Button>
+        <Link href="/admin/categories" className="w-full sm:w-auto sm:justify-end">
+          <Button variant="outline" className="w-full sm:w-auto">
+            <span className="hidden sm:inline">Back to Categories</span>
+            <span className="sm:hidden">Back</span>
+          </Button>
         </Link>
       </div>
 

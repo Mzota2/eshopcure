@@ -10,9 +10,11 @@ import { db } from '@/lib/firebase/config';
 import { Loading } from '@/components/ui/Loading';
 import { useBusinesses } from '@/hooks';
 import { useDeliveryProviders } from '@/hooks/useDeliveryProviders';
-import { business, OpeningHours } from '@/types/business';
-import { DeliveryProvider } from '@/types/delivery';
+import type { OpeningHours } from '@/types/business';
+
 import { formatDate } from '@/lib/utils/formatting';
+import { sanitizeHtmlContent } from '@/lib/utils/sanitizeHtml';
+import { SITE_CONFIG } from '@/lib/config/siteConfig';
 
 export default function DeliveryPageClient() {
   const [policy, setPolicy] = useState<Policy | null>(null);
@@ -72,7 +74,7 @@ export default function DeliveryPageClient() {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const formattedDays: string[] = [];
     
-    days.forEach((day, index) => {
+    days.forEach((day) => {
       const dayKey = day.toLowerCase() as 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
       const dayHours = openingHours.days[dayKey];
       
@@ -115,9 +117,9 @@ export default function DeliveryPageClient() {
     );
   }
 
-  const businessName = business?.name || 'Our Business';
-  const contactEmail = business?.contactInfo?.email || '';
-  const contactPhone = business?.contactInfo?.phone || '';
+  const businessName = business?.name || SITE_CONFIG.defaultBusinessName;
+  const contactEmail = business?.contactInfo?.email || SITE_CONFIG.defaultContactEmail || '';
+  const contactPhone = business?.contactInfo?.phone || SITE_CONFIG.defaultContactPhone || '';
   const businessAddress = formatBusinessAddress();
   const openingHoursText = formatOpeningHours(business?.openingHours);
 
@@ -157,7 +159,7 @@ export default function DeliveryPageClient() {
               {expandedSections.has(section.id) && (
                 <div className="mt-4 text-foreground space-y-4">
                   {policy ? (
-                    <div dangerouslySetInnerHTML={{ __html: policy.content }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(policy.content || '') }} />
                   ) : (
                     <div className="prose prose-sm max-w-none">
                       {section.id === 'overview' && (

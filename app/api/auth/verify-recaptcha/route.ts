@@ -17,11 +17,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = await verifyRecaptcha(token);
+    const result = await verifyRecaptcha(token);
 
-    if (!isValid) {
+    if (!result.success) {
       return NextResponse.json(
-        { success: false, error: 'reCAPTCHA verification failed' },
+        { success: false, error: result.message || 'reCAPTCHA verification failed' },
         { status: 400 }
       );
     }

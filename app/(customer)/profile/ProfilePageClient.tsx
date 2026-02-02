@@ -18,13 +18,14 @@ import { COLLECTIONS } from '@/types/collections';
 import { collection, query, where, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { ChevronDown, Package, MapPin, Clock, XCircle } from 'lucide-react';
+import { ChevronDown, Package, MapPin, Clock, XCircle, FileText } from 'lucide-react';
 import { getLoginUrl, getReturnUrl } from '@/lib/utils/redirect';
 import { cn } from '@/lib/utils/cn';
 import { useCancelBooking } from '@/hooks/useBookings';
 import { useBusinesses } from '@/hooks';
+import CustomerInvoices from '@/components/invoice/CustomerInvoices';
 
-type TabType = 'orders' | 'bookings';
+type TabType = 'orders' | 'bookings' | 'invoices';
 
 export default function ProfilePageClient() {
   const toast = useToast();
@@ -277,6 +278,19 @@ export default function ProfilePageClient() {
               }`}
             >
               Bookings
+            </button>
+            <button
+              onClick={() => setActiveTab('invoices')}
+              className={`pb-3 sm:pb-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
+                activeTab === 'invoices'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-text-secondary hover:text-foreground'
+              }`}
+            >
+              <div className="flex items-center gap-1">
+                <FileText className="w-4 h-4" />
+                <span>Invoices</span>
+              </div>
             </button>
           </nav>
         </div>
@@ -760,6 +774,9 @@ export default function ProfilePageClient() {
             )}
           </div>
         )}
+
+        {/* Invoices Tab */}
+        {activeTab === 'invoices' && <CustomerInvoices />}
       </div>
 
       {/* Cancellation Dialog for Bookings */}

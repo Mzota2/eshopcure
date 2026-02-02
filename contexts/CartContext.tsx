@@ -18,6 +18,7 @@ interface CartContextType {
   addItem: (product: Item, quantity?: number, variants?: Record<string, string>) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  replaceItem: (oldProductId: string, newProduct: Item, quantity?: number, variants?: Record<string, string>) => void;
   clearCart: () => void;
   setDirectPurchaseItem: (item: { product: Item; quantity: number; variantId?: string }) => void;
   clearDirectPurchase: () => void;
@@ -92,6 +93,54 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDirectPurchaseItem(null);
   };
 
+  const replaceItem = (oldProductId: string, newProduct: Item, quantity: number = 1, variants?: Record<string, string>) => {
+    setItems(prevItems => {
+      // Find the old item to get its quantity and check categories
+      const oldItem = prevItems.find(item => item.product.id === oldProductId);
+      const oldQuantity = oldItem?.quantity || 1;
+      
+      // Check if we're replacing with a product in the same category
+      const sameCategoryReplacement = prevItems.some(
+        item => item.product.id === newProduct.id || 
+               (oldItem?.product.categoryIds?.some(catId => 
+                 newProduct.categoryIds?.includes(catId)
+               ))
+      );
+      
+      // Remove the old item
+      const filteredItems = prevItems.filter(item => item.product.id !== oldProductId);
+      
+      // Check if new item already exists in cart
+      const existingItemIndex = filteredItems.findIndex(
+        item => item.product.id === newProduct.id
+      );
+      
+      // If new item exists, update its quantity
+      if (existingItemIndex >= 0) {
+        const newItems = [...filteredItems];
+        // If same category replacement, preserve the old quantity, otherwise add the specified quantity
+        const updatedQuantity = sameCategoryReplacement 
+          ? Math.max(newItems[existingItemIndex].quantity, oldQuantity)
+          : newItems[existingItemIndex].quantity + (quantity || 1);
+          
+        newItems[existingItemIndex] = {
+          ...newItems[existingItemIndex],
+          quantity: updatedQuantity,
+          selectedVariants: variants || newItems[existingItemIndex].selectedVariants
+        };
+        return newItems;
+      } else {
+        // Add new item with preserved quantity if same category, otherwise use specified quantity or default to 1
+        const newQuantity = sameCategoryReplacement ? oldQuantity : (quantity || 1);
+        return [...filteredItems, { 
+          product: newProduct, 
+          quantity: newQuantity, 
+          selectedVariants: variants 
+        }];
+      }
+    });
+  };
+
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = items.reduce(
     (sum, item) => {
@@ -131,6 +180,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               : undefined
           });
         },
+        replaceItem: directPurchaseItem ? () => {} : replaceItem,
         clearDirectPurchase,
       }}
     >

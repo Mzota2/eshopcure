@@ -111,7 +111,7 @@ export const updateOrder = async (orderId: string, updates: Partial<Order>): Pro
   const isStatusUpdate = updates.status && updates.status !== currentOrder.status;
   
   // Prepare the update data
-  const updateData: any = {
+  const updateData: Record<string, unknown> = {
     ...updates,
     updatedAt: serverTimestamp(),
   };

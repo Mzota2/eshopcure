@@ -260,8 +260,6 @@ export const createReview = async (
       throw new ValidationError('Business not found');
     }
     
-    const businessData = businessSnap.data() as business;
-    
     // Check if reviews are enabled for this business
     if (!isReviewsEnabled()) {
       throw new ValidationError('Reviews are not enabled for this business');
@@ -282,9 +280,6 @@ export const createReview = async (
     }
   }
 
-  // Normalize email to lowercase for consistent duplicate checking
-  const normalizedEmail = review.userEmail?.toLowerCase().trim();
-  
   // If userId is provided, fetch user profile to get name
   let userName = review.userName;
   let userEmail = review.userEmail;

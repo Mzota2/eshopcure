@@ -169,7 +169,9 @@ export const createUser = async (input: CreateUserInput, businessId?: string): P
   let finalBusinessId = businessId;
   const { getBusinessId } = await import('@/lib/businesses/utils');
   finalBusinessId = await getBusinessId();
-  console.log(finalBusinessId);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(finalBusinessId);
+  }
   const userData: Omit<User, 'id'> = {
     ...input,
     businessId: finalBusinessId,

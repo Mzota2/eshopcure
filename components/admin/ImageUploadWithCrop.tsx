@@ -362,8 +362,10 @@ export function ImageUploadWithCrop({
                   height:
                     variant === 'adminProfile'
                       ? 'min(80vw, 400px)'
+                      : variant === 'businessBanner'
+                      ? 'min(60vh, 320px) sm:min(70vh, 400px) md:min(90vh, 600px)'
                       : 'min(90vh, 600px)',
-                  maxHeight: variant === 'adminProfile' ? '400px' : 'none',
+                  maxHeight: variant === 'adminProfile' ? '400px' : variant === 'businessBanner' ? 'none' : 'none',
                 }}
               >
                 <Cropper

@@ -10,9 +10,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   Home, Package, Briefcase, ShoppingCart, Calendar, Users, 
   BarChart3, FileText, Settings, BookOpen, MessageCircle, 
-  Search, Bell, Tags, Percent, CreditCard, Star, Menu, X, HelpCircle
+  Search, Bell, Tags, Percent, CreditCard, Star, Menu, X, HelpCircle, Play
 } from 'lucide-react';
 import { Logo } from '@/components/branding';
+import { AdminContact } from '@/components/admin/AdminContact';
+import { AdminAiModal } from '@/components/admin/AdminAiModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/user';
 import { cn } from '@/lib/utils/cn';
@@ -59,6 +61,8 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     { label: 'Settings', href: '/admin/settings', icon: <Settings className="w-5 h-5" /> },
   ];
 
+  const [aiOpen, setAiOpen] = useState(false);
+
   const handleLogout = async () => {
     try {
       // Sign out from Firebase
@@ -87,7 +91,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <div className="min-h-screen bg-background-secondary">
+    <div className="min-h-screen bg-background-secondary relative">
       {/* Mobile Menu Backdrop */}
       {isMobileMenuOpen && (
         <div
@@ -163,14 +167,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
           {/* Help & Support */}
           <div className="p-4 border-t border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-text-secondary text-sm">
-              <span>Help & Support</span>
-            </div>
-              <button className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary-hover transition-colors">
-              <MessageCircle className="w-5 h-5 shrink-0" />
-            </button>
-            </div>
+            <AdminContact onOpenAi={() => setAiOpen(true)} />
           </div>
         </div>
       </aside>
@@ -203,6 +200,13 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
 
             <div className="flex items-center gap-4">
+              <Link
+                href="/admin/watch"
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm text-primary hover:text-primary-hover hover:bg-primary/10 rounded-lg transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                <span className="hidden sm:inline">Watch</span>
+              </Link>
                <Link
                   href="/admin/guide"
                   className="inline-flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm text-primary hover:text-primary-hover hover:bg-primary/10 rounded-lg transition-colors"
@@ -292,6 +296,9 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
         <main className="p-4 sm:p-6">
           {children}
         </main>
+
+        {/* Admin AI Modal (renders at top-level of layout so it centers in app) */}
+        <AdminAiModal open={aiOpen} onClose={() => setAiOpen(false)} />
       </div>
     </div>
   );

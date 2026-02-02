@@ -14,7 +14,6 @@ import { ValidationError, AuthenticationError } from '@/lib/utils/errors';
 import { isAccountLocked, recordFailedAttempt, resetLoginAttempts } from '@/lib/security/rate-limit';
 // 2FA disabled - requires paid Firebase tier
 // import { verify2FARequirement, enable2FAForAdmin } from '@/lib/security/2fa';
-import { verifyRecaptcha } from '@/lib/security/recaptcha';
 
 export interface SignInInput {
   email: string;
@@ -42,24 +41,6 @@ export const signIn = async (input: SignInInput): Promise<SignInResult> => {
   const lockStatus = await isAccountLocked(input.email);
   if (lockStatus.locked) {
     throw new AuthenticationError(lockStatus.message || 'Account is temporarily locked due to too many failed login attempts');
-  }
-
-  // Verify reCAPTCHA if token provided (server-side verification)
-  if (input.recaptchaToken && input.recaptchaToken !== 'dev-token') {
-    try {
-      const isValid = await verifyRecaptcha(input.recaptchaToken);
-      if (!isValid) {
-        throw new AuthenticationError('Security verification failed. Please try again.');
-      }
-    } catch (error: unknown) {
-      if (error instanceof AuthenticationError) {
-        throw error;
-      }
-      // If reCAPTCHA verification fails, still allow login in development
-      if (process.env.NODE_ENV === 'production') {
-        throw new AuthenticationError('Security verification failed. Please try again.');
-      }
-    }
   }
 
   // Sign in with Firebase Auth

@@ -59,6 +59,8 @@ export const getItems = async (options?: {
   limit?: number;
   lastDocId?: string;
   featured?: boolean;
+  search?: string;
+  excludeId?: string;
 }): Promise<{ items: Item[]; lastDocId?: string; hasMore: boolean }> => {
   const itemsRef = collection(db, COLLECTIONS.ITEMS);
   let q = query(itemsRef);
@@ -68,12 +70,17 @@ export const getItems = async (options?: {
     q = query(q, where('businessId', '==', options.businessId));
   }
   
+  const conditions = [];
+  
   if (options?.type) {
-    q = query(q, where('type', '==', options.type));
+    conditions.push(where('type', '==', options.type));
   }
   
+  // Apply search filter after fetching results since Firestore doesn't support case-insensitive search directly
+  // We'll filter the results after fetching them
+  
   if (options?.status) {
-    q = query(q, where('status', '==', options.status));
+    conditions.push(where('status', '==', options.status));
   }
   
   if (options?.categoryId) {
@@ -91,18 +98,45 @@ export const getItems = async (options?: {
   }
   
   const querySnapshot = await getDocs(q);
-  const items = querySnapshot.docs.map(doc => ({
+  
+  // Map items
+  let items = querySnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
-  })) as Item[];
+  } as Item));
   
-  const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-  const hasMore = querySnapshot.docs.length === (options?.limit || 10);
+  // Apply search filter if search term is provided
+  if (options?.search) {
+    const searchTerm = options.search.toLowerCase();
+    items = items.filter(item => 
+      item.name?.toLowerCase().includes(searchTerm) || 
+      item.description?.toLowerCase().includes(searchTerm)
+    );
+  }
   
+  // Filter out excluded ID if provided
+  if (options?.excludeId) {
+    items = items.filter(item => item.id !== options.excludeId);
+  }
+
+  // Sort by matching categories if categoryId is provided
+  if (options?.categoryId && items.length > 0) {
+    const currentCategoryId = options.categoryId;
+    
+    items.sort((a, b) => {
+      // Check if product has the matching category
+      const aHasCategory = a.categoryIds?.includes(currentCategoryId) ? 1 : 0;
+      const bHasCategory = b.categoryIds?.includes(currentCategoryId) ? 1 : 0;
+      
+      // Sort by category match (descending), then by name (ascending)
+      return bHasCategory - aHasCategory || a.name.localeCompare(b.name);
+    });
+  }
+
   return {
     items,
-    lastDocId: lastDoc?.id,
-    hasMore
+    lastDocId: querySnapshot.docs[querySnapshot.docs.length - 1]?.id,
+    hasMore: querySnapshot.docs.length === (options?.limit || 0)
   };
 };
 

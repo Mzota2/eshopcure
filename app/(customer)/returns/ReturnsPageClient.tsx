@@ -8,10 +8,12 @@ import { collection, query, where, getDocs, orderBy, limit, Timestamp } from 'fi
 import { db } from '@/lib/firebase/config';
 import { Loading } from '@/components/ui/Loading';
 import { useBusinesses, useProducts } from '@/hooks';
-import { business } from '@/types/business';
+
 import { ItemStatus, isProduct } from '@/types/item';
 import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import Link from 'next/link';
+import { SITE_CONFIG } from '@/lib/config/siteConfig';
+import { sanitizeHtmlContent } from '@/lib/utils/sanitizeHtml';
 
 export default function RefundPageClient() {
   const [policy, setPolicy] = useState<Policy | null>(null);
@@ -81,9 +83,9 @@ export default function RefundPageClient() {
     );
   }
 
-  const businessName = business?.name || 'Our Business';
-  const contactEmail = business?.contactInfo?.email || '';
-  const contactPhone = business?.contactInfo?.phone || '';
+  const businessName = business?.name || SITE_CONFIG.defaultBusinessName;
+  const contactEmail = business?.contactInfo?.email || SITE_CONFIG.defaultContactEmail;
+  const contactPhone = business?.contactInfo?.phone || SITE_CONFIG.defaultContactPhone || '';
   const returnDuration = business?.returnDuration || 7;
   const refundDuration = business?.refundDuration || 3;
   const cancellationTime = business?.cancellationTime || 24;
@@ -125,7 +127,7 @@ export default function RefundPageClient() {
               {expandedSections.has(section.id) && (
                 <div className="mt-4 text-foreground space-y-4">
                   {policy ? (
-                    <div dangerouslySetInnerHTML={{ __html: policy.content }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(policy.content || '') }} />
                   ) : (
                     <div className="prose prose-sm max-w-none">
                       {section.id === 'introduction' && (
@@ -229,7 +231,7 @@ export default function RefundPageClient() {
                       {section.id === 'nonReturnableProducts' && (
                         <div className="space-y-4">
                           <div className="bg-warning/20 border border-warning/50 rounded-lg p-4 flex items-start gap-3">
-                            <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+                            <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                             <div>
                               <p className="font-semibold text-foreground mb-2">
                                 Important: Non-Returnable Items

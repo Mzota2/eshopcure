@@ -72,6 +72,7 @@ export default function AdminSettingsPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    tpin: '', // TPIN field
     // Address fields
     address: {
       id: 'main',
@@ -166,6 +167,7 @@ export default function AdminSettingsPage() {
       setFormData((prev) => ({
         name: business.name || '',
         description: business.description || '',
+        tpin: business.tpin || '',
         address: business.address ? {
           ...prev.address,
           ...business.address,
@@ -378,6 +380,7 @@ export default function AdminSettingsPage() {
       const businessData: Omit<business, 'id' | 'createdAt' | 'updatedAt'> = {
         name: formData.name,
         description: formData.description,
+        tpin: formData.tpin,
         address: formData.address,
         contactInfo: {
           ...formData.contactInfo,
@@ -425,8 +428,8 @@ export default function AdminSettingsPage() {
   };
 
   const tabs = [
-    { id: 'store-type', label: 'Store Type', icon: '🏪' },
     { id: 'business', label: 'Business Information', icon: 'ℹ️' },
+    { id: 'store-type', label: 'Store Type', icon: '🏪' },
     { id: 'branding', label: 'Branding', icon: '🎨' },
     { id: 'delivery', label: 'Delivery & Fees', icon: '🚚' },
     { id: 'payment', label: 'Payment Configuration', icon: '💳' },
@@ -807,6 +810,14 @@ export default function AdminSettingsPage() {
                     value={formData.contactInfo.website || ''}
                     onChange={(e) => setFormData({ ...formData, contactInfo: { ...formData.contactInfo, website: e.target.value } })}
                     placeholder="https://yourwebsite.com"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Input
+                    label="TPIN (Taxpayer Identification Number) - Optional"
+                    value={formData.tpin || ''}
+                    onChange={(e) => setFormData({ ...formData, tpin: e.target.value })}
+                    placeholder="Enter TPIN if applicable"
                   />
                 </div>
               </div>
@@ -1304,9 +1315,9 @@ export default function AdminSettingsPage() {
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Banner
                 </label>
-                <div className="w-full h-48">
+                <div className="w-full h-32 sm:h-40 md:h-48">
                   {typeof handleBannerUpload === 'function' && (
-<ImageUploadWithCrop
+                  <ImageUploadWithCrop
                     variant="businessBanner"
                     onImageUpload={handleBannerUpload}
                     onRemove={removeBanner}
@@ -1316,7 +1327,7 @@ export default function AdminSettingsPage() {
                   />
                 )}
                 </div>
-                <p className="text-xs text-text-muted mt-1">Recommended: 1920x400px, PNG</p>
+                <p className="text-xs text-text-muted mt-1">Recommended: 1920x400px, PNG (landscape)</p>
                 {errors.banner && <p className="text-xs text-destructive mt-1">{errors.banner}</p>}
                 {uploadingBanner && <p className="text-xs text-text-secondary mt-1">Uploading banner...</p>}
               </div>

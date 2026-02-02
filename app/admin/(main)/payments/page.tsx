@@ -3,28 +3,26 @@
  * Real-time payments management with Firebase integration
  */
 
+
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
-import { useApp } from '@/contexts/AppContext';
+import React, { useState, useMemo } from 'react';
 import { usePayments, useRealtimePayments, useOrders, useBookings } from '@/hooks';
-import { PaymentSessionStatus } from '@/types/payment';
+import { PaymentSession, PaymentSessionStatus } from '@/types/payment';
 import { Button, Modal, Loading } from '@/components/ui';
 import { CreditCard, Download, Eye, Search, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatCurrency, formatDate, formatPaymentMethod } from '@/lib/utils/formatting';
 import Link from 'next/link';
-import { exportHtmlElement } from '@/lib/exports/htmlExport';
+import { exportPaymentReceiptPdf, exportPaymentsPdf } from '@/lib/exports/exports';
+import { useApp } from '@/contexts/AppContext';
 
 export default function AdminPaymentsPage() {
+  const { currentBusiness } = useApp();
   const [selectedStatus, setSelectedStatus] = useState<PaymentSessionStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingPayment, setViewingPayment] = useState<string | null>(null);
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
-  const tableExportRef = useRef<HTMLDivElement | null>(null);
-  const modalReceiptRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch payments with React Query
   // Note: Payments don't have businessId, so we fetch all payments for admins
   const {
     data: items = [],
@@ -100,20 +98,23 @@ export default function AdminPaymentsPage() {
   };
 
   const handleExportAll = async () => {
-    if (!tableExportRef.current) return;
     const fileName = `payments-${selectedStatus === 'all' ? 'all' : selectedStatus}`;
-    await exportHtmlElement(tableExportRef.current, {
-      format: exportFormat,
+    await exportPaymentsPdf({
+      payments: filteredPayments,
       fileName,
+      title: selectedStatus === 'all' ? 'Payments' : `Payments (${selectedStatus})`,
+      business: currentBusiness || undefined,
     });
   };
 
-  const handleExportSingle = async (payment: any) => {
-    if (!modalReceiptRef.current) return;
+  const handleExportSingle = async (payment: PaymentSession & { id?: string }) => {
     const fileName = `payment-${payment.txRef}`;
-    await exportHtmlElement(modalReceiptRef.current, {
-      format: exportFormat,
+    await exportPaymentReceiptPdf({
+      payment,
       fileName,
+      orderNumber: payment.orderId ? getOrderNumber(payment.orderId) : undefined,
+      bookingNumber: payment.bookingId ? getBookingNumber(payment.bookingId) : undefined,
+      business: currentBusiness || undefined,
     });
   };
 
@@ -135,17 +136,6 @@ export default function AdminPaymentsPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-          <div className="flex items-center gap-2 flex-1 sm:flex-none">
-            <span className="text-xs sm:text-sm text-text-secondary">Export as</span>
-            <select
-              value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
-              className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
-            >
-              <option value="pdf">PDF</option>
-              <option value="image">Image (PNG)</option>
-            </select>
-          </div>
           <Button
             variant="outline"
             className="w-full sm:w-auto"
@@ -227,7 +217,7 @@ export default function AdminPaymentsPage() {
       )}
 
       {/* Payments Table - Desktop */}
-      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden" ref={tableExportRef}>
+      <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-background-secondary">
@@ -242,7 +232,7 @@ export default function AdminPaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredPayments.map((payment) => (
+              {filteredPayments.map((payment: PaymentSession & { id?: string }) => (
                 <tr key={payment.id} className="hover:bg-background-secondary transition-colors">
                   <td className="py-3 px-4">
                     <code className="text-sm text-foreground font-mono">{payment.txRef}</code>
@@ -324,7 +314,7 @@ export default function AdminPaymentsPage() {
 
       {/* Payments Cards - Mobile */}
       <div className="md:hidden space-y-4">
-        {filteredPayments.map((payment) => {
+        {filteredPayments.map((payment: PaymentSession & { id?: string }) => {
           const createdAt = payment.createdAt instanceof Date 
             ? payment.createdAt 
             : (payment.createdAt as { toDate?: () => Date })?.toDate?.() || new Date(payment.createdAt as string);
@@ -426,7 +416,7 @@ export default function AdminPaymentsPage() {
       >
         {selectedPayment && (
           <div className="space-y-4">
-            <div ref={modalReceiptRef} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className="text-xs sm:text-sm font-medium text-text-secondary block mb-1">Transaction Reference</label>
                 <p className="text-xs sm:text-sm text-foreground font-mono break-all">{selectedPayment.txRef}</p>

@@ -47,6 +47,11 @@ export interface PaymentConfirmationProps {
     label: string;
     href: string;
   };
+  tertiaryAction?: {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  };
 }
 
 export const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
@@ -68,6 +73,7 @@ export const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
   children,
   primaryAction,
   secondaryAction,
+  tertiaryAction,
 }) => {
   // Default verify payment function
   const verifyPayment = async (ref: string) => {
@@ -195,7 +201,7 @@ export const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
           </div>
 
           {/* Action Buttons */}
-          {(primaryAction || secondaryAction) && (
+          {(primaryAction || secondaryAction || tertiaryAction) && (
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mt-6 sm:mt-8">
               {secondaryAction && (
                 <Link href={secondaryAction.href} className="w-full sm:w-auto">
@@ -203,6 +209,17 @@ export const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
                     {secondaryAction.label}
                   </Button>
                 </Link>
+              )}
+              {tertiaryAction && (
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  className="w-full sm:w-auto"
+                  onClick={tertiaryAction.onClick}
+                  disabled={tertiaryAction.disabled}
+                >
+                  {tertiaryAction.label}
+                </Button>
               )}
               {primaryAction && (
                 <Link href={primaryAction.href} className="w-full sm:w-auto">

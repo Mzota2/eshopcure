@@ -39,6 +39,7 @@ export interface business extends BaseDocument {
   contactInfo: ContactInfo;
   logo?: string;
   banner?: string;
+  tpin?: string; // Taxpayer Identification Number
   openingHours?: OpeningHours; // Comprehensive opening hours configuration
   // Refund and return policy fields
   returnDuration?: number; // Number of days customers have to return items

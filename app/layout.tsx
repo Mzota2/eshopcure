@@ -6,26 +6,27 @@ import { QueryProvider } from "@/providers/QueryProvider";
 import { AppProvider } from "@/contexts/AppContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import {ThemeProvider} from "@/providers/ThemeProvider";
+import { SITE_CONFIG } from '@/lib/config/siteConfig';
 
 export const metadata: Metadata = {
-  title: "eShopCure",
-  description: "Your trusted online shopping destination for quality products and services",
+  title: SITE_CONFIG.appTitle,
+  description: SITE_CONFIG.appDescription,
   openGraph: {
     images: [
       {
-        url: 'https://eshopcure.vercel.app/logo.png', // Must be an absolute URL
+        url: SITE_CONFIG.brandImageUrl || '', // Must be an absolute URL
         width: 1200,
         height: 630,
-        alt: 'eShopCure',
+        alt: SITE_CONFIG.appTitle,
       },
     ],
   },
   // Also add Twitter-specific tags for better control on X (Twitter)
   twitter: {
     card: 'summary_large_image', // Use summary_large_image for a prominent image
-    title: 'eShopCure',
-    description: 'Your trusted online shopping destination for quality products and services',
-    images: ['https://eshopcure.vercel.app/logo.png'], // Must be an absolute URL
+    title: SITE_CONFIG.appTitle,
+    description: SITE_CONFIG.appDescription,
+    images: [SITE_CONFIG.brandImageUrl || ''], // Must be an absolute URL
   },
 };
 

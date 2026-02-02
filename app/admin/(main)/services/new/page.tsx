@@ -293,15 +293,18 @@ export default function NewServicePage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Create New Service</h1>
-        <Link href="/admin/services">
-          <Button variant="outline">Back to Services</Button>
+      <div className="flex flex-col gap-4 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Create New Service</h1>
+        <Link href="/admin/services" className="w-full sm:w-auto sm:justify-end">
+          <Button variant="outline" className="w-full sm:w-auto">
+            <span className="hidden sm:inline">Back to Services</span>
+            <span className="sm:hidden">Back</span>
+          </Button>
         </Link>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-card rounded-lg border border-border p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Basic Information */}
           <div>
             <h2 className="text-xl font-bold text-foreground mb-4">Basic Information</h2>
@@ -781,13 +784,13 @@ export default function NewServicePage() {
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-            <Link href="/admin/services">
-              <Button type="button" variant="outline" disabled={isSubmitting || uploadingImages}>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 border-t border-border">
+            <Link href="/admin/services" className="w-full sm:w-auto">
+              <Button type="button" variant="outline" disabled={isSubmitting || uploadingImages} className="w-full sm:w-auto">
                 Cancel
               </Button>
             </Link>
-            <Button type="submit" isLoading={isSubmitting || uploadingImages} disabled={uploadingImages}>
+            <Button type="submit" isLoading={isSubmitting || uploadingImages} disabled={uploadingImages} className="w-full sm:w-auto">
               Create Service
             </Button>
           </div>

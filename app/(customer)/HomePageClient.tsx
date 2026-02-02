@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { ProductCard } from '@/components/products';
@@ -15,8 +16,6 @@ import {
   useServices,
   useCategories,
   usePromotions,
-  // Real-time hooks removed for non-critical data to save Firebase quota
-  // Using polling instead via refetchInterval in hooks
 } from '@/hooks';
 import { useStoreType } from '@/hooks/useStoreType';
 import { PromotionStatus } from '@/types/promotion';
@@ -28,10 +27,11 @@ import { ReviewsSection } from '@/components/reviews';
 
 export default function HomePageClient() {
   const { addItem } = useCart();
+  const router = useRouter();
   const { currentBusiness } = useApp();
   const { hasProducts, hasServices } = useStoreType();
   
-  // React Query hooks
+  // React Query hooks with real-time updates built-in
   const {
     data: products = [],
     isLoading: productsLoading,
@@ -48,8 +48,6 @@ export default function HomePageClient() {
     businessId: currentBusiness?.id,
     status: ItemStatus.ACTIVE,
     enabled: !!currentBusiness?.id,
-    refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
   const {
@@ -70,15 +68,42 @@ export default function HomePageClient() {
   });
 
 
-  // Combine products and services into all items based on store type
-  const productsArray = hasProducts && Array.isArray(products) ? products : [];
-  const servicesArray = hasServices && Array.isArray(services) ? services : [];
-  const allItems = [...productsArray, ...servicesArray];
+  // Combine products and services with deduplication
+  const allItems = useMemo(() => {
+    const itemsMap = new Map<string, Item>();
+    
+    // Add products to the map
+    if (hasProducts && Array.isArray(products)) {
+      products.forEach(item => {
+        if (item?.id) {
+          itemsMap.set(item.id, item);
+        }
+      });
+    }
+    
+    // Add services to the map (will overwrite if same ID exists, which is fine)
+    if (hasServices && Array.isArray(services)) {
+      services.forEach(item => {
+        if (item?.id) {
+          itemsMap.set(item.id, item);
+        }
+      });
+    }
+    
+    return Array.from(itemsMap.values());
+  }, [products, services, hasProducts, hasServices]);
+
+
+  type CategoryLike = { id?: string; type?: string };
+  const isCategoryLike = (value: unknown): value is CategoryLike => {
+    if (!value || typeof value !== 'object') return false;
+    return 'id' in value;
+  };
 
 
    const getCategoryItems = useMemo(() => {
-    return (category: any) => {
-      if (!category || !allItems.length) return [];
+    return (category: unknown) => {
+      if (!isCategoryLike(category) || !category?.id || !allItems.length) return [];
       return allItems
         .filter(item => {
           const isInCategory = item.categoryIds?.some((catId: string) => catId === category.id);
@@ -116,13 +141,15 @@ export default function HomePageClient() {
         const bDate = getDate(b.createdAt);
         return bDate.getTime() - aDate.getTime();
       })
-      .slice(0, 3);
+      .slice(0, 4);
   }, [allItems, hasProducts, hasServices]);
   
   const featuredItems = useMemo(() => {
     return allItems.filter(item => {
       const isActive = item.status === ItemStatus.ACTIVE;
       const isFeatured = item.isFeatured;
+      
+      // Filter by active status, featured flag, and store type
       if (hasProducts && hasServices) return isActive && isFeatured;
       if (hasProducts) return isActive && isFeatured && isProduct(item);
       if (hasServices) return isActive && isFeatured && isService(item);
@@ -131,19 +158,38 @@ export default function HomePageClient() {
   }, [allItems, hasProducts, hasServices]);
 
   const topPicks = useMemo(() => {
-    if (featuredItems.length >= 4) {
-      return featuredItems.slice(0, 4);
-    }
-    return allItems
-      .filter(item => {
+    // Start with all featured items (they get priority)
+    let picks: typeof allItems = [...featuredItems];
+    
+    // If we need more items to reach 4, add non-featured active items
+    if (picks.length < 4) {
+      const remainingItems = allItems.filter(item => {
         const isActive = item.status === ItemStatus.ACTIVE;
-        if (hasProducts && hasServices) return isActive;
-        if (hasProducts) return isActive && isProduct(item);
-        if (hasServices) return isActive && isService(item);
+        const isFeatured = item.isFeatured;
+        
+        // Only include active items that are NOT already featured and match store type
+        if (hasProducts && hasServices) return isActive && !isFeatured;
+        if (hasProducts) return isActive && !isFeatured && isProduct(item);
+        if (hasServices) return isActive && !isFeatured && isService(item);
         return false;
-      })
-      .slice(0, 4);
-  }, [allItems, featuredItems, hasProducts, hasServices]);
+      });
+      
+      // Sort remaining items by creation date (newest first)
+      const sortedRemaining = remainingItems.sort((a, b) => {
+        const aDate = getDate(a.createdAt);
+        const bDate = getDate(b.createdAt);
+        return bDate.getTime() - aDate.getTime();
+      });
+      
+      // Add enough items to reach 4 total
+      const needed = 4 - picks.length;
+      picks = [...picks, ...sortedRemaining.slice(0, needed)];
+    }
+    
+    // If we have more than 4 featured items, show all of them
+    // Otherwise, limit to 4 total items
+    return featuredItems.length > 4 ? featuredItems : picks.slice(0, 4);
+  }, [allItems, featuredItems, getDate, hasProducts, hasServices]);
   
   const loading = productsLoading || servicesLoading;
 
@@ -205,6 +251,13 @@ export default function HomePageClient() {
     addItem(product, 1);
   };
 
+  const handleBookNow = (service: Item) => {
+    // Navigate to service detail page
+    if (isService(service)) {
+      window.location.href = `/services/${service.slug}`;
+    }
+  };
+
   // Data is automatically fetched by React Query hooks above
 
   return (
@@ -222,10 +275,10 @@ export default function HomePageClient() {
         <PromotionCarousel
           promotions={activePromotions}
           businessData={currentBusiness}
-          products={productsArray}
-          services={servicesArray}
+          products={products}
+          services={services}
           autoPlayInterval={10000}
-        />
+        />  
       )}
 
       {/* Shop By Category */}
@@ -246,10 +299,27 @@ export default function HomePageClient() {
                     key={category.id}
                     className="shrink-0 w-[160px] snap-start bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
                   >
-                    <Link href={category.type === 'service' 
-                      ? `/services?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
-                      : `/products?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
-                    }>
+                    <div
+                      role="link"
+                      tabIndex={0}
+                      onClick={() =>
+                        router.push(
+                          category.type === 'service'
+                            ? `/services?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                            : `/products?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                        )
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          router.push(
+                            category.type === 'service'
+                              ? `/services?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                              : `/products?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                          );
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
                       <div className="relative aspect-square bg-background-secondary">
                         {category.image ? (
                           <CategoryImage 
@@ -279,7 +349,7 @@ export default function HomePageClient() {
                         <div className="absolute left-0 bottom-0 w-full p-1.5 grid grid-cols-4 gap-1">
                           {getCategoryItems(category).map((item) => (
                             <Link 
-                              key={item.id} 
+                              key={`${category.id}-${item.id}`}
                               href={`/${isProduct(item) ? 'products' : 'services'}/${item.slug}`}
                               onClick={(e) => e.stopPropagation()}
                               className="relative aspect-square rounded-sm overflow-hidden border !border-white/80 shadow-sm hover:border-primary hover:z-10 hover:scale-105 transition-all duration-200"
@@ -303,7 +373,7 @@ export default function HomePageClient() {
                           <p className="text-xs text-text-secondary line-clamp-2">{category.description}</p>
                         )}
                       </div>
-                    </Link>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -321,10 +391,27 @@ export default function HomePageClient() {
                   key={category.id} 
                   className="bg-card rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
                 >
-                  <Link href={category.type === 'service' 
-                    ? `/services?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
-                    : `/products?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
-                  }>
+                  <div
+                    role="link"
+                    tabIndex={0}
+                    onClick={() =>
+                      router.push(
+                        category.type === 'service'
+                          ? `/services?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                          : `/products?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                      )
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        router.push(
+                          category.type === 'service'
+                            ? `/services?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                            : `/products?category=${category.name.toLowerCase().replace(/\s+/g, '-')}`
+                        );
+                      }
+                    }}
+                    className="cursor-pointer"
+                  >
                     <div className="relative aspect-square bg-background-secondary">
                       {category.image ? (
                         <CategoryImage 
@@ -354,7 +441,7 @@ export default function HomePageClient() {
                       <div className="absolute bottom-0 left-0 p-2 grid grid-cols-4 gap-2 w-full">
                         {getCategoryItems(category).map((item) => (
                           <Link 
-                            key={item.id} 
+                            key={`${category.id}-${item.id}`}
                             href={`/${isProduct(item) ? 'products' : 'services'}/${item.slug}`}
                             onClick={(e) => e.stopPropagation()}
                             className="relative aspect-square rounded-md overflow-hidden border-2 !border-white/90 shadow-md hover:border-primary hover:z-10 hover:scale-105 transition-all duration-200"
@@ -378,7 +465,7 @@ export default function HomePageClient() {
                         <p className="text-xs text-text-secondary line-clamp-2">{category.description}</p>
                       )}
                     </div>
-                  </Link>
+                  </div>
                 </div>
               ))
             ) : (
@@ -432,6 +519,7 @@ export default function HomePageClient() {
                       ) : isService(item) ? (
                         <ServiceCard
                           service={item}
+                          onBookNow={handleBookNow}
                         />
                       ) : null}
                     </div>
@@ -439,7 +527,7 @@ export default function HomePageClient() {
                 </div>
               </div>
               {/* Desktop: Grid Layout */}
-              <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {newArrivals.map((item) => (
                 isProduct(item) ? (
                   <ProductCard
@@ -451,6 +539,7 @@ export default function HomePageClient() {
                   <ServiceCard
                     key={item.id}
                     service={item}
+                    onBookNow={handleBookNow}
                   />
                 ) : null
               ))}
@@ -478,18 +567,21 @@ export default function HomePageClient() {
               <div className="md:hidden -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
                 <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                   {topPicks.map((item) => (
-                    <div key={item.id} className="shrink-0 w-[280px] snap-start">
-                      {isProduct(item) ? (
+                    isProduct(item) ? (
+                      <div key={`product-${item.id}`} className="shrink-0 w-[280px] snap-start">
                         <ProductCard
                           product={item}
                           onAddToCart={handleAddToCart}
                         />
-                      ) : isService(item) ? (
+                      </div>
+                    ) : isService(item) ? (
+                      <div key={`service-${item.id}`} className="shrink-0 w-[280px] snap-start">
                         <ServiceCard
                           service={item}
+                          onBookNow={handleBookNow}
                         />
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null
                   ))}
                 </div>
               </div>
@@ -506,6 +598,7 @@ export default function HomePageClient() {
                   <ServiceCard
                     key={item.id}
                     service={item}
+                    onBookNow={handleBookNow}
                   />
                 ) : null
               ))}

@@ -5,9 +5,9 @@
 
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLedgerEntries, useRealtimeLedgerEntries, useDerivedTransactions, useSettings } from '@/hooks';
-import { exportHtmlElement } from '@/lib/exports/htmlExport';
+import { exportLedgerPdf } from '@/lib/exports/exports';
 import { Button, Loading, useToast } from '@/components/ui';
 import { cn } from '@/lib/utils/cn';
 import { formatCurrency, formatDate } from '@/lib/utils/formatting';
@@ -15,6 +15,7 @@ import { LedgerEntryType, LedgerEntryStatus, LedgerEntry } from '@/types/ledger'
 import Link from 'next/link';
 import { ExternalLink, AlertCircle, Download, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
+import { useApp } from '@/contexts/AppContext';
 
 // Helper to convert date safely
 const getDate = (date: Date | string | Timestamp | undefined): Date => {
@@ -28,28 +29,23 @@ const getDate = (date: Date | string | Timestamp | undefined): Date => {
 };
 
 export default function AdminLedgerPage() {
+  const { currentBusiness } = useApp();
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
   const [typeFilter, setTypeFilter] = useState<LedgerEntryType | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<LedgerEntryStatus | 'all'>('all');
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
-  const tableExportRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
   // Handle export
   const handleExport = async () => {
-    if (!tableExportRef.current) {
-      console.error('Export element not found');
-      return;
-    }
-    
     const fileName = `ledger-${dateRange}-${typeFilter === 'all' ? 'all' : typeFilter}-${statusFilter === 'all' ? 'all' : statusFilter}`;
     
     try {
-      await exportHtmlElement(tableExportRef.current, {
-        format: exportFormat,
+      await exportLedgerPdf({
+        entries: transactionsWithBalance,
         fileName,
-        scale: 1.5, // Increase scale for better quality
+        title: 'Ledger',
+        business: currentBusiness || undefined,
       });
     } catch (error) {
       console.error('Export failed:', error);
@@ -231,23 +227,15 @@ export default function AdminLedgerPage() {
 
   if (error) {
     return (
-      <div className="space-y-6" ref={tableExportRef}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold">Ledger</h1>
             <p className="text-sm text-muted-foreground">
               {filteredTransactions.length} entries found
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
-              className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
-            >
-              <option value="pdf">PDF</option>
-              <option value="image">Image (PNG)</option>
-            </select>
+          <div className="flex gap-2 sm:justify-end">
             <Button
               variant="outline"
               onClick={handleExport}
@@ -255,7 +243,8 @@ export default function AdminLedgerPage() {
               className="whitespace-nowrap"
             >
               <Download className="w-4 h-4 mr-2" />
-              Export
+              <span className="hidden sm:inline">Export</span>
+              <span className="sm:hidden">DL</span>
             </Button>
           </div>
         </div>
@@ -269,7 +258,7 @@ export default function AdminLedgerPage() {
   return (
     <div className="space-y-6">
       {/* Header with title and export controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Ledger</h1>
           <p className="text-sm text-muted-foreground">
@@ -277,15 +266,7 @@ export default function AdminLedgerPage() {
             {isUsingDerivedData && ' (derived from orders and bookings)'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
-            className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
-          >
-            <option value="pdf">PDF</option>
-            <option value="image">Image (PNG)</option>
-          </select>
+        <div className="flex gap-2 sm:justify-end">
           <Button
             variant="outline"
             onClick={handleExport}
@@ -293,7 +274,8 @@ export default function AdminLedgerPage() {
             className="whitespace-nowrap"
           >
             <Download className="w-4 h-4 mr-2" />
-            Export
+            <span className="hidden sm:inline">Export</span>
+            <span className="sm:hidden">DL</span>
           </Button>
         </div>
       </div>
@@ -321,8 +303,8 @@ export default function AdminLedgerPage() {
         </div>
       )}
 
-      {/* Main content with export ref */}
-      <div ref={tableExportRef} className="space-y-6">
+      {/* Main content */}
+      <div className="space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <div className="bg-card rounded-lg p-4 sm:p-6 border border-border">

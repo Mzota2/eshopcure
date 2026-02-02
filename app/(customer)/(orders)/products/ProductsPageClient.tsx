@@ -67,6 +67,49 @@ function ProductsPageContent() {
   // Use filters (local state takes precedence for this page)
   const filters = localFilters;
 
+  // Fetch categories with React Query
+  const {
+    data: categories = [],
+    isLoading: categoriesLoading,
+  } = useCategories({
+    type: 'product',
+    businessId: currentBusiness?.id,
+    enabled: !!currentBusiness?.id,
+  });
+
+  // Convert category name to ID for API filtering
+  const categoryIdForApi = useMemo(() => {
+    if (filters.category === 'all') return undefined;
+    
+    // Debug: Log what we're trying to match
+    console.log('Looking for category:', filters.category);
+    console.log('Available categories:', categories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      normalizedName: cat.name.toLowerCase().replace(/\s+/g, '-')
+    })));
+    
+    // Try multiple matching strategies
+    const category = categories.find(cat => {
+      const normalizedName = cat.name.toLowerCase().replace(/\s+/g, '-');
+      const normalizedName2 = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const filterName = filters.category.toLowerCase();
+      
+      console.log('Comparing:', {
+        filterName,
+        normalizedName,
+        normalizedName2,
+        match1: normalizedName === filterName,
+        match2: normalizedName2 === filterName
+      });
+      
+      return normalizedName === filterName || normalizedName2 === filterName;
+    });
+    
+    console.log('Found category:', category);
+    return category?.id;
+  }, [filters.category, categories]);
+
   // Fetch products with React Query
   // Note: Don't filter by status initially - let client-side filtering handle it
   // This ensures we get all products, then filter by availability client-side
@@ -79,7 +122,7 @@ function ProductsPageContent() {
     businessId: currentBusiness?.id,
     // Don't filter by status here - fetch all and filter client-side
     status: undefined,
-    categoryId: filters.category !== 'all' ? filters.category : undefined,
+    categoryId: categoryIdForApi,
     enabled: !!currentBusiness?.id,
   });
 
@@ -104,16 +147,6 @@ function ProductsPageContent() {
 
   // Note: Real-time updates removed to save Firebase quota
   // Using polling instead (refetchInterval in useProducts hook)
-
-  // Fetch categories with React Query
-  const {
-    data: categories = [],
-    isLoading: categoriesLoading,
-  } = useCategories({
-    type: 'product',
-    businessId: currentBusiness?.id,
-    enabled: !!currentBusiness?.id,
-  });
 
   // Get product categories (product + both types)
   const productCategories = useMemo(() => {

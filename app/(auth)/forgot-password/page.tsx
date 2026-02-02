@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Button, Input } from '@/components/ui';
 import { sendPasswordReset } from '@/lib/auth';
+import { Logo } from '@/components/branding';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -35,10 +36,13 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-background-secondary dark:bg-background-tertiary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 md:p-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-3 sm:mb-4">Forgot Password ?</h1>
-        <p className="text-center text-xs sm:text-sm text-text-secondary mb-6 sm:mb-8">
-          Have you forgotten your password, type your email and reset password
-        </p>
+        <div className="text-center mb-6 sm:mb-8">
+          <Logo href="/" size="lg" className="justify-center mb-3 sm:mb-4" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2">Forgot Password?</h1>
+          <p className="text-center text-xs sm:text-sm text-text-secondary">
+            Have you forgotten your password? Type your email and reset password
+          </p>
+        </div>
 
         {success ? (
           <div className="text-center">

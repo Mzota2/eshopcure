@@ -4,7 +4,6 @@
  */
 
 import { User as FirebaseUser, multiFactor } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
 import { getUserRole } from '@/lib/firebase/auth';
 import { UserRole } from '@/types/user';
 import { getUserByUid, updateUserByUid } from '@/lib/users';

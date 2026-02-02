@@ -160,7 +160,7 @@ export const Footer: React.FC = () => {
 
         <div className="border-t border-primary-foreground/20 mt-6 sm:mt-8 pt-6 sm:pt-8">
           <div className="text-sm text-secondary-foreground/80 text-center">
-            © {currentYear}, E-Commerce Store, All Rights Reserved.
+            © {currentYear}, {currentBusiness?.name}, All Rights Reserved.
           </div>
         </div>
       </div>

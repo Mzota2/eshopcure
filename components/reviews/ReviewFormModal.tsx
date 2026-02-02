@@ -89,17 +89,17 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
       // If user has reviewed, try to fetch the existing review
       if (alreadyReviewed) {
         try {
-          // Create a query object with only the necessary parameters
-          const query: any = {
-            ...(user?.uid && { userId: user.uid }),
-            ...(emailToCheck && { userEmail: emailToCheck }),
+          if (!user?.uid) {
+            return;
+          }
+
+          const reviews = await getReviews({
+            userId: user.uid,
             ...(itemId && { itemId }),
             ...(finalBusinessId && { businessId: finalBusinessId }),
             reviewType,
             limit: 1,
-          };
-          
-          const reviews = await getReviews(query);
+          });
           if (reviews.length > 0) {
             setExistingReview(reviews[0]);
           }

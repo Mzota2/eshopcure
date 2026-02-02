@@ -212,7 +212,7 @@ export default function NewPromotionPage() {
         )}
 
         {/* Basic Information */}
-        <div className="bg-card rounded-lg border border-border p-4 sm:p-6">
+        <div className="bg-card rounded-lg border border-border p-4 sm:p-6 space-y-4 sm:space-y-6">
           <h2 className="text-lg sm:text-xl font-bold text-foreground mb-3 sm:mb-4">Basic Information</h2>
           <div className="space-y-4">
             <Input

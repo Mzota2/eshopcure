@@ -76,25 +76,8 @@ export default function AboutPageClient() {
       <section className="bg-background py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h1 className="text-4xl font-bold text-foreground mb-4">
-                About eShopCure
-              </h1>
-              <p className="text-lg text-foreground mb-8">
-                eShopCure is a leading innovator in business technology, dedicated to providing scalable and intelligent solutions that drive efficiency, foster collaboration, and unlock growth for enterprises worldwide. Our commitment to excellence is at the heart of everything we do.
-              </p>
-              <div className="flex gap-4">
-                <Link href="/contact">
-                  <Button size="lg">Contact Us</Button>
-                </Link>
-                <Link href="/products">
-                  <Button variant="outline" size="lg">
-                    Explore Products →
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            <div className="relative aspect-video bg-background-secondary rounded-lg overflow-hidden">
+            {/* Mobile: Image first, Desktop: Image second */}
+            <div className="relative aspect-video bg-background-secondary rounded-lg overflow-hidden order-1 lg:order-2">
               <div className="absolute inset-0 flex items-center justify-center">
                 <OptimizedImage
                   src={currentBusiness?.banner? currentBusiness?.banner : '/images/banner.jpg'}
@@ -107,6 +90,26 @@ export default function AboutPageClient() {
                 />
               </div>
             </div>
+            
+            {/* Mobile: Text second, Desktop: Text first */}
+            <div className="order-2 lg:order-1">
+              <h1 className="text-4xl font-bold text-foreground mb-4">
+                About eShopCure
+              </h1>
+              <p className="text-lg text-foreground mb-8">
+                eShopCure is a leading innovator in business technology, dedicated to providing scalable and intelligent solutions that drive efficiency, foster collaboration, and unlock growth for enterprises worldwide. Our commitment to excellence is at the heart of everything we do.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-4">
+                <Link href="/contact">
+                  <Button size="lg" className="w-full sm:w-auto">Contact Us</Button>
+                </Link>
+                <Link href="/products">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                    Explore Products →
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -115,7 +118,22 @@ export default function AboutPageClient() {
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-center mb-12 text-foreground">Our Mission & Core Values</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="lg:hidden">
+            {/* Mobile: Horizontal scroll */}
+            <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory">
+              {coreValues.map((value, index) => (
+                <div key={index} className="flex-none w-80 bg-card rounded-lg shadow-sm p-6 text-center snap-start">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">{value.icon}</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-foreground mb-2">{value.title}</h3>
+                  <p className="text-text-secondary">{value.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="hidden lg:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Desktop: Normal grid */}
             {coreValues.map((value, index) => (
               <div key={index} className="bg-card rounded-lg shadow-sm p-6 text-center">
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -145,9 +163,22 @@ export default function AboutPageClient() {
           ) : teamMembers.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {teamMembers.map((member) => {
+                const normalizeName = (name: string) => {
+                  return name
+                    .toLowerCase()
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                };
+
+                const firstName = member.firstName ? normalizeName(member.firstName) : '';
+                const lastName = member.lastName ? normalizeName(member.lastName) : '';
                 const displayName = 
-                  (member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : 
-                  member.firstName || member.lastName || member.displayName || member.email?.split('@')[0] || 'Team Member');
+                  (firstName && lastName ? `${firstName} ${lastName}` : 
+                  firstName || lastName || 
+                  (member.displayName ? normalizeName(member.displayName) : '') || 
+                  (member.email?.split('@')[0] ? normalizeName(member.email.split('@')[0]) : '') || 
+                  'Team Member');
                 const imageUrl = member.image || member.photoURL;
                 const position = member.position || (member.role === UserRole.ADMIN ? 'Administrator' : 'Staff Member');
                 

@@ -17,6 +17,9 @@ export const productKeys = {
     status?: ItemStatus;
     categoryId?: string;
     featured?: boolean;
+    search?: string;
+    limit?: number;
+    excludeId?: string;
   }) => [...productKeys.lists(), filters] as const,
   details: () => [...productKeys.all, 'detail'] as const,
   detail: (id: string) => [...productKeys.details(), id] as const,
@@ -31,6 +34,9 @@ export const useProducts = (options?: {
   categoryId?: string;
   featured?: boolean;
   enabled?: boolean;
+  search?: string;
+  limit?: number;
+  excludeId?: string;
 }) => {
   return useQuery({
     queryKey: productKeys.list({
@@ -38,6 +44,8 @@ export const useProducts = (options?: {
       status: options?.status,
       categoryId: options?.categoryId,
       featured: options?.featured,
+      search: options?.search,
+      limit: options?.limit,
     }),
     queryFn: async () => {
       const result = await getItems({
@@ -46,6 +54,9 @@ export const useProducts = (options?: {
         status: options?.status,
         categoryId: options?.categoryId,
         featured: options?.featured,
+        search: options?.search,
+        limit: options?.limit,
+        excludeId: options?.excludeId,
       });
       console.log('[useProducts] Fetched products:', result.items.length, {
         businessId: options?.businessId,

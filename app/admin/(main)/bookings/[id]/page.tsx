@@ -8,12 +8,13 @@ import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Clock, User, CreditCard, AlertCircle, ArrowLeft, Save } from 'lucide-react';
-import { Button, Loading, Textarea, useToast, StatusBadge, CancellationDialog, statusUtils } from '@/components/ui';
+import { Button, Loading, Textarea, useToast, StatusBadge, CancellationDialog, statusUtils, ExportButton } from '@/components/ui';
 import { useBooking, useUpdateBooking, useCancelBooking } from '@/hooks/useBookings';
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod } from '@/lib/utils/formatting';
 import { BookingStatus } from '@/types/booking';
 import { BookingTimeline } from '@/components/timeline';
 import { getUserFriendlyMessage, SUCCESS_MESSAGES, ERROR_MESSAGES } from '@/lib/utils/user-messages';
+import { useApp } from '@/contexts/AppContext';
 import { Timestamp } from 'firebase/firestore';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
@@ -21,6 +22,7 @@ export default function AdminBookingDetailPage() {
   const toast = useToast();
   const params = useParams();
   const bookingId = params?.id as string;
+  const { currentBusiness } = useApp();
   
   const { data: booking, isLoading, error } = useBooking(bookingId);
   const updateBookingMutation = useUpdateBooking();
@@ -160,7 +162,15 @@ export default function AdminBookingDetailPage() {
               <h1 className="text-3xl font-bold text-foreground mb-2">Booking Details</h1>
               <p className="text-text-secondary">Booking #{booking.bookingNumber}</p>
             </div>
-            <StatusBadge status={booking.status} variant="pill" />
+            <div className="flex items-center gap-2">
+              <ExportButton 
+                data={booking} 
+                type="booking" 
+                isAdmin={true}
+                className="flex-shrink-0"
+              />
+              <StatusBadge status={booking.status} variant="pill" />
+            </div>
           </div>
         </div>
 

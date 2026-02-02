@@ -67,12 +67,12 @@ export const CancellationDialog: React.FC<CancellationDialogProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title={title || defaultTitle}
-      size="md"
+      size="sm"
     >
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="w-6 h-6 text-warning flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-text-secondary">
+          <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-warning flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-text-secondary leading-relaxed">
             {description || defaultDescription}
           </p>
         </div>
@@ -86,17 +86,18 @@ export const CancellationDialog: React.FC<CancellationDialogProps> = ({
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
             placeholder="Please provide a reason for cancellation..."
-            rows={4}
+            rows={3}
             disabled={isSubmitting || isLoading}
-            className="resize-none"
+            className="resize-none text-sm"
           />
         </div>
 
-        <div className="flex gap-3 justify-end pt-4 border-t border-border">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end pt-4 border-t border-border">
           <Button
             variant="outline"
             onClick={handleClose}
             disabled={isSubmitting || isLoading}
+            className="w-full sm:w-auto order-2 sm:order-1"
           >
             Keep {itemType.charAt(0).toUpperCase() + itemType.slice(1)}
           </Button>
@@ -105,6 +106,7 @@ export const CancellationDialog: React.FC<CancellationDialogProps> = ({
             onClick={handleConfirm}
             disabled={isSubmitting || isLoading || (requireReason && !cancelReason.trim())}
             isLoading={isSubmitting || isLoading}
+            className="w-full sm:w-auto order-1 sm:order-2"
           >
             Confirm Cancellation
           </Button>

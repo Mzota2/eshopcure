@@ -7,6 +7,8 @@ import { Loading } from '@/components/ui/Loading';
 import { getUserFriendlyMessage } from '@/lib/utils/user-messages';
 import { MapPin, Navigation } from 'lucide-react';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import ResponsiveMap from '@/components/maps/ResponsiveMap';
+import { SITE_CONFIG } from '@/lib/config/siteConfig';
 
 export default function ContactPageClient() {
   const toast = useToast();
@@ -81,8 +83,8 @@ export default function ContactPageClient() {
     );
   }
 
-  const businessEmail = business?.contactInfo?.email || 'info@eshopcure.com';
-  const businessPhone = business?.contactInfo?.phone || '+265 981 819 389';
+  const businessEmail = business?.contactInfo?.email || SITE_CONFIG.defaultContactEmail;
+  const businessPhone = business?.contactInfo?.phone || SITE_CONFIG.defaultContactPhone;
   const businessAddress = formatAddress();
   const hasGoogleMap = business?.googleMap && business.googleMap.trim() !== '';
   const hasMapImage = business?.mapImage && business.mapImage.trim() !== '';
@@ -235,12 +237,9 @@ export default function ContactPageClient() {
           <h2 className="text-2xl font-bold text-foreground mb-6">Our Location</h2>
           <div className="bg-card rounded-lg shadow-sm p-6">
             {hasGoogleMap ? (
-              // Display Google Maps iframe
-              <div className="aspect-video rounded-lg overflow-hidden border border-border">
-                <div 
-                  className="w-full h-full"
-                  dangerouslySetInnerHTML={{ __html: business.googleMap! }}
-                />
+              // Responsive map - fits width and scales height to the iframe's ratio
+              <div className="w-full rounded-lg overflow-hidden border border-border">
+                <ResponsiveMap html={business.googleMap || ''} />
               </div>
             ) : hasMapImage ? (
               // Display map image as alternative

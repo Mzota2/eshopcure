@@ -7,7 +7,7 @@ import { OrderStatus } from '@/types/order';
 import { BookingStatus } from '@/types/booking';
 import { LedgerEntryType } from '@/types/ledger';
 import { PaymentSessionStatus, PaymentMethod } from '@/types/payment';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { createLedgerEntry } from '@/lib/ledger/create';
 import { adjustInventoryForPaidOrder } from '@/lib/orders/inventory';
 import { shouldCreatePaymentDocument } from '@/lib/payments/utils';
@@ -38,24 +38,34 @@ interface WebhookPaymentData {
 }
 
 /**
- * Verify webhook signature
+ * Verify webhook signature using HMAC-SHA256 and constant-time comparison
  */
-const verifyWebhookSignature = (
+export const verifyWebhookSignature = (
   payload: string,
   signature: string
 ): boolean => {
-  // Implement Paychangu webhook signature verification
-  // This is a placeholder - implement according to Paychangu docs
-  if (!paychanguConfig.webhookSecret) {
+  if (!paychanguConfig.webhookSecret || !signature) {
     return false;
   }
 
-  // TODO: Implement actual signature verification
-  const expectedSignature = createHmac('sha256', paychanguConfig.webhookSecret)
-    .update(payload)
-    .digest('hex');
-  return signature === expectedSignature;
+  try {
+    const expectedSignature = createHmac('sha256', paychanguConfig.webhookSecret)
+      .update(payload)
+      .digest('hex');
 
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const expectedBuf = Buffer.from(expectedSignature, 'utf8');
+
+    // timingSafeEqual requires buffers of the same length
+    if (sigBuf.length !== expectedBuf.length) {
+      return false;
+    }
+
+    return timingSafeEqual(sigBuf, expectedBuf);
+  } catch (err) {
+    // Treat any error while verifying as an invalid signature
+    return false;
+  }
 };
 
 /**
@@ -66,7 +76,9 @@ async function callVerificationFallback(txRef: string): Promise<void> {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const verifyUrl = `${baseUrl}/api/payments/verify?txRef=${encodeURIComponent(txRef)}`;
     
-    console.log('Calling verification endpoint as fallback for txRef:', txRef);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Calling verification endpoint as fallback for txRef:', txRef);
+    }
     const response = await fetch(verifyUrl, {
       method: 'GET',
       headers: {
@@ -76,7 +88,9 @@ async function callVerificationFallback(txRef: string): Promise<void> {
     
     if (response.ok) {
       const result = await response.json();
-      console.log('Verification fallback successful for txRef:', txRef, result.success ? '✓' : '✗');
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Verification fallback successful for txRef:', txRef, result.success ? '✓' : '✗');
+      }
     } else {
       console.error('Verification fallback failed for txRef:', txRef, response.status);
     }
@@ -154,22 +168,41 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('x-paychangu-signature');
     webhookBody = await request.text();
 
-    // Verify webhook signature (log warning if fails but continue in development)
-    if (signature && paychanguConfig.webhookSecret) {
-      const isValidSignature = verifyWebhookSignature(webhookBody, signature);
-      if (!isValidSignature) {
-        console.warn('Webhook signature verification failed. Continuing anyway for development/testing.');
-        // In production, you might want to return 401 here
-        // For now, we'll continue processing to allow testing
-        // return NextResponse.json(
-        //   { error: 'Invalid signature' },
-        //   { status: 401 }
-        // );
+    // Verify webhook signature strictly in production; allow warnings in non-production for testing
+    const isSignaturePresent = !!signature;
+    const isSecretPresent = !!paychanguConfig.webhookSecret;
+
+    if (!isSecretPresent) {
+      const msg = 'Paychangu webhook secret is not configured.';
+      if (process.env.NODE_ENV === 'production') {
+        console.error(msg);
+        return NextResponse.json({ error: msg }, { status: 401 });
       } else {
-        console.log('Webhook signature verified successfully');
+        console.warn(msg + ' Continuing in non-production environment.');
+      }
+    } else if (!isSignaturePresent) {
+      const msg = 'Missing Paychangu webhook signature header.';
+      if (process.env.NODE_ENV === 'production') {
+        console.error(msg);
+        return NextResponse.json({ error: msg }, { status: 401 });
+      } else {
+        console.warn(msg + ' Continuing in non-production environment.');
       }
     } else {
-      console.warn('Webhook signature or secret not provided. Continuing without verification.');
+      const isValidSignature = verifyWebhookSignature(webhookBody, signature as string);
+      if (!isValidSignature) {
+        const msg = 'Invalid Paychangu webhook signature.';
+        if (process.env.NODE_ENV === 'production') {
+          console.error(msg);
+          return NextResponse.json({ error: msg }, { status: 401 });
+        } else {
+          console.warn(msg + ' Continuing in non-production environment for testing.');
+        }
+      } else {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Webhook signature verified successfully');
+        }
+      }
     }
 
     const payload = JSON.parse(webhookBody) as { event: string; data: Record<string, unknown> };
@@ -180,7 +213,9 @@ export async function POST(request: NextRequest) {
     txRef = webhookData.tx_ref;
     const source = 'webhook'; // Webhook from Paychangu
 
-    console.log(`[${source.toUpperCase()}] Received webhook event:`, event, 'txRef:', txRef);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[${source.toUpperCase()}] Received webhook event:`, event, 'txRef:', txRef);
+    }
 
     try {
       switch (event) {

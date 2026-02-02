@@ -37,10 +37,10 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const sizes = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
+    sm: 'max-w-sm sm:max-w-md',
+    md: 'max-w-md sm:max-w-lg',
+    lg: 'max-w-lg sm:max-w-2xl',
+    xl: 'max-w-xl sm:max-w-4xl',
   };
 
   return (
@@ -52,26 +52,26 @@ export const Modal: React.FC<ModalProps> = ({
       />
       
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
         <div
           className={cn(
-            'relative bg-card text-card-foreground rounded-lg shadow-xl w-full',
+            'relative bg-card text-card-foreground rounded-lg shadow-xl w-full mx-2 sm:mx-0',
             sizes[size]
           )}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-border">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
               {title && (
-                <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-foreground">{title}</h3>
               )}
               {showCloseButton && (
                 <button
                   onClick={onClose}
-                  className="text-text-tertiary hover:text-foreground transition-colors"
+                  className="text-text-tertiary hover:text-foreground transition-colors p-1 sm:p-0"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -80,7 +80,7 @@ export const Modal: React.FC<ModalProps> = ({
           )}
           
           {/* Content */}
-          <div className="p-6">{children}</div>
+          <div className="p-4 sm:p-6">{children}</div>
         </div>
       </div>
     </div>

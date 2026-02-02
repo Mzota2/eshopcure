@@ -84,6 +84,23 @@ export const AdminLoginModal: React.FC = () => {
     setIsLoading(true);
 
     try {
+      const verifyRecaptchaToken = async (tokenToVerify: string) => {
+        const response = await fetch('/api/auth/verify-recaptcha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenToVerify }),
+        });
+
+        if (response.ok) return;
+
+        const data: unknown = await response.json().catch(() => undefined);
+        const errorMessage =
+          data && typeof data === 'object' && 'error' in data && typeof (data as { error?: unknown }).error === 'string'
+            ? (data as { error: string }).error
+            : 'Security verification failed. Please try again.';
+        throw new Error(errorMessage);
+      };
+
       // Get reCAPTCHA token if not already set
       let token = recaptchaToken;
       if (!token) {
@@ -103,6 +120,17 @@ export const AdminLoginModal: React.FC = () => {
           });
         }
       }
+
+      if (!token) {
+        if (process.env.NODE_ENV === 'production') {
+          setError('Security verification is required');
+          setIsLoading(false);
+          return;
+        }
+        token = 'dev-token';
+      }
+
+      await verifyRecaptchaToken(token);
 
       // Sign in using the auth function with reCAPTCHA token
       await signIn({ email, password, recaptchaToken: token });

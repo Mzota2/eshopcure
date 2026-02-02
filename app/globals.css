@@ -12,71 +12,80 @@
 }
 
 :root {
-  /* Color System - Based on Design System */
-  --color-background: rgb(255 255 255); /* White */
-  --color-foreground: rgb(17 24 39); /* Dark gray (gray-900) */
-  
-  /* Card Colors */
-  --color-card: rgb(255 255 255); /* White */
-  --color-card-foreground: rgb(0 0 0); /* Black */
-  
-  /* Primary Brand Colors */
+  /* -------------------------------------------------- */
+  /* Branding Colors - change these to customize brand */
+  /* -------------------------------------------------- */
   --color-primary: rgb(37 99 235); /* Vibrant blue (blue-600) */
   --color-primary-foreground: rgb(239 246 255); /* Very light blue (blue-50) */
   --color-primary-hover: rgb(29 78 216); /* Blue-700 */
   --color-primary-light: rgb(59 130 246); /* Blue-500 */
   --color-primary-dark: rgb(30 64 175); /* Blue-700 */
-  
-  /* Secondary Colors */
-  --color-secondary: rgb(156 163 175); /* Light purple-gray (gray-400) */
-  --color-secondary-foreground: rgb(0 0 0); /* Black */
-  --color-secondary-hover: rgb(107 114 128); /* Gray-500 */
-  
-  /* Semantic Colors */
+
+  /* Gradient (often part of brand treatment) */
+  --color-gradient-start: rgb(75 85 99); /* Gray-600 */
+  --color-gradient-end: rgb(0 0 0); /* Black */
+
+  /* -------------------------------------------------- */
+  /* Semantic Colors - can be adjusted but usually follow
+     accessibility and brand guidelines (destructive/success) */
+  /* -------------------------------------------------- */
   --color-destructive: rgb(239 68 68); /* Red (red-500) */
   --color-destructive-foreground: rgb(255 255 255); /* White */
   --color-destructive-hover: rgb(220 38 38); /* Red-600 */
-  
+
   --color-success: rgb(34 197 94); /* Green (green-500) */
   --color-success-foreground: rgb(255 255 255); /* White */
   --color-success-hover: rgb(22 163 74); /* Green-600 */
-  
+
   --color-warning: rgb(251 191 36); /* Orange-yellow (yellow-400) */
   --color-warning-foreground: rgb(0 0 0); /* Black */
   --color-warning-hover: rgb(250 204 21); /* Yellow-500 */
-  
+
   --color-info: rgb(6 182 212); /* Bright cyan (cyan-500) */
   --color-info-foreground: rgb(255 255 255); /* White */
   --color-info-hover: rgb(8 145 178); /* Cyan-600 */
-  
+
+  /* -------------------------------------------------- */
+  /* Neutral Colors - layout, background, text, borders */
+  /* -------------------------------------------------- */
+  --color-background: rgb(255 255 255); /* White */
+  --color-foreground: rgb(17 24 39); /* Dark gray (gray-900) */
+
+  /* Card Colors */
+  --color-card: rgb(255 255 255); /* White */
+  --color-card-foreground: rgb(0 0 0); /* Black */
+
+  /* Secondary Colors (neutral accents) */
+  --color-secondary: rgb(156 163 175); /* Light purple-gray (gray-400) */
+  --color-secondary-foreground: rgb(0 0 0); /* Black */
+  --color-secondary-hover: rgb(107 114 128); /* Gray-500 */
+
   /* Border & Divider */
   --color-border: rgb(229 231 235); /* Light gray (gray-200) */
   --color-border-light: rgb(243 244 246); /* Gray-100 */
   --color-border-dark: rgb(209 213 219); /* Gray-300 */
   --color-border-strong: rgb(156 163 175); /* Gray-400 */
   --color-border-muted: rgb(243 244 246); /* Gray-100 */
-  
+
   /* Text Colors */
   --color-text-primary: rgb(17 24 39); /* Gray-900 */
   --color-text-secondary: rgb(107 114 128); /* Gray-500 */
   --color-text-tertiary: rgb(156 163 175); /* Gray-400 */
   --color-text-light: rgb(75 85 99); /* Gray-600 */
   --color-text-muted: rgb(156 163 175); /* Gray-400 */
-  
+
   /* Background Colors */
   --color-background-primary: rgb(255 255 255); /* White */
   --color-background-secondary: rgb(249 250 251); /* Gray-50 */
   --color-background-tertiary: rgb(243 244 246); /* Gray-100 */
   --color-background-dark: rgb(17 24 39); /* Gray-900 */
-  
-  /* Gradient */
-  --color-gradient-start: rgb(75 85 99); /* Gray-600 */
-  --color-gradient-end: rgb(0 0 0); /* Black */
-  
-  /* Shadow Colors */
+
+  /* -------------------------------------------------- */
+  /* Shadows & Utilities */
+  /* -------------------------------------------------- */
   --color-shadow: rgb(0 0 0 / 0.1);
   --color-shadow-lg: rgb(0 0 0 / 0.15);
-  
+
   /* Typography */
   --font-sans:  'Space Grotesk', sans-serif;
   --font-mono: var(--font-geist-mono), 'Fira Code', 'Fira Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -95,55 +104,63 @@
 
 /* Dark mode styles */
 .dark {
-  --color-background: rgb(17 24 39);
-  --color-foreground: rgb(255 255 255);
-  
-  /* Card Colors */
-  --color-card: rgb(31 41 55);
-  --color-card-foreground: rgb(255 255 255);
-  
-  /* Primary Colors */
+  /* -------------------------------------------------- */
+  /* Branding Colors (Dark) */
+  /* -------------------------------------------------- */
   --color-primary: rgb(59 130 246);
   --color-primary-foreground: rgb(30 41 59);
   --color-primary-hover: rgb(96 165 250);
-  
+
+  /* Gradient (brand-like treatment if used) */
+  --color-gradient-start: rgb(75 85 99);
+  --color-gradient-end: rgb(0 0 0);
+
+  /* -------------------------------------------------- */
+  /* Semantic Colors (Dark) */
+  /* -------------------------------------------------- */
+  --color-destructive: rgb(239 68 68);
+  --color-destructive-foreground: rgb(255 255 255);
+  --color-success: rgb(34 197 94);
+  --color-warning: rgb(251 191 36);
+  --color-info: rgb(6 182 212);
+
+  /* -------------------------------------------------- */
+  /* Neutral Colors (Dark) - background, borders, text */
+  /* -------------------------------------------------- */
+  --color-background: rgb(17 24 39);
+  --color-foreground: rgb(255 255 255);
+
+  /* Card Colors */
+  --color-card: rgb(31 41 55);
+  --color-card-foreground: rgb(255 255 255);
+
   /* Border Colors - Dark Mode */
   --color-border: rgb(55 65 81); /* gray-700 */
   --color-border-light: rgb(31 41 55); /* gray-800 */
   --color-border-dark: rgb(75 85 99); /* gray-600 */
   --color-border-strong: rgb(107 114 128); /* gray-500 */
   --color-border-muted: rgb(17 24 39); /* gray-900 */
-  
-  /* Secondary Colors */
+
+  /* Secondary Colors (neutral accents) */
   --color-secondary: rgb(75 85 99);
   --color-secondary-foreground: rgb(255 255 255);
-  
-  /* Semantic Colors */
-  --color-destructive: rgb(239 68 68);
-  --color-destructive-foreground: rgb(255 255 255);
-  --color-success: rgb(34 197 94);
-  --color-warning: rgb(251 191 36);
-  --color-info: rgb(6 182 212);
-  
-  /* Border & Divider */
-  --color-border: rgb(55 65 81);
-  --color-border-light: rgb(55 65 81);
-  --color-border-dark: rgb(75 85 99);
-  
+
   /* Text Colors */
   --color-text-primary: rgb(255 255 255);
   --color-text-secondary: rgb(209 213 219);
   --color-text-tertiary: rgb(156 163 175);
   --color-text-light: rgb(209 213 219);
   --color-text-muted: rgb(107 114 128);
-  
+
   /* Background Colors */
   --color-background-primary: rgb(17 24 39);
   --color-background-secondary: rgb(31 41 55);
   --color-background-tertiary: rgb(55 65 81);
   --color-background-dark: rgb(12 19 31);
-  
-  /* Shadow Colors */
+
+  /* -------------------------------------------------- */
+  /* Shadows */
+  /* -------------------------------------------------- */
   --color-shadow: rgb(0 0 0 / 0.3);
   --color-shadow-lg: rgb(0 0 0 / 0.4);
 }

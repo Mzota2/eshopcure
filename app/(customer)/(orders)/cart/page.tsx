@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/contexts/CartContext';
@@ -14,9 +14,175 @@ import { PromotionStatus } from '@/types/promotion';
 import { findItemPromotion, getItemEffectivePrice } from '@/lib/promotions/cartUtils';
 import { useSettings } from '@/hooks/useSettings';
 import { ProductImage } from '@/components/ui/OptimizedImage';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/Input';
+import { Package, PackageSearch, Search } from 'lucide-react';
+import { Item, ItemStatus } from '@/types/item';
+import { useProducts } from '@/hooks/useProducts';
+
+// Component for product search results in the replace modal
+const ProductSearchResults = ({
+  searchQuery,
+  onSelectProduct,
+  currentProductId,
+  currentProductCategoryIds = []
+}: {
+  searchQuery: string;
+  onSelectProduct: (product: Item) => void;
+  currentProductId: string;
+  currentProductCategoryIds?: string[];
+}) => {
+  // Fetch all active products when no search query, or search results when there is a query
+  const { data: products = [], isLoading, isFetching } = useProducts({
+    search: searchQuery || undefined,
+    // Don't filter by category when searching, show all matching products
+    categoryId: searchQuery ? undefined : undefined,
+    limit: searchQuery ? 20 : 24, // Show more items when no search query
+    enabled: true, // Always enable the query
+    status: ItemStatus.ACTIVE,
+    excludeId: currentProductId // Ensure we don't show the current product in the results
+  });
+  
+  // Process and filter products
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter(product => product.id !== currentProductId)
+      .map(product => ({
+        ...product,
+        // Calculate category relevance score based on matching category IDs
+        relevanceScore: currentProductCategoryIds?.length && product.categoryIds?.length
+          ? product.categoryIds.filter(catId => 
+              currentProductCategoryIds.includes(catId)
+            ).length / Math.min(currentProductCategoryIds.length, product.categoryIds.length)
+          : 0
+      }))
+      .sort((a, b) => {
+        // Sort by category relevance first
+        if (a.relevanceScore !== b.relevanceScore) {
+          return b.relevanceScore - a.relevanceScore;
+        }
+        // Finally, sort by name if all else is equal
+        return a.name.localeCompare(b.name);
+      });
+  }, [products, currentProductId, currentProductCategoryIds, searchQuery]);
+
+  if (isLoading || isFetching) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-text-secondary">
+            {searchQuery ? 'Searching products...' : 'Loading suggested products...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!searchQuery && (!currentProductCategoryIds || currentProductCategoryIds.length === 0)) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-center p-4">
+          <Search className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+          <h3 className="text-lg font-medium mb-1">Find a replacement</h3>
+          <p className="text-sm text-muted-foreground">
+            Search for products or browse all available items below
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (filteredProducts.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <div className="text-center">
+          <PackageSearch className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+          <p className="text-text-secondary">
+            {searchQuery 
+              ? 'No matching products found. Try a different search.'
+              : currentProductCategoryIds?.length
+                ? 'No similar products found in this category. Try searching instead.'
+                : 'Search for products to find a replacement'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return <div className="py-4 text-center text-text-secondary">No products found. Try a different search term.</div>;
+  }
+
+  return (
+    <div className="h-[400px] overflow-y-auto pr-2 -mr-3">
+      {!searchQuery && (
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-muted-foreground mb-2">
+            {currentProductCategoryIds?.length > 0
+              ? 'Suggested replacements based on product categories'
+              : 'Available products'}
+          </h3>
+        </div>
+      )}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 pb-4">
+        {filteredProducts.map((product) => (
+          <div
+            key={product.id}
+            onClick={() => onSelectProduct(product)}
+            className={`group relative flex flex-col p-2 sm:p-3 rounded-lg border transition-colors ${
+              currentProductId === product.id
+                ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                : 'border-border hover:border-primary/30 hover:bg-accent/50 cursor-pointer'
+            }`}
+          >
+            <div className="aspect-square w-full bg-muted rounded-md overflow-hidden mb-2">
+              {product.images?.[0] ? (
+                <ProductImage
+                  src={product.images[0]?.url}
+                  alt={product.name}
+                  width={200}
+                  height={200}
+                  className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-muted/50">
+                  <Package className="h-8 w-8 text-muted-foreground" />
+                </div>
+              )}
+            </div>
+            <div className="mt-2">
+              <h4 className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight mb-1">
+                {product.name}
+              </h4>
+              <p className="text-xs sm:text-sm font-medium text-primary">
+                {formatCurrency(product.pricing.basePrice, product.pricing.currency)}
+              </p>
+              {product.inventory?.available !== undefined && product.inventory.available <= 3 && (
+                <p className="text-[10px] sm:text-xs text-amber-600 mt-1">
+                  Only {product.inventory.available} left in stock
+                </p>
+              )}
+            </div>
+            {currentProductId === product.id && (
+              <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-primary text-primary-foreground text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
+                Current
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default function CartPage() {
-  const { items, itemCount, updateQuantity, removeItem } = useCart();
+  const { items = [], itemCount = 0, updateQuantity, removeItem, replaceItem } = useCart();
+  const [replacingItem, setReplacingItem] = useState<{id: string, name: string, categoryIds?: string[]} | null>(null);
+  
+  // Ensure items is always an array to prevent runtime errors
+  const cartItems = Array.isArray(items) ? items : [];
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Fetch active promotions
   const { data: promotions = [] } = usePromotions({
@@ -28,12 +194,13 @@ export default function CartPage() {
 
   // Calculate pricing breakdown with promotions (discount already applied to subtotal)
   const subtotal = useMemo(() => {
-    return items.reduce((sum, item) => {
-      const promotion = findItemPromotion(item.product, promotions);
+    return cartItems.reduce((sum, item) => {
+      if (!item?.product) return sum;
+      const promotion = findItemPromotion(item.product, promotions || []);
       const effectivePrice = getItemEffectivePrice(item.product, promotion);
-      return sum + effectivePrice * item.quantity;
+      return sum + effectivePrice * (item.quantity || 0);
     }, 0);
-  }, [items, promotions]);
+  }, [cartItems, promotions]);
   
   // Delivery cost is calculated at checkout based on:
   // - Selected fulfillment method (delivery vs pickup)
@@ -53,7 +220,15 @@ export default function CartPage() {
     }
   };
 
-  if (items.length === 0) {
+  const handleReplaceItem = (oldProductId: string, newProduct: Item) => {
+    if (replacingItem && replaceItem) {
+      replaceItem(oldProductId, newProduct, 1);
+      setReplacingItem(null);
+      setSearchQuery('');
+    }
+  };
+
+  if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-background-secondary py-8 sm:py-12 lg:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -79,7 +254,7 @@ export default function CartPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-3 sm:space-y-4">
-            {items.map((item) => {
+            {cartItems.map((item) => {
               const product = item.product;
               const imageUrl = product.images[0]?.url || '/placeholder-product.jpg';
               const promotion = findItemPromotion(product, promotions);
@@ -158,16 +333,67 @@ export default function CartPage() {
                       </button>
                     </div>
 
-                    {/* Remove Button */}
-                    <button
-                      onClick={() => product.id && removeItem(product.id)}
-                      className="text-destructive hover:text-destructive-hover transition-colors p-2 hover:bg-destructive/10 rounded-lg"
-                      aria-label="Remove item"
-                    >
-                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => product.id && removeItem(product.id)}
+                        className="text-destructive hover:text-destructive-hover transition-colors p-2 hover:bg-destructive/10 rounded-lg"
+                        aria-label="Remove item"
+                        title="Remove item"
+                      >
+                        <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      
+                      <Dialog open={!!replacingItem} onOpenChange={(open: boolean) => !open && setReplacingItem(null)}>
+                        <DialogTrigger asChild>
+                          <button
+                            onClick={() => product.id && setReplacingItem({ 
+                              id: product.id, 
+                              name: product.name,
+                              categoryIds: product.categoryIds 
+                            })}
+                            className="text-primary hover:text-primary-hover transition-colors p-2 hover:bg-primary/10 rounded-lg"
+                            aria-label="Replace item"
+                            title="Replace item"
+                          >
+                            <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          </button>
+                        </DialogTrigger>
+                        {replacingItem && (
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Replace Item</DialogTitle>
+                              <p className="text-sm text-text-secondary">
+                                Replacing: <span className="font-medium">{replacingItem.name}</span>
+                              </p>
+                            </DialogHeader>
+                            <div>
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-tertiary" />
+                                <Input
+                                  type="text"
+                                  placeholder="Search for a product..."
+                                  className="pl-10"
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  autoFocus
+                                />
+                              </div>
+                              <ProductSearchResults
+                                searchQuery={searchQuery}
+                                onSelectProduct={(product) => handleReplaceItem(replacingItem.id, product)}
+                                currentProductId={replacingItem.id}
+                                currentProductCategoryIds={replacingItem.categoryIds}
+                              />
+                            </div>
+                          </DialogContent>
+                        )}
+                      </Dialog>
+                    </div>
                   </div>
                 </div>
               );

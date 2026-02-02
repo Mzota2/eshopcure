@@ -39,7 +39,7 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginPageClient />;
+      <LoginPageClient />
     </Suspense>
   );
   

@@ -3,13 +3,14 @@
  * Real-time dashboard with Firebase data integration
  */
 
+
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '@/contexts/AppContext';
-import { exportHtmlElement } from '@/lib/exports/htmlExport';
+import { exportDashboardPdf } from '@/lib/exports/exports';
 import {
   useOrders,
   useBookings,
@@ -94,8 +95,6 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const { currentBusiness } = useApp();
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
-  const dashboardExportRef = useRef<HTMLDivElement>(null);
   const [showStoreTypeSelector, setShowStoreTypeSelector] = useState(false);
   const { storeType, isLoading: storeTypeLoading, hasProducts, hasServices } = useStoreType();
 
@@ -130,14 +129,47 @@ export default function AdminDashboardPage() {
 
   // Handle export
   const handleExport = async () => {
-    if (!dashboardExportRef.current) return;
     const fileName = `dashboard-${dateRange}-${new Date().toISOString().split('T')[0]}`;
     
     try {
-      await exportHtmlElement(dashboardExportRef.current, {
-        format: exportFormat,
+      const dateRangeLabel =
+        dateRange === '7d'
+          ? 'Last 7 Days'
+          : dateRange === '30d'
+            ? 'Last 30 Days'
+            : dateRange === '90d'
+              ? 'Last 90 Days'
+              : 'All Time';
+
+      const kpis = [
+        { label: 'Net Revenue', value: formatCurrency(metrics?.totalRevenue || 0, 'MWK') },
+        { label: 'Transaction Fees', value: formatCurrency(metrics?.transactionFees || 0, 'MWK') },
+        ...(hasProducts ? [{ label: 'Total Orders', value: `${metrics?.totalOrders || 0}` }] : []),
+        ...(hasServices ? [{ label: 'Total Bookings', value: `${metrics?.totalBookings || 0}` }] : []),
+        { label: 'Total Customers', value: `${metrics?.totalCustomers || 0}` },
+      ];
+
+      const recent = recentItems.map((item) => ({
+        type: item.type,
+        number: item.number,
+        status: item.status,
+        amount: formatCurrency(item.amount, item.currency),
+        date: formatDate(item.date.toISOString()),
+      }));
+
+      const top = topItemsData.map((t) => ({
+        name: t.name,
+        sales: `${t.sales}`,
+        revenue: formatCurrency(t.revenue, 'MWK'),
+      }));
+
+      await exportDashboardPdf({
         fileName,
-        scale: 1.5, // Increase scale for better quality
+        business: currentBusiness || undefined,
+        dateRangeLabel,
+        metrics: kpis,
+        recentItems: recent,
+        topItems: top,
       });
     } catch (error) {
       console.error('Export failed:', error);
@@ -584,35 +616,31 @@ export default function AdminDashboardPage() {
   })));
 
   return (
-    <div ref={dashboardExportRef}>
+    <div>
       {showStoreTypeSelector && (
         <StoreTypeSelector
           onComplete={() => setShowStoreTypeSelector(false)}
         />
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6 sm:mb-8">
+        {/* Title and Description */}
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
             Overview of your business performance
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
-            className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
-          >
-            <option value="pdf">PDF</option>
-            <option value="image">Image (PNG)</option>
-          </select>
+        
+        {/* Export Controls */}
+        <div className="flex gap-2 sm:justify-end">
           <button
             onClick={handleExport}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
           >
             <Download className="w-4 h-4 mr-2" />
-            Export
+            <span className="hidden sm:inline">Export</span>
+            <span className="sm:hidden">DL</span>
           </button>
         </div>
       </div>
@@ -914,6 +942,185 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Items Needing Restock - Only show if business has products and there are low stock items */}
+      {hasProducts && metrics?.lowStockProducts > 0 && (
+        <div className="bg-card rounded-lg border border-warning/20 p-3 sm:p-4 md:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
+            <div className="space-y-1">
+              <h2 className="text-base sm:text-lg md:text-xl font-semibold text-foreground flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-warning flex-shrink-0" />
+                <span>Items Needing Attention <span className="text-sm font-normal">({metrics.lowStockProducts + (metrics.outOfStockProducts || 0)})</span></span>
+              </h2>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {metrics.outOfStockProducts > 0 && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-destructive"></span>
+                    {metrics.outOfStockProducts} Out of Stock
+                  </span>
+                )}
+                {metrics.lowStockProducts > 0 && (
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-warning"></span>
+                    {metrics.lowStockProducts} Low Stock
+                  </span>
+                )}
+              </div>
+            </div>
+            <Link 
+              href="/admin/products" 
+              className="text-xs sm:text-sm font-medium text-primary hover:underline flex items-center gap-1 justify-end sm:justify-start self-end sm:self-auto"
+            >
+              View All Products
+              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+            </Link>
+          </div>
+          
+          <div className="overflow-x-auto -mx-2 sm:mx-0">
+            <div className="min-w-[600px] sm:min-w-0">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs text-text-secondary border-b border-border">
+                    <th className="pb-2 pl-2 sm:pl-0 font-medium">Product</th>
+                    <th className="pb-2 font-medium text-right">Available</th>
+                    <th className="pb-2 font-medium text-right">In Stock</th>
+                    <th className="pb-2 pr-2 sm:pr-0 font-medium text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {products
+                    .filter((p) => {
+                      if (p.type !== 'product') return false;
+                      const inventory = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
+                        ? p.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
+                        : null;
+                      
+                      if (inventory?.trackInventory === false) return false;
+                      
+                      const available = typeof inventory?.available === 'number' 
+                        ? inventory.available 
+                        : typeof inventory?.quantity === 'number' 
+                          ? inventory.quantity 
+                          : 0;
+                      
+                      const quantity = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
+                      
+                      // Show items that are out of stock or low stock
+                      return available <= 10 || quantity === 0;
+                    })
+                    .sort((a, b) => {
+                      // Sort by status (out of stock first) then by available quantity
+                      const getAvailable = (p: unknown) => {
+                        if (!p || typeof p !== 'object') return 0;
+                        if (!('inventory' in p)) return 0;
+                        const inv = (p as { inventory?: unknown }).inventory;
+                        if (!inv || typeof inv !== 'object') return 0;
+                        const available = (inv as { available?: unknown }).available;
+                        const quantity = (inv as { quantity?: unknown }).quantity;
+                        if (typeof available === 'number') return available;
+                        if (typeof quantity === 'number') return quantity;
+                        return 0;
+                      };
+                      const aAvailable = getAvailable(a);
+                      const bAvailable = getAvailable(b);
+                      
+                      // Out of stock items first
+                      if (aAvailable <= 0 && bAvailable > 0) return -1;
+                      if (aAvailable > 0 && bAvailable <= 0) return 1;
+                      
+                      // Then by available quantity (ascending)
+                      return aAvailable - bAvailable;
+                    })
+                    .slice(0, 8) // Show top 8 items (increased from 5 to show more critical items)
+                    .map((product) => {
+                      const inventory = 'inventory' in product && product.inventory && typeof product.inventory === 'object' 
+                        ? product.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
+                        : null;
+                      
+                      const available = typeof inventory?.available === 'number' 
+                        ? inventory.available 
+                        : typeof inventory?.quantity === 'number' 
+                          ? inventory.quantity 
+                          : 0;
+                          
+                      const inStock = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
+                      const isOutOfStock = available <= 0;
+                      const isCritical = !isOutOfStock && available <= 3;
+                      const isLow = !isOutOfStock && available <= 10;
+                      
+                      return (
+                        <tr key={product.id} className="text-sm hover:bg-muted/30 transition-colors">
+                          <td className="py-3 pl-2 sm:pl-0 pr-1">
+                            <Link 
+                              href={`/admin/products/${product.id}/edit`}
+                              className={cn(
+                                "font-medium hover:underline flex items-center gap-2 group",
+                                isOutOfStock ? "text-destructive" : "text-foreground hover:text-primary"
+                              )}
+                            >
+                              {product.images?.[0] ? (
+                                <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                                  <OptimizedImage
+                                    src={product.images?.[0]?.url || ''}
+                                    alt={product?.name || 'Product image'}
+                                    fill
+                                    sizes="(max-width: 640px) 24px, 32px"
+                                    className="object-cover"
+                                    priority={false}
+                                    context="listing"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-md bg-muted/50 flex items-center justify-center flex-shrink-0">
+                                  <Package className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+                                </div>
+                              )}
+                              <span className="truncate max-w-[120px] sm:max-w-[180px] md:max-w-xs">
+                                {product.name}
+                              </span>
+                              {isOutOfStock && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive whitespace-nowrap">
+                                  OUT OF STOCK
+                                </span>
+                              )}
+                            </Link>
+                          </td>
+                          <td className="py-3 text-right px-2">
+                            <span className={cn(
+                              "font-medium whitespace-nowrap",
+                              isOutOfStock 
+                                ? "text-destructive" 
+                                : isCritical 
+                                  ? "text-destructive" 
+                                  : "text-warning"
+                            )}>
+                              {available} {available === 1 ? 'unit' : 'units'}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right px-2 text-muted-foreground whitespace-nowrap">
+                            {inStock} {inStock === 1 ? 'unit' : 'units'}
+                          </td>
+                          <td className="py-3 pr-2 sm:pr-0 text-right">
+                            <span className={cn(
+                              "inline-flex items-center justify-center px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium whitespace-nowrap",
+                              isOutOfStock
+                                ? "bg-destructive/10 text-destructive"
+                                : isCritical 
+                                  ? "bg-destructive/10 text-destructive" 
+                                  : "bg-warning/10 text-warning"
+                            )}>
+                              {isOutOfStock ? 'Out of Stock' : isCritical ? 'Critical' : 'Low Stock'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Revenue over time */}
@@ -1045,183 +1252,7 @@ export default function AdminDashboardPage() {
         ) : null}
       </div>
 
-      {/* Items Needing Restock - Only show if business has products and there are low stock items */}
-      {hasProducts && metrics?.lowStockProducts > 0 && (
-        <div className="bg-card rounded-lg border border-warning/20 p-3 sm:p-4 md:p-6 mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
-            <div className="space-y-1">
-              <h2 className="text-base sm:text-lg md:text-xl font-semibold text-foreground flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-warning flex-shrink-0" />
-                <span>Items Needing Attention <span className="text-sm font-normal">({metrics.lowStockProducts + (metrics.outOfStockProducts || 0)})</span></span>
-              </h2>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                {metrics.outOfStockProducts > 0 && (
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="w-2 h-2 rounded-full bg-destructive"></span>
-                    {metrics.outOfStockProducts} Out of Stock
-                  </span>
-                )}
-                {metrics.lowStockProducts > 0 && (
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="w-2 h-2 rounded-full bg-warning"></span>
-                    {metrics.lowStockProducts} Low Stock
-                  </span>
-                )}
-              </div>
-            </div>
-            <Link 
-              href="/admin/products" 
-              className="text-xs sm:text-sm font-medium text-primary hover:underline flex items-center gap-1 justify-end sm:justify-start self-end sm:self-auto"
-            >
-              View All Products
-              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-            </Link>
-          </div>
-          
-          <div className="overflow-x-auto -mx-2 sm:mx-0">
-            <div className="min-w-[600px] sm:min-w-0">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-xs text-text-secondary border-b border-border">
-                    <th className="pb-2 pl-2 sm:pl-0 font-medium">Product</th>
-                    <th className="pb-2 font-medium text-right">Available</th>
-                    <th className="pb-2 font-medium text-right">In Stock</th>
-                    <th className="pb-2 pr-2 sm:pr-0 font-medium text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {products
-                    .filter((p) => {
-                      if (p.type !== 'product') return false;
-                      const inventory = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
-                        ? p.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
-                        : null;
-                      
-                      if (inventory?.trackInventory === false) return false;
-                      
-                      const available = typeof inventory?.available === 'number' 
-                        ? inventory.available 
-                        : typeof inventory?.quantity === 'number' 
-                          ? inventory.quantity 
-                          : 0;
-                      
-                      const quantity = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
-                      
-                      // Show items that are out of stock or low stock
-                      return available <= 10 || quantity === 0;
-                    })
-                    .sort((a, b) => {
-                      // Sort by status (out of stock first) then by available quantity
-                      const getAvailable = (p: any) => {
-                        const inv = 'inventory' in p && p.inventory && typeof p.inventory === 'object' 
-                          ? p.inventory as { available?: number; quantity?: number }
-                          : null;
-                        return typeof inv?.available === 'number' 
-                          ? inv.available 
-                          : typeof inv?.quantity === 'number' 
-                            ? inv.quantity 
-                            : 0;
-                      };
-                      
-                      const aAvailable = getAvailable(a);
-                      const bAvailable = getAvailable(b);
-                      
-                      // Out of stock items first, then sort by available quantity (lowest first)
-                      if (aAvailable === 0 && bAvailable > 0) return -1;
-                      if (aAvailable > 0 && bAvailable === 0) return 1;
-                      return aAvailable - bAvailable;
-                    })
-                    .slice(0, 8) // Show top 8 items (increased from 5 to show more critical items)
-                    .map((product) => {
-                      const inventory = 'inventory' in product && product.inventory && typeof product.inventory === 'object' 
-                        ? product.inventory as { quantity?: number; available?: number; trackInventory?: boolean }
-                        : null;
-                      
-                      const available = typeof inventory?.available === 'number' 
-                        ? inventory.available 
-                        : typeof inventory?.quantity === 'number' 
-                          ? inventory.quantity 
-                          : 0;
-                          
-                      const inStock = typeof inventory?.quantity === 'number' ? inventory.quantity : 0;
-                      const isOutOfStock = available <= 0;
-                      const isCritical = !isOutOfStock && available <= 3;
-                      const isLow = !isOutOfStock && available <= 10;
-                      
-                      return (
-                        <tr key={product.id} className="text-sm hover:bg-muted/30 transition-colors">
-                          <td className="py-3 pl-2 sm:pl-0 pr-1">
-                            <Link 
-                              href={`/admin/products/${product.id}/edit`}
-                              className={cn(
-                                "font-medium hover:underline flex items-center gap-2 group",
-                                isOutOfStock ? "text-destructive" : "text-foreground hover:text-primary"
-                              )}
-                            >
-                              {product.images?.[0] ? (
-                                <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                                  <OptimizedImage
-                                    src={product.images?.[0]?.url || ''}
-                                    alt={product?.name || 'Product image'}
-                                    fill
-                                    sizes="(max-width: 640px) 24px, 32px"
-                                    className="object-cover"
-                                    priority={false}
-                                    context="listing"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-md bg-muted/50 flex items-center justify-center flex-shrink-0">
-                                  <Package className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
-                                </div>
-                              )}
-                              <span className="truncate max-w-[120px] sm:max-w-[180px] md:max-w-xs">
-                                {product.name}
-                              </span>
-                              {isOutOfStock && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive whitespace-nowrap">
-                                  OUT OF STOCK
-                                </span>
-                              )}
-                            </Link>
-                          </td>
-                          <td className="py-3 text-right px-2">
-                            <span className={cn(
-                              "font-medium whitespace-nowrap",
-                              isOutOfStock 
-                                ? "text-destructive" 
-                                : isCritical 
-                                  ? "text-destructive" 
-                                  : "text-warning"
-                            )}>
-                              {available} {available === 1 ? 'unit' : 'units'}
-                            </span>
-                          </td>
-                          <td className="py-3 text-right px-2 text-muted-foreground whitespace-nowrap">
-                            {inStock} {inStock === 1 ? 'unit' : 'units'}
-                          </td>
-                          <td className="py-3 pr-2 sm:pr-0 text-right">
-                            <span className={cn(
-                              "inline-flex items-center justify-center px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium whitespace-nowrap",
-                              isOutOfStock
-                                ? "bg-destructive/10 text-destructive"
-                                : isCritical 
-                                  ? "bg-destructive/10 text-destructive" 
-                                  : "bg-warning/10 text-warning"
-                            )}>
-                              {isOutOfStock ? 'Out of Stock' : isCritical ? 'Critical' : 'Low Stock'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
+    
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Net Earnings Over Time */}
         <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border overflow-hidden">

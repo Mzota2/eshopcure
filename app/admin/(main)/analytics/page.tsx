@@ -3,9 +3,10 @@
  * Real-time analytics generated from collections (not stored)
  */
 
+
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import {
   useOrders,
@@ -23,7 +24,7 @@ import { Loading, Button } from '@/components/ui';
 import { useToast } from '@/components/ui/Toast';
 import { useSettings } from '@/hooks/useSettings';
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Calendar, Users, AlertTriangle, Download } from 'lucide-react';
-import { exportHtmlElement } from '@/lib/exports/htmlExport';
+import { exportAnalyticsPdf } from '@/lib/exports/exports';
 import { formatCurrency } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
 import { calculateTransactionFeeCost, DEFAULT_TRANSACTION_FEE_RATE } from '@/lib/utils/pricing';
@@ -78,24 +79,45 @@ export default function AdminAnalyticsPage() {
   const { data: settings } = useSettings();
   const { hasProducts, hasServices } = useStoreType();
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
-  const exportRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
   // Handle export
   const handleExport = async () => {
-    if (!exportRef.current) {
-      console.error('Export element not found');
-      return;
-    }
-    
     const fileName = `analytics-${dateRange}-${new Date().toISOString().split('T')[0]}`;
-    
+
     try {
-      await exportHtmlElement(exportRef.current, {
-        format: exportFormat,
+      const dateRangeLabel = dateRange === '7d' ? 'Last 7 Days' : dateRange === '30d' ? 'Last 30 Days' : 'Last 90 Days';
+
+      const kpis = [
+        { label: 'Net Revenue', value: formatCurrency(metrics.totalRevenue, 'MWK') },
+        { label: 'Gross Revenue', value: formatCurrency(metrics.grossRevenue || 0, 'MWK') },
+        { label: 'Transaction Fees', value: formatCurrency(metrics.transactionFees || 0, 'MWK') },
+        { label: 'Revenue Growth', value: `${metrics.revenueGrowth.toFixed(1)}%` },
+        ...(hasProducts ? [{ label: 'Total Orders', value: `${metrics.totalOrders}` }] : []),
+        ...(hasServices ? [{ label: 'Total Bookings', value: `${metrics.totalBookings}` }] : []),
+        { label: 'Total Customers', value: `${metrics.totalCustomers}` },
+        ...(hasProducts ? [{ label: 'Avg Order Value', value: formatCurrency(metrics.averageOrderValue, 'MWK') }] : []),
+        ...(hasServices ? [{ label: 'Avg Booking Value', value: formatCurrency(metrics.averageBookingValue, 'MWK') }] : []),
+      ];
+
+      const topItems = topItemsData.map((t) => ({
+        name: t.name,
+        sales: `${t.sales}`,
+        revenue: formatCurrency(t.revenue, 'MWK'),
+      }));
+
+      const combinedStatuses = [
+        ...(statusDistribution.orders || []).map((s) => ({ status: `Order: ${s.name}`, count: `${s.value}` })),
+        ...(statusDistribution.bookings || []).map((s) => ({ status: `Booking: ${s.name}`, count: `${s.value}` })),
+      ];
+
+      await exportAnalyticsPdf({
         fileName,
-        scale: 1.5, // Increase scale for better quality
+        business: currentBusiness || undefined,
+        dateRangeLabel,
+        metrics: kpis,
+        topItems,
+        statusDistribution: combinedStatuses,
       });
     } catch (error) {
       console.error('Export failed:', error);
@@ -435,49 +457,49 @@ export default function AdminAnalyticsPage() {
   }
 
   return (
-    <div ref={exportRef} className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
       
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+      <div className="flex flex-col gap-4 sm:gap-6">
+        {/* Title and Description */}
         <div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Analytics Dashboard</h1>
           <p className="text-xs sm:text-sm lg:text-base text-text-secondary mt-1">
             Real-time analytics from your data
           </p>
         </div>
-{/* Export controls */}
-      <div className="flex justify-end gap-2">
-        <select
-          value={exportFormat}
-          onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
-          className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
-        >
-          <option value="pdf">PDF</option>
-          <option value="image">Image (PNG)</option>
-        </select>
-        <Button
-          variant="outline"
-          onClick={handleExport}
-          className="whitespace-nowrap"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
-      </div>
-        <div className="flex gap-2 overflow-x-auto">
-          {(['7d', '30d', '90d'] as const).map((range) => (
-            <button
-              key={range}
-              onClick={() => setDateRange(range)}
-              className={cn(
-                'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
-                dateRange === range
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-background-secondary text-foreground hover:bg-background-tertiary'
-              )}
+
+        {/* Controls Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          {/* Date Range Buttons */}
+          <div className="flex gap-2 overflow-x-auto">
+            {(['7d', '30d', '90d'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setDateRange(range)}
+                className={cn(
+                  'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
+                  dateRange === range
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background-secondary text-foreground hover:bg-background-tertiary'
+                )}
+              >
+                {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : '90 Days'}
+              </button>
+            ))}
+          </div>
+
+          {/* Export Controls */}
+          <div className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              className="whitespace-nowrap"
             >
-              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : '90 Days'}
-            </button>
-          ))}
+              <Download className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Export</span>
+              <span className="sm:hidden">DL</span>
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -6,7 +6,6 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { getRecaptchaSiteKey } from '@/lib/security/recaptcha';
 
 declare global {
   interface Window {
@@ -26,10 +25,12 @@ interface RecaptchaProps {
 }
 
 export const Recaptcha: React.FC<RecaptchaProps> = ({ onVerify, onError, action = 'login' }) => {
-  const siteKey = getRecaptchaSiteKey();
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
   const scriptLoadedRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!siteKey) {
       console.warn('reCAPTCHA site key not configured');
       // In development, allow without reCAPTCHA
@@ -39,9 +40,13 @@ export const Recaptcha: React.FC<RecaptchaProps> = ({ onVerify, onError, action 
       return;
     }
 
-    // Check if script is already loaded
-    if (window.grecaptcha && scriptLoadedRef.current) {
-      // Script already loaded, execute immediately
+    const executeRecaptcha = () => {
+      if (cancelled) return;
+      if (!window.grecaptcha) {
+        setTimeout(executeRecaptcha, 100);
+        return;
+      }
+
       window.grecaptcha.ready(() => {
         window.grecaptcha
           .execute(siteKey, { action })
@@ -53,6 +58,11 @@ export const Recaptcha: React.FC<RecaptchaProps> = ({ onVerify, onError, action 
             onError?.(error.message || 'reCAPTCHA verification failed');
           });
       });
+    };
+
+    // Check if script is already loaded
+    if (window.grecaptcha && scriptLoadedRef.current) {
+      executeRecaptcha();
       return;
     }
 
@@ -61,20 +71,7 @@ export const Recaptcha: React.FC<RecaptchaProps> = ({ onVerify, onError, action 
       const existingScript = document.querySelector(`script[src*="recaptcha/api.js"]`);
       if (existingScript) {
         scriptLoadedRef.current = true;
-        // Script exists, wait for it to be ready
-        if (window.grecaptcha) {
-          window.grecaptcha.ready(() => {
-            window.grecaptcha
-              .execute(siteKey, { action })
-              .then((token) => {
-                onVerify(token);
-              })
-              .catch((error) => {
-                console.error('reCAPTCHA error:', error);
-                onError?.(error.message || 'reCAPTCHA verification failed');
-              });
-          });
-        }
+        executeRecaptcha();
         return;
       }
 
@@ -84,22 +81,13 @@ export const Recaptcha: React.FC<RecaptchaProps> = ({ onVerify, onError, action 
       script.defer = true;
       script.onload = () => {
         scriptLoadedRef.current = true;
-        if (window.grecaptcha) {
-          window.grecaptcha.ready(() => {
-            window.grecaptcha
-              .execute(siteKey, { action })
-              .then((token) => {
-                onVerify(token);
-              })
-              .catch((error) => {
-                console.error('reCAPTCHA error:', error);
-                onError?.(error.message || 'reCAPTCHA verification failed');
-              });
-          });
-        }
+        executeRecaptcha();
       };
       document.body.appendChild(script);
     }
+    return () => {
+      cancelled = true;
+    };
   }, [siteKey, action, onVerify, onError]);
 
   // This component doesn't render anything visible (invisible reCAPTCHA v3)

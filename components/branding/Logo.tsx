@@ -5,7 +5,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils/cn';
-import Image from 'next/image'
+import Image from 'next/image';
+import { useApp } from '@/contexts/AppContext';
+
 export interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
   variant?: 'default' | 'text-only' | 'icon-only';
@@ -19,6 +21,11 @@ export const Logo: React.FC<LogoProps> = ({
   className,
   href = '/',
 }) => {
+  const { currentBusiness } = useApp();
+  
+  // Get business name from AppContext, fallback to 'Techcure'
+  const businessName = currentBusiness?.name || '';
+  
   const sizes = {
     sm: 'w-8 h-8',
     md: 'w-10 h-10',
@@ -36,13 +43,13 @@ export const Logo: React.FC<LogoProps> = ({
       {/* Icon */}
       {(variant === 'default' || variant === 'icon-only') && (
         <div className={cn(
-          'flex items-center justify-center flex-shrink-0',
+          'flex items-center justify-center shrink-0',
           sizes[size]
         )}>
           <Image
             className="w-full h-full" 
             src="/techcure.png" 
-            alt="Techcure logo"
+            alt={`${businessName} logo`}
             width={400}
             height={400}
             priority
@@ -56,7 +63,7 @@ export const Logo: React.FC<LogoProps> = ({
           'font-bold text-foreground',
           textSizes[size]
         )}>
-          Techcure
+          {businessName}
         </span>
       )}
     </div>

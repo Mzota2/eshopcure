@@ -113,6 +113,10 @@ const checkExistingLedgerEntry = async (
   _orderId?: string,
   _bookingId?: string
 ): Promise<string | null> => {
+  void _entryType;
+  void _orderId;
+  void _bookingId;
+
   // This is a simplified check
   // In production, you'd want to query the ledger collection
   // to find existing entries matching the criteria

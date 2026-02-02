@@ -2,9 +2,10 @@
  * Admin Reports Page
  */
 
+
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useOrders, useBookings, useProducts, useServices, useCustomers, useLedgerEntries } from '@/hooks';
 import { Button, Input, useToast } from '@/components/ui';
@@ -13,7 +14,7 @@ import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import { cn } from '@/lib/utils/cn';
 import { OrderStatus } from '@/types/order';
 import { BookingStatus } from '@/types/booking';
-import { exportHtmlElement } from '@/lib/exports/htmlExport';
+import { exportReportsPdf } from '@/lib/exports/exports';
 
 type ReportType = 'sales' | 'products' | 'services' | 'customers';
 
@@ -79,8 +80,13 @@ export default function AdminReportsPage() {
     return new Date().toISOString().split('T')[0];
   });
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'image'>('pdf');
-  const reportRef = useRef<HTMLDivElement | null>(null);
+
+  const getPeriod = () => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  };
 
   // Fetch data with React Query
   const { data: orders = [], isLoading: ordersLoading } = useOrders({
@@ -323,16 +329,93 @@ export default function AdminReportsPage() {
   };
   
   const handleExport = async () => {
-    if (!generatedReport || !reportRef.current) {
+    if (!generatedReport) {
       toast.showWarning('Generate a report before exporting');
       return;
     }
     try {
       const fileNameBase = `report-${generatedReport}-${startDate}-to-${endDate}`;
-      await exportHtmlElement(reportRef.current, {
-        format: exportFormat,
-        fileName: fileNameBase,
-      });
+
+      const period = getPeriod();
+      const business = currentBusiness || undefined;
+
+      if (generatedReport === 'sales' && currentReport) {
+        await exportReportsPdf({
+          type: 'sales',
+          fileName: fileNameBase,
+          business,
+          period: currentReport.period,
+          totals: {
+            totalRevenue: currentReport.totalRevenue,
+            totalOrders: currentReport.orders.total,
+            totalBookings: currentReport.bookings.total,
+            averageOrderValue: currentReport.orders.averageOrderValue,
+            averageBookingValue: currentReport.bookings.averageBookingValue,
+            totalTransactions: currentReport.totalTransactions,
+            currency: 'MWK',
+          },
+          ordersByStatus: currentReport.orders.byStatus as unknown as Record<string, number>,
+          bookingsByStatus: currentReport.bookings.byStatus as unknown as Record<string, number>,
+        });
+        return;
+      }
+
+      if (generatedReport === 'products') {
+        await exportReportsPdf({
+          type: 'products',
+          fileName: fileNameBase,
+          business,
+          period,
+          currency: 'MWK',
+          rows: productSalesReport.map((r) => ({
+            productName: r.productName,
+            unitsSold: r.unitsSold,
+            revenue: r.revenue,
+            averagePrice: r.averagePrice,
+          })),
+        });
+        return;
+      }
+
+      if (generatedReport === 'services') {
+        await exportReportsPdf({
+          type: 'services',
+          fileName: fileNameBase,
+          business,
+          period,
+          currency: 'MWK',
+          rows: serviceBookingsReport.map((r) => ({
+            serviceName: r.serviceName,
+            bookingsCount: r.bookingsCount,
+            revenue: r.revenue,
+            averagePrice: r.averagePrice,
+          })),
+        });
+        return;
+      }
+
+      if (generatedReport === 'customers') {
+        await exportReportsPdf({
+          type: 'customers',
+          fileName: fileNameBase,
+          business,
+          period,
+          summary: {
+            totalCustomers: customerReport.totalCustomers,
+            newCustomers: customerReport.newCustomers,
+            returningCustomers: customerReport.returningCustomers,
+          },
+          topCustomers: customerReport.topCustomers.map((c) => ({
+            customerName: c.customerName,
+            orderCount: c.orderCount,
+            totalSpent: c.totalSpent,
+            currency: 'MWK',
+          })),
+        });
+        return;
+      }
+
+      toast.showWarning('No data found for the selected report');
     } catch (error) {
       console.error('Error exporting report:', error);
       toast.showError('Failed to export report');
@@ -346,28 +429,24 @@ export default function AdminReportsPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+      <div className="flex flex-col gap-4 mb-6 sm:mb-8">
+        {/* Title */}
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Reports</h1>
+        
+        {/* Export Controls - Only show when report is generated */}
         {generatedReport && (
-          <div className="flex gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm text-text-secondary">Export as</span>
-              <select
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value as 'pdf' | 'image')}
-                className="border border-border bg-background text-foreground text-xs sm:text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="pdf">PDF</option>
-                <option value="image">Image (PNG)</option>
-              </select>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none">
+                <Download className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Export</span>
+                <span className="sm:hidden">DL</span>
+              </Button>
+              <Button variant="outline" onClick={handleClear} className="flex-1 sm:flex-none">
+                <span className="hidden sm:inline">Clear</span>
+                <span className="sm:hidden">X</span>
+              </Button>
             </div>
-            <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-            <Button variant="outline" onClick={handleClear} className="w-full sm:w-auto">
-              Clear
-            </Button>
           </div>
         )}
       </div>
@@ -440,7 +519,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      <div ref={reportRef}>
+      <div>
       {/* Sales Report */}
       {generatedReport === 'sales' && currentReport && (
         <div className="bg-card rounded-lg border border-border p-4 sm:p-6">

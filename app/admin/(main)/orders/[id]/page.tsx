@@ -9,21 +9,23 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Calendar, CreditCard, Truck, AlertCircle, ArrowLeft, Edit, Save } from 'lucide-react';
-import { Button, Loading, Input, Textarea, useToast, StatusBadge, CancellationDialog, statusUtils } from '@/components/ui';
+import { Button, Loading, Input, Textarea, useToast, StatusBadge, CancellationDialog, statusUtils, ExportButton } from '@/components/ui';
 import { useOrder, useUpdateOrder, useCancelOrder } from '@/hooks/useOrders';
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod } from '@/lib/utils/formatting';
-import { getOptimizedImageUrl } from '@/lib/cloudinary/utils';
-import { OrderStatus, FulfillmentMethod } from '@/types/order';
+import { OrderStatus, FulfillmentMethod, type Order } from '@/types/order';
+import { OrderTimeline } from '@/components/timeline';
+import { getUserFriendlyMessage, SUCCESS_MESSAGES, ERROR_MESSAGES } from '@/lib/utils/user-messages';
+import { useApp } from '@/contexts/AppContext';
 import { useDeliveryProviders } from '@/hooks/useDeliveryProviders';
 import { MALAWI_DISTRICTS } from '@/types/delivery';
-import { OrderTimeline } from '@/components/timeline';
 import { Timestamp } from 'firebase/firestore';
-import { getUserFriendlyMessage, SUCCESS_MESSAGES, ERROR_MESSAGES } from '@/lib/utils/user-messages';
+import { getOptimizedImageUrl } from '@/lib/cloudinary/utils';
 
 export default function AdminOrderDetailPage() {
   const toast = useToast();
   const params = useParams();
   const orderId = params?.id as string;
+  const { currentBusiness } = useApp();
   
   const { data: order, isLoading, error } = useOrder(orderId);
   const updateOrderMutation = useUpdateOrder();
@@ -58,7 +60,7 @@ export default function AdminOrderDetailPage() {
     }
 
     try {
-      const updates: any = { status: status as OrderStatus };
+      const updates: Partial<Order> = { status: status as OrderStatus };
       
       // Add status update reason if provided
       if (statusReason.trim()) {
@@ -215,7 +217,16 @@ export default function AdminOrderDetailPage() {
               <h1 className="text-3xl font-bold text-foreground mb-2">Order Details</h1>
               <p className="text-text-secondary">Order #{order.orderNumber}</p>
             </div>
-            <StatusBadge status={order.status} variant="pill" />
+            <div className="flex items-center gap-2">
+              <ExportButton 
+                data={order} 
+                type="order" 
+                isAdmin={true}
+                businessData={currentBusiness}
+                className="flex-shrink-0"
+              />
+              <StatusBadge status={order.status} variant="pill" />
+            </div>
           </div>
         </div>
 

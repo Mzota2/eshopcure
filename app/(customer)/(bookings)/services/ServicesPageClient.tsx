@@ -64,6 +64,50 @@ function ServicesPageContent() {
   // Use filters (local state takes precedence for this page)
   const filters = localFilters;
 
+  // Fetch categories with React Query
+  // Using polling instead of real-time (categories change rarely)
+  const {
+    data: categories = [],
+    isLoading: categoriesLoading,
+  } = useCategories({
+    type: 'service',
+    businessId: currentBusiness?.id,
+    enabled: !!currentBusiness?.id,
+  });
+
+  // Convert category name to ID for API filtering
+  const categoryIdForApi = useMemo(() => {
+    if (filters.category === 'all') return undefined;
+    
+    // Debug: Log what we're trying to match
+    console.log('Looking for category:', filters.category);
+    console.log('Available categories:', categories.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      normalizedName: cat.name.toLowerCase().replace(/\s+/g, '-')
+    })));
+    
+    // Try multiple matching strategies
+    const category = categories.find(cat => {
+      const normalizedName = cat.name.toLowerCase().replace(/\s+/g, '-');
+      const normalizedName2 = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const filterName = filters.category.toLowerCase();
+      
+      console.log('Comparing:', {
+        filterName,
+        normalizedName,
+        normalizedName2,
+        match1: normalizedName === filterName,
+        match2: normalizedName2 === filterName
+      });
+      
+      return normalizedName === filterName || normalizedName2 === filterName;
+    });
+    
+    console.log('Found category:', category);
+    return category?.id;
+  }, [filters.category, categories]);
+
   // Fetch services with React Query
   // Note: Don't filter by status initially - let client-side filtering handle it
   const {
@@ -73,7 +117,7 @@ function ServicesPageContent() {
   } = useServices({
     businessId: currentBusiness?.id,
     status: undefined, // Get all services, filter client-side
-    categoryId: filters.category !== 'all' ? filters.category : undefined,
+    categoryId: categoryIdForApi,
     enabled: !!currentBusiness?.id,
     refetchInterval: 10 * 60 * 1000, // Poll every 10 minutes
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
@@ -105,17 +149,6 @@ function ServicesPageContent() {
   // Note: Real-time updates removed to save Firebase quota
   // Using polling instead (refetchInterval in useServices hook)
 
-  // Fetch categories with React Query
-  // Using polling instead of real-time (categories change rarely)
-  const {
-    data: categories = [],
-    isLoading: categoriesLoading,
-  } = useCategories({
-    type: 'service',
-    businessId: currentBusiness?.id,
-    enabled: !!currentBusiness?.id,
-  });
-
   // Get service categories (service + both types)
   const serviceCategories = useMemo(() => {
     const serviceCats = categories.filter(cat => cat.type === 'service');
@@ -142,6 +175,31 @@ function ServicesPageContent() {
   ];
 
   // Update price range filters when price filter is enabled (handled in toggle handler)
+
+  // Sync URL params with local filters
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get('category');
+    if (categoryFromUrl) {
+      // Find the category by slug
+      const category = categoriesWithAll.find(cat => 
+        cat.id === categoryFromUrl || // Check by ID
+        cat.name.toLowerCase().replace(/\s+/g, '-') === categoryFromUrl // Or by slug
+      );
+      
+      if (category && category.id !== localFilters.category) {
+        setLocalFilters(prev => ({
+          ...prev,
+          category: category.id
+        }));
+      }
+    } else if (localFilters.category !== 'all') {
+      // Reset to 'all' if no category parameter in URL
+      setLocalFilters(prev => ({
+        ...prev,
+        category: 'all'
+      }));
+    }
+  }, [searchParams, categoriesWithAll]);
 
   // Sync filters to AppContext after local state updates
   useEffect(() => {
@@ -256,8 +314,30 @@ function ServicesPageContent() {
   const loading = servicesLoading || categoriesLoading;
 
   const handleFilterChange = (key: keyof ServiceFilterState, value: ServiceFilterState[keyof ServiceFilterState]) => {
-    setLocalFilters((prev) => ({ ...prev, [key]: value }));
+    const newFilters = { ...localFilters, [key]: value };
+    setLocalFilters(newFilters);
     setCurrentPage(1);
+
+    // Update URL when category changes
+    if (key === 'category') {
+      const params = new URLSearchParams(searchParams.toString());
+      const category = categoriesWithAll.find(cat => cat.id === value);
+      
+      if (value === 'all') {
+        params.delete('category');
+      } else if (category) {
+        // Use the category name as a slug in the URL
+        const slug = category.name.toLowerCase().replace(/\s+/g, '-');
+        params.set('category', slug);
+      } else {
+        // Fallback to ID if category not found (shouldn't normally happen)
+        params.set('category', value as string);
+      }
+      
+      // Update URL without page reload
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.pushState({}, '', newUrl);
+    }
   };
 
   const toggleServiceType = (type: string) => {
@@ -315,7 +395,9 @@ function ServicesPageContent() {
             {filters.category !== 'all' && (
               <>
                 <li>/</li>
-                <li className="text-primary capitalize">{filters.category}</li>
+                <li className="text-primary capitalize">
+                  {categoriesWithAll.find(cat => cat.id === filters.category)?.name || filters.category}
+                </li>
               </>
             )}
           </ol>

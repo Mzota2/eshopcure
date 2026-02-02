@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { COLLECTIONS } from '@/types/collections';
 import { ItemStatus } from '@/types/item';
@@ -8,11 +8,44 @@ interface OrderItemData {
   quantity?: number;
 }
 
+type InventoryData = {
+  trackInventory?: boolean;
+  quantity?: number;
+  reserved?: number;
+  available?: number;
+};
+
+type ItemDocData = {
+  type?: string;
+  name?: string;
+  status?: ItemStatus;
+  inventory?: InventoryData;
+  updatedAt?: unknown;
+};
+
+type OrderDocData = {
+  items?: OrderItemData[];
+  inventoryReleased?: boolean;
+  inventoryUpdated?: boolean;
+};
+
+const asOrderDocData = (data: unknown): OrderDocData => {
+  if (!data || typeof data !== 'object') return {};
+  return data as OrderDocData;
+};
+
+const asItemDocData = (data: unknown): ItemDocData => {
+  if (!data || typeof data !== 'object') return {};
+  return data as ItemDocData;
+};
+
 /**
  * Reserve inventory when an order is created
  */
 export async function reserveInventory(orderId: string): Promise<void> {
-  console.log(`[INVENTORY] Reserving inventory for order: ${orderId}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[INVENTORY] Reserving inventory for order: ${orderId}`);
+  }
   const orderRef = doc(db, COLLECTIONS.ORDERS, orderId);
   const orderSnap = await getDoc(orderRef);
 
@@ -20,7 +53,7 @@ export async function reserveInventory(orderId: string): Promise<void> {
     throw new Error(`Order not found: ${orderId}`);
   }
 
-  const orderData = orderSnap.data() as any;
+  const orderData = asOrderDocData(orderSnap.data());
   const items = orderData.items || [];
   const batch = writeBatch(db);
 
@@ -32,12 +65,12 @@ export async function reserveInventory(orderId: string): Promise<void> {
     
     if (!itemSnap.exists()) continue;
     
-    const itemData = itemSnap.data();
+    const itemData = asItemDocData(itemSnap.data());
     if (itemData.type !== 'product' || !itemData.inventory?.trackInventory) continue;
 
-    const currentReserved = itemData.inventory.reserved || 0;
+    const currentReserved = itemData.inventory?.reserved || 0;
     const newReserved = currentReserved + item.quantity;
-    const available = (itemData.inventory.quantity || 0) - newReserved;
+    const available = (itemData.inventory?.quantity || 0) - newReserved;
 
     if (available < 0) {
       throw new Error(`Insufficient stock for product: ${itemData.name}`);
@@ -51,14 +84,18 @@ export async function reserveInventory(orderId: string): Promise<void> {
   }
 
   await batch.commit();
-  console.log(`[INVENTORY] Successfully reserved inventory for order: ${orderId}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[INVENTORY] Successfully reserved inventory for order: ${orderId}`);
+  }
 }
 
 /**
  * Release inventory when an order is canceled
  */
 export async function releaseInventory(orderId: string): Promise<void> {
-  console.log(`[INVENTORY] Releasing inventory for order: ${orderId}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[INVENTORY] Releasing inventory for order: ${orderId}`);
+  }
   const orderRef = doc(db, COLLECTIONS.ORDERS, orderId);
   const orderSnap = await getDoc(orderRef);
 
@@ -67,7 +104,7 @@ export async function releaseInventory(orderId: string): Promise<void> {
     return;
   }
 
-  const orderData = orderSnap.data() as any;
+  const orderData = asOrderDocData(orderSnap.data());
   if (orderData.inventoryReleased) {
     console.log(`[INVENTORY] Inventory already released for order: ${orderId}`);
     return;
@@ -83,13 +120,13 @@ export async function releaseInventory(orderId: string): Promise<void> {
     const itemSnap = await getDoc(itemRef);
     
     if (!itemSnap.exists()) continue;
-    
-    const itemData = itemSnap.data();
+
+    const itemData = asItemDocData(itemSnap.data());
     if (itemData.type !== 'product' || !itemData.inventory?.trackInventory) continue;
 
-    const currentReserved = itemData.inventory.reserved || 0;
+    const currentReserved = itemData.inventory?.reserved || 0;
     const newReserved = Math.max(0, currentReserved - item.quantity);
-    const available = (itemData.inventory.quantity || 0) - newReserved;
+    const available = (itemData.inventory?.quantity || 0) - newReserved;
 
     batch.update(itemRef, {
       'inventory.reserved': newReserved,
@@ -126,7 +163,7 @@ export const adjustInventoryForPaidOrder = async (orderId: string): Promise<void
     return;
   }
 
-  const orderData = orderSnap.data() as any;
+  const orderData = asOrderDocData(orderSnap.data());
   console.log(`[INVENTORY] Order found, inventoryUpdated flag:`, orderData.inventoryUpdated);
 
   if (orderData.inventoryUpdated) {
@@ -149,7 +186,7 @@ export const adjustInventoryForPaidOrder = async (orderId: string): Promise<void
         continue;
       }
 
-      const itemData = itemSnap.data() as any;
+      const itemData = asItemDocData(itemSnap.data());
 
       // Only adjust inventory for products
       if (itemData.type !== 'product') {
@@ -185,7 +222,7 @@ export const adjustInventoryForPaidOrder = async (orderId: string): Promise<void
       });
 
       // Prepare inventory updates
-      const updates: Record<string, any> = {
+      const updates: Record<string, unknown> = {
         inventory: {
           ...inventory,
           quantity: newQuantity,
@@ -197,7 +234,11 @@ export const adjustInventoryForPaidOrder = async (orderId: string): Promise<void
       };
       
       // If this is a Firestore document, we need to use the serverTimestamp
-      if ('updatedAt' in itemData && typeof itemData.updatedAt === 'object' && 'toDate' in itemData.updatedAt) {
+      if (
+        itemData.updatedAt &&
+        typeof itemData.updatedAt === 'object' &&
+        'toDate' in itemData.updatedAt
+      ) {
         delete updates.updatedAt; // Let Firestore handle the server timestamp
       }
 

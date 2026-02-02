@@ -3,14 +3,15 @@
  */
 
 import type { Metadata } from 'next';
-import { getBusiness } from '@/lib/businesses';
 import { getAppBaseUrl } from '@/lib/paychangu/config';
+import { SITE_CONFIG } from '@/lib/config/siteConfig';
 
 /**
  * Get the site base URL
  */
 export const getSiteUrl = (): string => {
-  return getAppBaseUrl();
+  // Prefer configured public app URL from SITE_CONFIG; fall back to Paychangu-configured base URL
+  return SITE_CONFIG.appUrl || getAppBaseUrl();
 };
 
 /**
@@ -33,12 +34,12 @@ export const generateItemMetadata = async (
   business?: { name: string; logo?: string; description?: string } | null
 ): Promise<Metadata> => {
   const siteUrl = getSiteUrl();
-  const baseUrl = business?.name || 'E-Commerce Store';
+  const businessName = business?.name || SITE_CONFIG.defaultBusinessName || SITE_CONFIG.appTitle;
   
   // Use SEO title/description if available, otherwise use item name/description
-  const title = item.seo?.title || `${item.name} | ${baseUrl}`;
-  const description = item.seo?.description || item.description || `Shop ${item.name} at ${baseUrl}`;
-  const keywords = item.seo?.keywords || [item.name, item.type, baseUrl];
+  const title = item.seo?.title || `${item.name} | ${businessName}`;
+  const description = item.seo?.description || item.description || `Shop ${item.name} at ${businessName}`;
+  const keywords = item.seo?.keywords || [item.name, item.type, businessName];
   
   // Get the main image URL
   const imageUrl = item.images?.[0]?.url || '/placeholder-product.jpg';
@@ -48,10 +49,6 @@ export const generateItemMetadata = async (
     : `${siteUrl}${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
   
   const itemUrl = `${siteUrl}/${item.type === 'product' ? 'products' : 'services'}/${item.slug}`;
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: item.pricing.currency,
-  }).format(item.pricing.basePrice);
 
   return {
     title,
@@ -61,7 +58,7 @@ export const generateItemMetadata = async (
       title,
       description,
       url: itemUrl,
-      siteName: baseUrl,
+      siteName: businessName,
       images: [
         {
           url: absoluteImageUrl,
@@ -97,13 +94,13 @@ export const generateHomeMetadata = async (
   business?: { name: string; description?: string; logo?: string } | null
 ): Promise<Metadata> => {
   const siteUrl = getSiteUrl();
-  const businessName = business?.name || 'E-Commerce Store';
-  const businessDescription = business?.description || 'Your trusted online shopping destination for quality products and services';
+  const businessName = business?.name || SITE_CONFIG.defaultBusinessName || SITE_CONFIG.appTitle;
+  const businessDescription = business?.description || SITE_CONFIG.appDescription;
   
   const title = `${businessName} - Quality Products & Services Online`;
   const description = businessDescription;
   
-  const logoUrl = business?.logo || '/logo.png';
+  const logoUrl = business?.logo || SITE_CONFIG.brandImageUrl || '/logo.png';
   const absoluteLogoUrl = logoUrl.startsWith('http') 
     ? logoUrl 
     : `${siteUrl}${logoUrl.startsWith('/') ? logoUrl : '/' + logoUrl}`;
@@ -151,11 +148,11 @@ export const generatePageMetadata = (
   business?: { name: string; logo?: string } | null
 ): Metadata => {
   const siteUrl = getSiteUrl();
-  const businessName = business?.name || 'E-Commerce Store';
+  const businessName = business?.name || SITE_CONFIG.defaultBusinessName || SITE_CONFIG.appTitle;
   const fullTitle = `${title} | ${businessName}`;
   const pageUrl = `${siteUrl}${path}`;
   
-  const logoUrl = business?.logo || '/logo.png';
+  const logoUrl = business?.logo || SITE_CONFIG.brandImageUrl || '/logo.png';
   const absoluteLogoUrl = logoUrl.startsWith('http') 
     ? logoUrl 
     : `${siteUrl}${logoUrl.startsWith('/') ? logoUrl : '/' + logoUrl}`;

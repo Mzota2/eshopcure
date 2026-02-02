@@ -8,8 +8,6 @@ import {
   doc,
   CollectionReference,
   DocumentReference,
-  Query,
-  FirestoreDataConverter,
 } from 'firebase/firestore';
 import { COLLECTIONS } from '@/types/collections';
 import type {

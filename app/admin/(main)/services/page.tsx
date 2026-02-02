@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Button, Loading, useToast, useConfirmDialog, ConfirmDialog } from '@/components/ui';
 import { useApp } from '@/contexts/AppContext';
-import { useServices, useRealtimeServices, useDeleteService } from '@/hooks';
+import { useServices, useRealtimeServices, useDeleteService, useUpdateService } from '@/hooks';
 import { ItemStatus } from '@/types/item';
 import { cn } from '@/lib/utils/cn';
 import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
@@ -51,6 +51,9 @@ function AdminServicesPageContent() {
 
   // Delete mutation
   const deleteService = useDeleteService();
+  
+  // Update mutation for featured status
+  const updateService = useUpdateService();
 
   const filteredServices = Array.isArray(items) ? items.filter((service: { name: string; description?: string }) => {
     if (searchQuery) {
@@ -79,6 +82,32 @@ function AdminServicesPageContent() {
         }
       },
     });
+  };
+
+  const handleToggleFeatured = async (serviceId: string, currentFeatured: boolean) => {
+    try {
+      const updates: Record<string, unknown> = {
+        isFeatured: !currentFeatured,
+      };
+      
+      // Only set featuredUntil to null when unfeaturing (removing featured status)
+      if (currentFeatured) {
+        updates.featuredUntil = null;
+      }
+      
+      await updateService.mutateAsync({
+        serviceId,
+        updates,
+      });
+      toast.showSuccess(
+        !currentFeatured 
+          ? 'Service marked as featured' 
+          : 'Service removed from featured'
+      );
+    } catch (error) {
+      console.error('Error updating service featured status:', error);
+      toast.showError(getUserFriendlyMessage(error, ERROR_MESSAGES.UPDATE_FAILED));
+    }
   };
 
   if (loading && (!Array.isArray(items) || items.length === 0)) {
@@ -207,6 +236,16 @@ function AdminServicesPageContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-2 self-end sm:self-auto">
+                    <label className="flex items-center gap-2 cursor-pointer" title="Toggle Featured">
+                      <input
+                        type="checkbox"
+                        checked={service.isFeatured || false}
+                        onChange={() => handleToggleFeatured(service.id!, service.isFeatured || false)}
+                        className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
+                        disabled={updateService.isPending}
+                      />
+                      <span className="text-xs sm:text-sm text-text-secondary">Featured</span>
+                    </label>
                     <Link href={`/admin/services/${service.id}/edit`}>
                       <button className="p-1.5 sm:p-2 text-text-secondary hover:text-foreground transition-colors" title="Edit">
                         <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -218,6 +257,7 @@ function AdminServicesPageContent() {
                       onClick={() => handleDelete(service.id!)}
                       className="p-1.5 sm:p-2 text-destructive hover:text-destructive-hover transition-colors"
                       title="Delete"
+                      disabled={updateService.isPending}
                     >
                       <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>

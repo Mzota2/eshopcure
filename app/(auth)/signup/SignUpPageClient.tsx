@@ -11,6 +11,7 @@ import { User, Mail, Phone, Lock } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 import { Button, Input } from '@/components/ui';
 import { signUp, signInWithGoogle } from '@/lib/auth';
+import { Logo } from '@/components/branding';
 
 export default function SignUpPageClient() {
   const router = useRouter();
@@ -93,10 +94,13 @@ export default function SignUpPageClient() {
   return (
     <div className="min-h-screen bg-background-secondary dark:bg-background-tertiary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 md:p-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-1.5 sm:mb-2">Create Your Account</h1>
-        <p className="text-center text-xs sm:text-sm text-text-secondary mb-6 sm:mb-8">
-          Create account and enjoy your online shopping experience
-        </p>
+        <div className="text-center mb-6 sm:mb-8">
+          <Logo href="/" size="lg" className="justify-center mb-3 sm:mb-4" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2">Create Your Account</h1>
+          <p className="text-center text-xs sm:text-sm text-text-secondary">
+            Create account and enjoy your online shopping experience
+          </p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {error && (
@@ -166,7 +170,7 @@ export default function SignUpPageClient() {
               id="terms"
               checked={acceptedTerms}
               onChange={(e) => setAcceptedTerms(e.target.checked)}
-              className="mt-0.5 sm:mt-1 w-4 h-4 text-primary rounded focus:ring-primary flex-shrink-0"
+              className="mt-0.5 sm:mt-1 w-4 h-4 text-primary rounded focus:ring-primary shrink-0"
             />
             <label htmlFor="terms" className="text-xs sm:text-sm text-foreground">
               By creating an account you agree to our{' '}

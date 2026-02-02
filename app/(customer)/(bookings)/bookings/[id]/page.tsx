@@ -9,10 +9,11 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Calendar, Clock, User, Phone, Mail, CreditCard, AlertCircle } from 'lucide-react';
-import { Button, Loading, useToast, StatusBadge, CancellationDialog } from '@/components/ui';
+import { Button, Loading, useToast, StatusBadge, CancellationDialog, ExportButton } from '@/components/ui';
 import { useBooking, useCancelBooking } from '@/hooks/useBookings';
 import { getUserFriendlyMessage, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/utils/user-messages';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
+import { useApp } from '@/contexts/AppContext';
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod } from '@/lib/utils/formatting';
 import { getOptimizedImageUrl } from '@/lib/cloudinary/utils';
 import { BookingStatus } from '@/types/booking';
@@ -23,6 +24,7 @@ export default function CustomerBookingDetailPage() {
   const toast = useToast();
   const params = useParams();
   const bookingId = params?.id as string;
+  const { currentBusiness } = useApp();
   
   const { data: booking, isLoading, error } = useBooking(bookingId);
   const cancelBookingMutation = useCancelBooking();
@@ -105,7 +107,16 @@ export default function CustomerBookingDetailPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1 sm:mb-2">Booking Details</h1>
               <p className="text-xs sm:text-sm text-text-secondary">Booking #{booking.bookingNumber}</p>
             </div>
-            <StatusBadge status={booking.status} variant="pill" />
+            <div className="flex items-center gap-2">
+              <ExportButton 
+                data={booking} 
+                type="booking" 
+                isAdmin={false}
+                businessData={currentBusiness}
+                className="flex-shrink-0"
+              />
+              <StatusBadge status={booking.status} variant="pill" />
+            </div>
           </div>
         </div>
 

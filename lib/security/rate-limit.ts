@@ -69,7 +69,7 @@ export async function recordFailedAttempt(email: string): Promise<LoginAttempt> 
     await setDoc(attemptRef, {
       ...attemptData,
       lastAttemptAt: serverTimestamp(),
-      lockedUntil: isLocked ? Timestamp.fromDate(lockedUntil) : undefined,
+      lockedUntil: isLocked ? Timestamp.fromDate(lockedUntil) : null,
     }, { merge: true });
 
     return attemptData;

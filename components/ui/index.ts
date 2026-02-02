@@ -45,3 +45,6 @@ export type { ConfirmDialogType } from '../dialogs/ConfirmDialog';
 
 export { ShareButton } from './ShareButton';
 export type { ShareButtonProps } from './ShareButton';
+
+export { ExportButton } from './ExportButton';
+export type { ExportButtonProps } from './ExportButton';

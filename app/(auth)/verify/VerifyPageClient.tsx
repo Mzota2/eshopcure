@@ -8,6 +8,7 @@ import { Button } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendVerificationEmail, verifyEmail, reloadUser } from '@/lib/auth';
 import { auth } from '@/lib/firebase/config';
+import { Logo } from '@/components/branding';
 
 /**
  * Firebase email verification link expiration time
@@ -219,16 +220,19 @@ export default function VerifyPageClient() {
     return (
       <div className="min-h-screen bg-background-secondary dark:bg-background-tertiary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6">
         <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 md:p-8 text-center">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-3 sm:mb-4">
-            {error ? 'Verification Failed' : verificationSuccess ? 'Email Verified!' : 'Verifying Email'}
-          </h1>
-          <p className="text-xs sm:text-sm text-text-secondary mb-4 sm:mb-6">
-            {error 
-              ? 'There was an issue verifying your email address. The link may have expired.'
-              : verificationSuccess
-                ? 'Your email has been verified! You are being signed in automatically...'
-                : 'Please wait while we verify your email address and sign you in...'}
-          </p>
+          <div className="text-center mb-6 sm:mb-8">
+            <Logo href="/" size="lg" className="justify-center mb-3 sm:mb-4" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2">
+              {error ? 'Verification Failed' : verificationSuccess ? 'Email Verified!' : 'Verifying Email'}
+            </h1>
+            <p className="text-xs sm:text-sm text-text-secondary">
+              {error 
+                ? 'There was an issue verifying your email address. The link may have expired.'
+                : verificationSuccess
+                  ? 'Your email has been verified! You are being signed in automatically...'
+                  : 'Please wait while we verify your email address and sign you in...'}
+            </p>
+          </div>
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 text-destructive px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-xs sm:text-sm mb-4 sm:mb-6">
               {error}
@@ -257,12 +261,15 @@ export default function VerifyPageClient() {
   return (
     <div className="min-h-screen bg-background-secondary dark:bg-background-tertiary flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 md:p-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-3 sm:mb-4">Verify Your Email</h1>
-        <p className="text-center text-xs sm:text-sm text-text-secondary mb-6 sm:mb-8">
-          We&apos;ve sent a verification link to{' '}
-          <strong className="text-foreground break-all">{user.email}</strong>. 
-          Please check your email and click the link to verify your account.
-        </p>
+        <div className="text-center mb-6 sm:mb-8">
+          <Logo href="/" size="lg" className="justify-center mb-3 sm:mb-4" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1.5 sm:mb-2">Verify Your Email</h1>
+          <p className="text-center text-xs sm:text-sm text-text-secondary">
+            We&apos;ve sent a verification link to{' '}
+            <strong className="text-foreground break-all">{user.email}</strong>. 
+            Please check your email and click the link to verify your account.
+          </p>
+        </div>
 
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 text-destructive px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-xs sm:text-sm mb-4 sm:mb-6">
