@@ -125,6 +125,14 @@ SMTP_HOST=
 SMTP_PORT=587
 SMTP_USER=
 SMTP_PASSWORD=
+
+# ============================================
+# Developer Support Contact (used by Admin AI 'Email developers' link)
+# ============================================
+NEXT_PUBLIC_DEVELOPER_SUPPORT_EMAIL=
+NEXT_PUBLIC_DEVELOPER_SUPPORT_NAME=
+NEXT_PUBLIC_DEVELOPER_SUPPORT_PHONE=  # e.g. +15551234567 (used for WhatsApp links in Admin Contact) 
+
 ```
 
 ## Important Notes

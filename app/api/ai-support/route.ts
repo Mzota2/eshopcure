@@ -62,13 +62,15 @@ export async function POST(request: Request) {
     // Use Google Generative Language API (Gemini/text-bison)
     const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
-    // Build prompt with limited system instructions to keep responses helpful and safe
+    // Build prompt with limited system instructions to keep responses helpful, safe, and explicit about uncertainty
     let systemPrompt = '';
-    const formatGuidance = `Formatting rules: Output must be valid Markdown. Use ordered lists for step-by-step instructions (1., 2., 3.) and start numbering at 1; avoid using '*' as bullets or inline emphasis. Keep list numbering sequential. Prefer concise numbered steps for instructions. If you need to return structured data, include a compact JSON snippet such as {"summary":"...","steps":["..."]} (inline or inside a code block).`;
+    const formatGuidance = `Formatting rules: Output must be valid Markdown. Use ordered lists for step-by-step instructions (1., 2., 3.) and start numbering at 1; avoid using '*' as bullets or inline emphasis. Keep list numbering sequential. Prefer concise numbered steps for instructions. Use **bold** (double asterisks) to highlight important details or warnings. If you need to return structured data, include a compact JSON snippet such as {"summary":"...","steps":["..."]} (inline or inside a code block).
+
+Uncertainty & safety requirements: If you are unsure or lack enough information to give a confident answer, explicitly state "I'm not sure" (or "I don't know") and provide the best next steps the user should take (what to check and who to contact). Do NOT fabricate facts or guesses; when uncertain, set confidence: "low" in the JSON metadata. Always refuse to request secrets, credentials, or to perform actions that require privileged access. Append a JSON code block at the end of your reply with keys: {"summary":"brief summary","confidence":"high|medium|low","sources":["optional source strings"]}. If there are no sources, set sources: [].`;
     if (topic === 'admin') {
-      systemPrompt = `You are an AI assistant for the e-commerce admin panel. Help admins navigate the admin panel, manage orders, bookings, refunds, cancellations, promotions, and settings. Give concise step-by-step instructions and sample queries or commands when helpful. Do NOT perform any actions, only provide guidance. Do not request secrets or credentials.\n\n${formatGuidance}`;
+      systemPrompt = `You are an AI assistant for the e-commerce admin panel. Help admins navigate the admin panel, manage orders, bookings, refunds, cancellations, promotions, and settings. Give concise step-by-step instructions and sample queries or commands when helpful. Do NOT perform any actions, only provide guidance. Do not request secrets or credentials. If you are unsure about something, explicitly say you are unsure and include suggested next steps and contact options for the admin team.\n\n${formatGuidance}`;
     } else {
-      systemPrompt = `You are an AI assistant for an e-commerce store. Help users with ${topic} queries concisely, provide next steps, and link to relevant pages when helpful. Do NOT perform any action (like cancelling orders), only provide instructions and templates for messages to send to support. Do not request secrets or credentials.\n\n${formatGuidance}`;
+      systemPrompt = `You are an AI assistant for an e-commerce store. Help users with ${topic} queries concisely, provide next steps, and link to relevant pages when helpful. Do NOT perform any action (like cancelling orders), only provide instructions and templates for messages to send to support. Do not request secrets or credentials. If you are unsure about something, explicitly say you are unsure and include suggested next steps and contact options for support.\n\n${formatGuidance}`;
     }
 
     // If GOOGLE_API_KEY is present, try Google's Generative Language API (Gemini/text-bison).
@@ -285,6 +287,11 @@ export async function POST(request: Request) {
       const markdownToHtml = (md: string) => {
         if (!md) return '';
         const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const renderInline = (s: string) => {
+          const escaped = esc(s);
+          // Bold: **text** -> <strong>text</strong>
+          return escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        };
         const lines = md.split(/\r?\n/);
         let i = 0;
         let html = '';
@@ -314,7 +321,7 @@ export async function POST(request: Request) {
                 olStack.push(indent);
               }
             }
-            html += `<li>${esc(m[3])}</li>`;
+            html += `<li>${renderInline(m[3])}</li>`;
             i++;
             continue;
           }
@@ -324,7 +331,7 @@ export async function POST(request: Request) {
           const hdr = ln.match(/^(#{1,6})\s+(.*)/);
           if (hdr) {
             const level = hdr[1].length;
-            html += `<h${level}>${esc(hdr[2])}</h${level}>`;
+            html += `<h${level}>${renderInline(hdr[2])}</h${level}>`;
             i++;
             continue;
           }
@@ -333,7 +340,7 @@ export async function POST(request: Request) {
             i++;
             continue;
           }
-          html += `<p>${esc(ln)}</p>`;
+          html += `<p>${renderInline(ln)}</p>`;
           i++;
         }
 
@@ -527,14 +534,93 @@ export async function POST(request: Request) {
       if (gRes && gRes.ok) {
         const gJson = await gRes.json();
         // Use the canonical response shape: candidates[].content.parts[].text
-        const aiReply = gJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const aiReply = (gJson?.candidates?.[0]?.content?.parts?.[0]?.text || '') as string;
+
+        // Server-side safety check: if the model asks for secrets/credentials, refuse and respond with a safe refusal
+        const secretPatterns = /password|api ?key|secret|private ?key|credentials|ssn|social ?security/i;
+        if (secretPatterns.test(aiReply)) {
+          const safeMessage = 'I cannot request or accept secrets, credentials, or private data. Please contact support directly via the admin panel or official channels.';
+          const replyHtml = markdownToHtml(safeMessage);
+          return NextResponse.json({ reply: safeMessage, html: replyHtml, confidence: 'low', sources: [], uncertain: true });
+        }
+
+        // Try extracting a trailing JSON metadata block such as ```json {"summary":"...","confidence":"low","sources":[]} ```
+        const metadata: { summary?: string; confidence?: string; sources?: string[] } = {};
+        // declare jsonText in outer scope so we can reference it after the try/catch
+        let jsonText: string | null = null;
+        try {
+          const jsonBlockMatch = aiReply.match(/```(?:json)?\s*({[\s\S]*?})\s*```/i);
+          const inlineJsonMatch = aiReply.match(/({\s*"summary"[\s\S]*?})/i);
+          jsonText = (jsonBlockMatch && jsonBlockMatch[1]) || (inlineJsonMatch && inlineJsonMatch[1]) || null;
+          if (jsonText) {
+            try {
+              const parsed = JSON.parse(jsonText);
+              if (parsed && typeof parsed === 'object') {
+                metadata.summary = String(parsed.summary || '');
+                metadata.confidence = String(parsed.confidence || parsed.conf || 'unknown');
+                metadata.sources = Array.isArray(parsed.sources) ? parsed.sources : (parsed.sources ? [String(parsed.sources)] : []);
+              }
+            } catch {
+              // ignore JSON parse errors; metadata will remain empty
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        // Remove any JSON code block from the reply for display purposes (support both fenced JSON and inline JSON objects)
+        let displayText = aiReply.replace(/```(?:json)?[\s\S]*?```/ig, '').trim();
+        // If we detected an inline JSON metadata snippet earlier (jsonText), strip it as well to avoid sending raw JSON to clients
+        if (jsonText) {
+          try {
+            displayText = displayText.replace(jsonText, '').trim();
+          } catch {
+            // ignore replace errors
+          }
+        }
+
+        // If, after stripping metadata, there is no human-readable content, build a friendly fallback message
+        let uncertain = (metadata.confidence && /low/i.test(String(metadata.confidence))) || /i'?m not sure|i do not know|i don't know|unsure|may be mistaken/i.test(aiReply);
+
+        if (!displayText || displayText.trim().length === 0) {
+          const summaryLine = metadata.summary ? `**Summary:** ${metadata.summary}` : "**I'm not sure** — I don't have enough information to provide a confident answer.";
+          let fallback = `${summaryLine}\n\n1. **Try rephrasing the question** with more details (order number, date, or exact product/service).\n2. **Click \"Request human support\"** next to this message so an admin can review and follow up.\n3. **If urgent**, contact support directly via the listed channels (email or phone).`;
+
+          // If admin topic and we have a configured developer contact, append a developer escalation suggestion
+          if (topic === 'admin' && SITE_CONFIG.developerSupportEmail) {
+            fallback += `\n4. **If this appears to be a bug or requires developer intervention, email developers at ${SITE_CONFIG.developerSupportEmail}** with steps to reproduce, logs, and screenshots.`;
+          }
+
+          // If confidence is explicitly high but no displayable content, still include the summary but mark uncertain=false
+          if (metadata.confidence && /high/i.test(String(metadata.confidence))) {
+            uncertain = false;
+          } else {
+            uncertain = true;
+          }
+
+          displayText = fallback;
+          // Populate metadata.summary if empty so client can show a summary card if desired
+          if (!metadata.summary && summaryLine) metadata.summary = metadata.summary || '';
+        }
 
         // Normalize formatting (convert unordered bullets to ordered lists, remove stray asterisks)
-        const cleanedReply = normalizeAiOutput(aiReply);
-        // Provide a simple HTML fallback so the UI can render when it doesn't parse Markdown
-        const replyHtml = markdownToHtml(cleanedReply);
+        const cleanedReply = normalizeAiOutput(displayText);
 
-        return NextResponse.json({ reply: cleanedReply, html: replyHtml });
+        // If the reply contains multiple short lines but no numbered list, automatically add numbering
+        let finalReply = cleanedReply;
+        const hasNumberedList = /(^|\n)\s*\d+\./m.test(cleanedReply);
+        if (!hasNumberedList) {
+          const lines = cleanedReply.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0 && !/^\s*[*`>-]/.test(l));
+          // Heuristic: if there are 2-10 lines and each is reasonably short, treat as steps and number them
+          if (lines.length >= 2 && lines.length <= 10 && lines.every(l => l.length < 240)) {
+            finalReply = lines.map((l, i) => `${i + 1}. ${l}`).join('\n\n');
+          }
+        }
+
+        // Provide a simple HTML fallback so the UI can render when it doesn't parse Markdown
+        const replyHtml = markdownToHtml(finalReply);
+
+        return NextResponse.json({ reply: finalReply, html: replyHtml, confidence: (metadata.confidence || 'unknown'), sources: (metadata.sources || []), uncertain: Boolean(uncertain) });
       }
 
       // Log detailed last error and return diagnostic (no fallback to other providers)

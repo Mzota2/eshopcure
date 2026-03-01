@@ -18,7 +18,8 @@ import { AdminAiModal } from '@/components/admin/AdminAiModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/user';
 import { cn } from '@/lib/utils/cn';
-import { useNotificationsByUserId } from '@/hooks/useNotifications';
+import { useNotifications, useNotificationsByUserId } from '@/hooks/useNotifications';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 import { useStoreType } from '@/hooks/useStoreType';
 
 interface NavItem {
@@ -36,12 +37,19 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   
-  // Get unread notifications count
-  const { data: unreadNotifications = [] } = useNotificationsByUserId(
-    user?.uid,
-    { unreadOnly: true, enabled: !!user?.uid }
-  );
-  const unreadCount = unreadNotifications.length;
+  // Get all notifications for admin (not just user-specific ones)
+  const { data: allNotifications = [] } = useNotifications({
+    enabled: !!user && (userRole === UserRole.ADMIN || userRole === UserRole.STAFF),
+  });
+  
+  // Real-time updates for notifications (critical data - admin needs immediate updates)
+  useRealtimeNotifications({
+    enabled: !!user && (userRole === UserRole.ADMIN || userRole === UserRole.STAFF),
+  });
+  
+  // Filter for unread notifications
+  const unreadCount = allNotifications.filter(n => !n.readAt).length;
+  console.log("Admin unread count:", unreadCount, "Total notifications:", allNotifications.length);
 
   // Build navigation items based on store type
   const navItems: NavItem[] = [

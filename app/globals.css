@@ -326,3 +326,24 @@ a {
 .animate-scale-in {
   animation: scaleIn 0.5s ease-out;
 }
+
+/* Ensure Google reCAPTCHA badge is visible above other fixed UI elements */
+.grecaptcha-badge {
+  position: fixed !important;
+  bottom: 12px !important;
+  right: 12px !important;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+  transform: none !important;
+}
+.grecaptcha-badge iframe {
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+}
+
+/* On very small screens, nudge the badge up slightly to avoid overlapping action buttons */
+@media (max-width: 480px) {
+  .grecaptcha-badge {
+    bottom: 64px !important; /* leave space for floating action buttons */
+  }
+}

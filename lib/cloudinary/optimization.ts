@@ -50,9 +50,9 @@ export const IMAGE_SIZES = {
   portraitLarge: { width: 600, height: 900 },
   
   // Landscape variants (for banners, headers)
-  landscapeSmall: { width: 400, height: 200 },
-  landscapeMedium: { width: 600, height: 300 },
-  landscapeLarge: { width: 900, height: 450 },
+  landscapeSmall: { width: 400, height: 260 },
+  landscapeMedium: { width: 600, height: 360 },
+  landscapeLarge: { width: 900, height: 600 },
 } as const;
 
 /**

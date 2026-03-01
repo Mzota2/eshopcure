@@ -7,6 +7,7 @@ import { AppProvider } from "@/contexts/AppContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import {ThemeProvider} from "@/providers/ThemeProvider";
 import { SITE_CONFIG } from '@/lib/config/siteConfig';
+import RecaptchaFix from '@/components/ui/RecaptchaFix';
 
 export const metadata: Metadata = {
   title: SITE_CONFIG.appTitle,
@@ -45,6 +46,7 @@ export default function RootLayout({
                 <ToastProvider>
                   <AnalyticsProvider>
                     {children}
+                    <RecaptchaFix />
                   </AnalyticsProvider>
                 </ToastProvider>
               </ThemeProvider>

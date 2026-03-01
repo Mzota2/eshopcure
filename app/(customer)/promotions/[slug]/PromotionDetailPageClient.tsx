@@ -101,7 +101,7 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Promotion Not Found</h1>
           <p className="text-text-secondary mb-6">
-            The promotion you're looking for doesn't exist or is no longer available.
+            {`The promotion you're looking for doesn't exist or is no longer available.`}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/promotions">
@@ -137,7 +137,8 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
         <div className="bg-card rounded-lg shadow-md overflow-hidden mb-8">
           {/* Promotion Image */}
           {promotion.image && (
-            <div className="relative w-full bg-background-secondary aspect-8/3">
+            // Use a taller aspect ratio on mobile for better visual height, keep wider aspect on larger screens
+            <div className="relative w-full bg-background-secondary aspect-3/2 sm:aspect-8/3">
               <OptimizedImage
                 src={promotion.image}
                 alt={promotion.name}
@@ -149,27 +150,31 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
               />
             </div>
           )}
-          <div className="p-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <h1 className="text-4xl font-bold text-foreground mb-3">{promotion.name}</h1>
-                <div className="flex items-center gap-4 mb-4">
-                  <Badge variant="danger" className="text-xl px-4 py-2">
-                    {promotion.discountType === 'percentage'
-                      ? `${promotion.discount}% OFF`
-                      : `${promotion.discount} OFF`}
-                  </Badge>
-                  <div className="flex items-center gap-2 text-text-secondary">
-                    <Calendar className="w-5 h-5" />
-                    <span>
-                      {formatDate(startDate)} - {formatDate(endDate)}
-                    </span>
-                  </div>
+          <div className="p-6 sm:p-8">
+            <div className="">
+              <div className="min-w-0">
+                <div className='flex items-start justify-between gap-4 mb-6'>
+                    <h1 className="text-3xl sm:text-4xl font-bold text-foreground leading-tight">{promotion.name}</h1>
+                    <div className="flex-shrink-0 ml-4">
+                      <Badge variant="danger" className="text-base sm:text-lg px-3 sm:px-4 py-1 sm:py-2 rounded-full whitespace-nowrap">
+                        {promotion.discountType === 'percentage'
+                          ? `${promotion.discount}% OFF`
+                          : `${promotion.discount} OFF`}
+                      </Badge>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 text-text-secondary text-sm sm:text-base mt-2">
+                  <Calendar className="w-5 h-5" />
+                  <span>
+                    {formatDate(startDate)} - {formatDate(endDate)}
+                  </span>
                 </div>
                 {promotion.description && (
-                  <p className="text-lg text-text-secondary">{promotion.description}</p>
+                  <p className="mt-3 text-base sm:text-lg text-text-secondary">{promotion.description}</p>
                 )}
               </div>
+
+             
             </div>
           </div>
         </div>
@@ -199,13 +204,17 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
                   <h2 className="text-2xl font-bold text-foreground mb-6">
                     {hasServices ? 'Products' : 'Items'} ({productItems.length})
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div
+                    role="list"
+                    className="flex gap-4 overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-6 -mx-4 md:mx-0 px-4 md:px-0 py-2 snap-x snap-mandatory"
+                  >
                     {productItems.map((product) => (
-                      <ProductCard 
-                        key={product.id} 
-                        product={product} 
-                        onAddToCart={handleAddToCart}
-                      />
+                      <div role="listitem" key={product.id} className="shrink-0 w-72 md:w-auto snap-start">
+                        <ProductCard 
+                          product={product} 
+                          onAddToCart={handleAddToCart}
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -216,9 +225,14 @@ export default function PromotionDetailPageClient({ slug }: { slug: string }) {
                   <h2 className="text-2xl font-bold text-foreground mb-6">
                     Services ({serviceItems.length})
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div
+                    role="list"
+                    className="flex gap-4 overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-6 -mx-4 md:mx-0 px-4 md:px-0 py-2 snap-x snap-mandatory"
+                  >
                     {serviceItems.map((service) => (
-                      <ServiceCard key={service.id} service={service} />
+                      <div role="listitem" key={service.id} className="shrink-0 w-72 md:w-auto snap-start">
+                        <ServiceCard service={service} />
+                      </div>
                     ))}
                   </div>
                 </div>

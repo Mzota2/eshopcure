@@ -42,13 +42,15 @@ export const IMAGE_VARIANTS: Record<ImageVariantKey, ImageVariantDefinition> = {
   businessBanner: {
     label: 'Banner image',
     minWidth: 1920,
-    minHeight: 400,
+    // Increase recommended minHeight so banners have better visible height on mobile
+    minHeight: 600,
     aspectRatio: 'landscape',
   },
   promotionBanner: {
     label: 'Promotion image',
     minWidth: 1600,
-    minHeight: 600,
+    // Use a taller recommended height for promotions to avoid extremely short banners on phones
+    minHeight: 900,
     aspectRatio: 'landscape',
   },
   adminProfile: {

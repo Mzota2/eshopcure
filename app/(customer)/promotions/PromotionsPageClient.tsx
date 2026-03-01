@@ -161,7 +161,8 @@ export default function PromotionsPageClient() {
                 >
                   {/* Promotion Image */}
                   {promotion.image && (
-                    <div className="relative w-full h-40 sm:h-44 md:h-48 bg-background-secondary">
+                    // Increase mobile card image height for better prominence on phones
+                    <div className="relative w-full h-52 sm:h-44 md:h-48 bg-background-secondary">
                       <ProductImage
                         src={promotion.image}
                         alt={promotion.name}

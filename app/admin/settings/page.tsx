@@ -1294,7 +1294,7 @@ export default function AdminSettingsPage() {
                 <label className="block text-sm font-medium text-foreground">
                   Logo
                 </label>
-                <div className="w-32 h-32">
+                <div className="w-32 flex flex-col items-start gap-2">
                   {typeof handleLogoUpload === 'function' && (
                   <ImageUploadWithCrop
                     variant="businessLogo"
@@ -1302,7 +1302,7 @@ export default function AdminSettingsPage() {
                     onRemove={removeLogo}
                     existingImageUrl={formData.logo}
                     disabled={uploadingLogo}
-                    className="w-full h-full"
+                    className="w-32"
                   />
                 )}
                 </div>
@@ -1315,17 +1315,17 @@ export default function AdminSettingsPage() {
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Banner
                 </label>
-                <div className="w-full h-32 sm:h-40 md:h-48">
+                <div className="w-full flex flex-col items-start gap-2">
                   {typeof handleBannerUpload === 'function' && (
-                  <ImageUploadWithCrop
-                    variant="businessBanner"
-                    onImageUpload={handleBannerUpload}
-                    onRemove={removeBanner}
-                    existingImageUrl={formData.banner}
-                    disabled={uploadingBanner}
-                    className="w-full h-full"
-                  />
-                )}
+                    <ImageUploadWithCrop
+                      variant="businessBanner"
+                      onImageUpload={handleBannerUpload}
+                      onRemove={removeBanner}
+                      existingImageUrl={formData.banner}
+                      disabled={uploadingBanner}
+                      className="w-full"
+                    />
+                  )}
                 </div>
                 <p className="text-xs text-text-muted mt-1">Recommended: 1920x400px, PNG (landscape)</p>
                 {errors.banner && <p className="text-xs text-destructive mt-1">{errors.banner}</p>}

@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import { MessageCircle, Bot } from 'lucide-react';
 import { useBusinesses } from '@/hooks';
+import { SITE_CONFIG } from '@/lib/config/siteConfig';
 
 export const AdminContact: React.FC<{ open?: boolean; onOpenAi?: () => void }> = ({ open = false, onOpenAi }) => {
   const [isOpen, setIsOpen] = useState(open);
   const menuRef = React.useRef<HTMLDivElement | null>(null);
   const { data: businesses = [] } = useBusinesses({ limit: 1 });
   const business = businesses.length > 0 ? businesses[0] : null;
-  const email = business?.contactInfo?.email || '';
-  const phone = business?.contactInfo?.phone || '';
+  // Prefer developer support contact details when available
+  const email = SITE_CONFIG.developerSupportEmail || business?.contactInfo?.email || '';
+  const phone = SITE_CONFIG.developerSupportPhone || business?.contactInfo?.phone || '';
 
 
   // Close popover when clicking outside
@@ -59,7 +61,7 @@ export const AdminContact: React.FC<{ open?: boolean; onOpenAi?: () => void }> =
                 role="menuitem"
               >
                 <Bot className="w-4 h-4" />
-                <span>AI Support</span>
+                <span>{SITE_CONFIG.aiSupportName || 'AI Support'}</span>
               </button>
 
               <button

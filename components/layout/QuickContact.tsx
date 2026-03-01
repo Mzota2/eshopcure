@@ -9,12 +9,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, Mail, Phone, X, Bot, Send } from 'lucide-react';
 import { useBusinesses } from '@/hooks';
+import { sanitizeHtmlContent } from '@/lib/utils/sanitizeHtml';
+import { useAuth } from '@/contexts/AuthContext';
+import { SITE_CONFIG } from '@/lib/config/siteConfig';
 
 
 export const QuickContact: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { data: businesses = [] } = useBusinesses({ limit: 1 });
+  const { user } = useAuth();
 
   const business = businesses.length > 0 ? businesses[0] : null;
   const phoneNumber = business?.contactInfo?.phone || '';
@@ -67,7 +71,8 @@ export const QuickContact: React.FC = () => {
 
   // AI support state
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string }>>([]);
+  const [aiMessages, setAiMessages] = useState<Array<{ id?: string; sender: 'user' | 'ai'; text?: string; html?: string; confidence?: 'high' | 'medium' | 'low' | 'unknown'; uncertain?: boolean }>>([]);
+  const [humanRequests, setHumanRequests] = useState<Record<string, { loading: boolean; sent: boolean }>>({});
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiTopic, setAiTopic] = useState<'ordering' | 'booking' | 'refund' | 'cancellation' | 'business'>('business');
@@ -78,8 +83,9 @@ export const QuickContact: React.FC = () => {
     const trimmed = aiInput.trim();
     if (!trimmed) return;
 
-    // Append user message
-    setAiMessages(prev => [...prev, { sender: 'user', text: trimmed }]);
+    // Append user message (generate id so we can reference it later if needed)
+    const userMsgId = `u-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+    setAiMessages(prev => [...prev, { id: userMsgId, sender: 'user', text: trimmed }]);
     setAiLoading(true);
     setAiInput('');
 
@@ -93,13 +99,24 @@ export const QuickContact: React.FC = () => {
       const json = await res.json();
       if (!res.ok || json.error) {
         const errMsg = json?.error || 'AI service error';
-        setAiMessages(prev => [...prev, { sender: 'ai', text: `Sorry, I couldn't reach AI support: ${errMsg}` }]);
+        setAiMessages(prev => [...prev, { sender: 'ai', text: `Sorry, I couldn't reach AI support: ${errMsg}`, confidence: 'unknown' }]);
       } else {
-        setAiMessages(prev => [...prev, { sender: 'ai', text: json.reply || 'No response from AI.' }]);
+        // Prefer sanitized HTML if the API provided it
+        const replyText = json.reply || '';
+        const replyHtml = json.html || null;
+        const confidence = json.confidence || 'unknown';
+        const uncertain = !!json.uncertain;
+
+        const aiMsgId = `ai-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+        if (replyHtml) {
+          setAiMessages(prev => [...prev, { id: aiMsgId, sender: 'ai', html: replyHtml, text: replyText, confidence, uncertain }]);
+        } else {
+          setAiMessages(prev => [...prev, { id: aiMsgId, sender: 'ai', text: replyText, confidence, uncertain }]);
+        }
       }
     } catch (err) {
       console.error('AI send error', err);
-      setAiMessages(prev => [...prev, { sender: 'ai', text: 'An unexpected error occurred contacting AI support.' }]);
+      setAiMessages(prev => [...prev, { sender: 'ai', text: 'An unexpected error occurred contacting AI support.', confidence: 'unknown' }]);
     } finally {
       setAiLoading(false);
       // Scroll to bottom after short delay
@@ -178,9 +195,14 @@ export const QuickContact: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md mx-4 bg-card rounded-lg border border-border shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b border-border">
-                      <div className="flex items-center gap-2">
-                <Bot className="w-5 h-5" />
-                <h3 className="font-semibold">AI Support</h3>
+                      <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <Bot className="w-5 h-5" />
+                  <h3 className="font-semibold">{SITE_CONFIG.aiSupportName || 'AI Support'}</h3>
+                </div>
+                {SITE_CONFIG.aiSupportDescription && (
+                  <div className="text-xs text-text-secondary">{SITE_CONFIG.aiSupportDescription}</div>
+                )}
               </div>
               <button onClick={() => setAiOpen(false)} className="p-2" aria-label="Close AI support">
                 <X className="w-5 h-5" />
@@ -202,18 +224,89 @@ export const QuickContact: React.FC = () => {
                 <option value="business">Business information</option>
               </select>
 
+              <div className="text-xs text-text-secondary mb-2">AI will indicate if it is unsure. The responses are suggestions and not actions; do not share secrets or credentials.</div>
+
               <div ref={aiMessagesRef} className="h-56 overflow-y-auto border border-border rounded p-3 bg-background">
                 {aiMessages.length === 0 && (
                   <p className="text-sm text-text-secondary">Ask about orders, bookings, refunds, cancellations, or business details.</p>
                 )}
-                {aiMessages.map((m, idx) => (
-                  <div key={idx} className={`mb-2 ${m.sender === 'user' ? 'text-right' : ''}`}>
-                    <div className={`inline-block rounded-md p-2 ${m.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground'}`}>
-                      {m.text}
+                {aiMessages.map((m, idx) => {
+                  const isUser = m.sender === 'user';
+                  return (
+                    <div key={m.id || idx} className={`mb-2 ${isUser ? 'text-right' : ''}`}>
+                      <div className={`inline-block rounded-md p-2 max-w-[80%] leading-relaxed wrap-break-word ${isUser ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground'}`}>
+                        {m.html ? (
+                          <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(m.html || '') }} />
+                        ) : (
+                          <div>{m.text}</div>
+                        )}
+
+                        {/* Confidence / uncertainty hint for AI messages */}
+                        {!isUser && m.confidence && m.confidence !== 'unknown' && (
+                          <div className="mt-1 text-xs text-text-secondary italic">Confidence: {m.confidence}{m.uncertain ? ' — this may be incomplete. Verify or contact support.' : ''}</div>
+                        )}
+
+                        {/* Request human support button when AI is unsure or low confidence */}
+                        {!isUser && (m.uncertain || m.confidence === 'low') && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                const msgId = m.id || `ai-${idx}`;
+                                setHumanRequests(prev => ({ ...prev, [msgId]: { loading: true, sent: false } }));
+                                try {
+                                  const payload = {
+                                    userMessage: aiMessages.find(x => x.sender === 'user')?.text || '',
+                                    aiReply: m.text || '',
+                                    topic: aiTopic,
+                                    customerEmail: user?.email || undefined,
+                                    customerName: user?.displayName || undefined,
+                                    customerId: user?.uid || undefined,
+                                    confidence: m.confidence || 'unknown',
+                                  };
+                                  const res = await fetch('/api/ai-support/human-request', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(payload),
+                                  });
+                                  const json = await res.json();
+                                  if (res.ok && json.success) {
+                                    setHumanRequests(prev => ({ ...prev, [msgId]: { loading: false, sent: true } }));
+                                  } else {
+                                    setHumanRequests(prev => ({ ...prev, [msgId]: { loading: false, sent: false } }));
+                                    console.error('Human request error', json);
+                                  }
+                                } catch (e) {
+                                  console.error('Human request failed', e);
+                                  setHumanRequests(prev => ({ ...prev, [m.id || `ai-${idx}`]: { loading: false, sent: false } }));
+                                }
+                              }}
+                              className="inline-flex items-center gap-2 px-2 py-1 rounded border text-sm bg-muted hover:opacity-95"
+                            >
+                              {humanRequests[m.id || `ai-${idx}`]?.loading ? 'Requesting…' : (humanRequests[m.id || `ai-${idx}`]?.sent ? 'Requested' : 'Request human support')}
+                            </button>
+
+                            {humanRequests[m.id || `ai-${idx}`]?.sent && (
+                              <div className="text-xs text-text-secondary">Human support requested — an admin will contact you.</div>
+                            )}
+                          </div>
+                        )}
+
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
+              {/* Encourage manual escalation when AI is unsure or low confidence */}
+              {aiMessages.some(m => m.uncertain || m.confidence === 'low') && (
+                <div className="mb-3 p-3 rounded border border-yellow-200 bg-yellow-50 text-sm">
+                  <ol className="list-decimal list-inside">
+                    <li><strong>Click Request human support</strong> next to the AI message.</li>
+                    <li><strong>We will notify admins</strong> who can review the conversation and follow up.</li>
+                    <li><strong>Admins will contact you</strong> via in-app notification or email.</li>
+                  </ol>
+                </div>
+              )}
 
               <div className="mt-3 flex gap-2">
                 <input
